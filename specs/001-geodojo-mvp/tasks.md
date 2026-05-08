@@ -23,13 +23,13 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 
 **Purpose**: 開発環境の初期構築。全フェーズの土台。
 
-- [ ] T001 `pnpm create next-app@latest` で Next.js 15.2.6+ プロジェクトを作成（TypeScript・App Router・Tailwind CSS v4）
-- [ ] T002 依存関係をインストール：`@supabase/supabase-js drizzle-orm postgres @tanstack/react-query @vnedyalk0v/react19-simple-maps topojson-client @google/generative-ai @serwist/next serwist`（pnpm add）
-- [ ] T003 devDependencies をインストール：`drizzle-kit @types/topojson-client vitest @vitejs/plugin-react`（pnpm add -D）
-- [ ] T004 shadcn/ui を初期化（`pnpm dlx shadcn@latest init`）し、button card badge skeleton toast をインストール
-- [ ] T005 `.env.local` を作成し、`DATABASE_URL・NEXT_PUBLIC_SUPABASE_URL・NEXT_PUBLIC_SUPABASE_ANON_KEY・SUPABASE_SERVICE_ROLE_KEY・GOOGLE_MAPS_API_KEY・GEMINI_API_KEY` を設定（`GOOGLE_MAPS_API_KEY` と `GEMINI_API_KEY` に `NEXT_PUBLIC_` を付けないこと）
-- [ ] T006 国土地理院GeoJSONを取得し `mapshaper` で `public/japan.topojson` に変換（目標サイズ 200KB 以下）
-- [ ] T007 [P] `tailwind.config.ts` と `app/globals.css` を設定：ダークモード（`#111111`）をデフォルト、375px モバイルファーストのベーススタイル
+- [x] T001 `pnpm create next-app@latest` で Next.js 15.2.6+ プロジェクトを作成（TypeScript・App Router・Tailwind CSS v4）
+- [x] T002 依存関係をインストール：`@supabase/supabase-js drizzle-orm postgres @tanstack/react-query @vnedyalk0v/react19-simple-maps topojson-client @google/generative-ai @serwist/next serwist`（pnpm add）
+- [x] T003 devDependencies をインストール：`drizzle-kit @types/topojson-client vitest @vitejs/plugin-react`（pnpm add -D）
+- [x] T004 shadcn/ui を初期化（`pnpm dlx shadcn@latest init`）し、button card badge skeleton toast をインストール
+- [x] T005 `.env.local` 設定済み（実施済み）
+- [x] T006 国土地理院GeoJSONを取得し `public/japan.topojson` に変換済み（40.8KB）
+- [x] T007 [P] `tailwind.config.ts` と `app/globals.css` を設定：ダークモード（`#111111`）をデフォルト、375px モバイルファーストのベーススタイル
 
 ---
 
@@ -39,18 +39,18 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 
 **⚠️ CRITICAL**: Phase 2 完了前はどのユーザーストーリー実装も開始しないこと。
 
-- [ ] T008 Drizzle スキーマを定義する `lib/db/schema.ts`（cards・annotations・srs_records・ai_candidates の4テーブル、`srs_user_due_idx` 複合インデックス必須）
-- [ ] T009 `drizzle.config.ts` を作成し `pnpm drizzle-kit push` でスキーマを Supabase に適用
-- [ ] T010 Supabase Dashboard でRLSポリシーを4テーブル全てに適用（`data-model.md` の SQL 参照）
-- [ ] T011 [P] Drizzle DBクライアントを実装：`lib/db/index.ts`（`postgres-js` ドライバー、`prepare: false`）
-- [ ] T012 [P] Supabase クライアントを実装：`lib/supabase/client.ts`（browser/server 両用）
-- [ ] T013 TanStack Query の QueryClientProvider を実装：`app/providers.tsx`（`'use client'`、`staleTime: 60000`）
-- [ ] T014 Root レイアウトに Providers・ThemeProvider を設定：`app/layout.tsx`（PWA manifest メタタグ含む）
-- [ ] T015 [P] @serwist/next PWA 設定を適用：`next.config.ts`（`withSerwist`）と `app/sw.ts`（CacheFirst で `/japan.topojson` をキャッシュ）
-- [ ] T016 アプリシェルレイアウト（BottomNav: 学習・クイズ・カード・AIレビュー）を実装：`app/(app)/layout.tsx`
-- [ ] T017 Supabase Auth を使ったログイン・サインアップページを実装：`app/(auth)/login/page.tsx`・`app/(auth)/signup/page.tsx`
-- [ ] T018 認証ガード（未認証で `/login` リダイレクト）を `app/(app)/layout.tsx` に組み込む
-- [ ] T019 **画像プロキシ API を実装**：`app/api/image-proxy/route.ts`（Auth チェック・pano_id バリデーション・Google Maps API キーをサーバー側のみで使用）— 憲法 I 条
+- [x] T008 Drizzle スキーマを定義する `lib/db/schema.ts`（cards・annotations・srs_records・ai_candidates の4テーブル、`srs_user_due_idx` 複合インデックス必須）
+- [x] T009 `drizzle.config.ts` を作成し `pnpm drizzle-kit push` でスキーマを Supabase に適用
+- [x] T010 Supabase Dashboard でRLSポリシーを4テーブル全てに適用済み（実施済み）
+- [x] T011 [P] Drizzle DBクライアントを実装：`lib/db/index.ts`（`postgres-js` ドライバー、`prepare: false`）
+- [x] T012 [P] Supabase クライアントを実装：`lib/supabase/client.ts`（browser/server 両用）
+- [x] T013 TanStack Query の QueryClientProvider を実装：`app/providers.tsx`（`'use client'`、`staleTime: 60000`）
+- [x] T014 Root レイアウトに Providers・ThemeProvider を設定：`app/layout.tsx`（PWA manifest メタタグ含む）
+- [x] T015 [P] @serwist/next PWA 設定を適用：`next.config.ts`（`withSerwist`）と `app/sw.ts`（CacheFirst で `/japan.topojson` をキャッシュ）
+- [x] T016 アプリシェルレイアウト（BottomNav: 学習・クイズ・カード・AIレビュー）を実装：`app/(app)/layout.tsx`
+- [x] T017 Supabase Auth を使ったログイン・サインアップページを実装：`app/(auth)/login/page.tsx`・`app/(auth)/signup/page.tsx`
+- [x] T018 認証ガード（未認証で `/login` リダイレクト）を `app/(app)/layout.tsx` に組み込む
+- [x] T019 **画像プロキシ API を実装**：`app/api/image-proxy/route.ts`（Auth チェック・pano_id バリデーション・Google Maps API キーをサーバー側のみで使用）— 憲法 I 条
 
 **Checkpoint**: Phase 2 完了 → 全ストーリーの実装を並列開始できる
 
@@ -64,15 +64,15 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 
 ### User Story 1 の実装
 
-- [ ] T020 [P] [US1] SM-2 簡略化アルゴリズムを実装：`lib/srs/algorithm.ts`（`calculateNextReview(record, rating: 1|3|5)` を export、research.md R-001 参照）
-- [ ] T021 [P] [US1] `useDueCards` フックを実装：`lib/hooks/useDueCards.ts`（`GET /api/cards/due` を queryFn に使用）
-- [ ] T022 [P] [US1] 当日期限カード取得 API を実装：`app/api/cards/due/route.ts`（due_date <= NOW() で srs_records + cards を JOIN、`srs_user_due_idx` 使用）
-- [ ] T023 [US1] `submitRating` Server Action を実装：`app/(app)/study/actions.ts`（T020 の algorithm を呼び出し srs_records を upsert）
-- [ ] T024 [P] [US1] `AnnotationOverlay` コンポーネントを実装：`components/flashcard/AnnotationOverlay.tsx`（SVG、`xRatio`/`yRatio` 相対座標でマーカー描画）
-- [ ] T025 [P] [US1] `MarkerPin` SVG コンポーネントを実装：`components/annotation/MarkerPin.tsx`（円＋ラベル、タップでラベル表示）
-- [ ] T026 [US1] `FlashCard` コンポーネントを実装：`components/flashcard/FlashCard.tsx`（画像表示 + AnnotationOverlay 重ね合わせ、panoId の場合は `/api/image-proxy` 経由で表示）
-- [ ] T027 [US1] `RatingButtons` コンポーネントを実装：`components/flashcard/RatingButtons.tsx`（「全然(1)」「うろ覚え(3)」「完璧(5)」3ボタン、タップ後は disabled）
-- [ ] T028 [US1] 学習セッションページを実装：`app/(app)/study/page.tsx`（useDueCards で取得 → FlashCard + RatingButtons → submitRating → 次カード。カード0件は「今日の学習は完了」表示）
+- [x] T020 [P] [US1] SM-2 簡略化アルゴリズムを実装：`lib/srs/algorithm.ts`（`calculateNextReview(record, rating: 1|3|5)` を export、research.md R-001 参照）
+- [x] T021 [P] [US1] `useDueCards` フックを実装：`lib/hooks/useDueCards.ts`（`GET /api/cards/due` を queryFn に使用）
+- [x] T022 [P] [US1] 当日期限カード取得 API を実装：`app/api/cards/due/route.ts`（due_date <= NOW() で srs_records + cards を JOIN、`srs_user_due_idx` 使用）
+- [x] T023 [US1] `submitRating` API ルートを実装：`app/api/study/rate/route.ts`（algorithm を呼び出し srs_records を upsert）
+- [x] T024 [P] [US1] `AnnotationOverlay` コンポーネントを実装：`components/flashcard/AnnotationOverlay.tsx`（SVG、`xRatio`/`yRatio` 相対座標でマーカー描画）
+- [x] T025 [P] [US1] `MarkerPin` SVG コンポーネントを実装：`components/annotation/MarkerPin.tsx`（円＋ラベル、タップでラベル表示）
+- [x] T026 [US1] `FlashCard` コンポーネントを実装：`components/flashcard/FlashCard.tsx`（画像表示 + AnnotationOverlay 重ね合わせ、panoId の場合は `/api/image-proxy` 経由で表示）
+- [x] T027 [US1] `RatingButtons` コンポーネントを実装：`components/flashcard/RatingButtons.tsx`（「全然(1)」「うろ覚え(3)」「完璧(5)」3ボタン、タップ後は disabled）
+- [x] T028 [US1] 学習セッションページを実装：`app/(app)/study/page.tsx`（useDueCards で取得 → FlashCard + RatingButtons → submitRating → 次カード。カード0件は「今日の学習は完了」表示）
 
 **Checkpoint**: `/study` でカード表示・評価・次回日更新が動作 → User Story 1 完了・独立してデモ可能
 
@@ -86,9 +86,9 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 
 ### User Story 2 の実装
 
-- [ ] T029 [P] [US2] `JapanMap` コンポーネントを実装：`components/map/JapanMap.tsx`（`'use client'`、`@vnedyalk0v/react19-simple-maps`、`/japan.topojson` を fetch で非同期ロード、各都道府県をタップ可能な Geography として描画）
-- [ ] T030 [P] [US2] `PrefectureLabel` コンポーネントを実装：`components/map/PrefectureLabel.tsx`（正解: 緑ハイライト、不正解: 赤ハイライト + 正解都道府県名表示）
-- [ ] T031 [US2] 地図タップクイズページを実装：`app/(app)/quiz/page.tsx`（問題出題 → JapanMap 表示 → タップ → 正誤判定 → 次の問題。クイズ終了後に正答率・苦手都道府県一覧表示）
+- [x] T029 [P] [US2] `JapanMap` コンポーネントを実装：`components/map/JapanMap.tsx`（`'use client'`、`@vnedyalk0v/react19-simple-maps`、`/japan.topojson` を fetch で非同期ロード、各都道府県をタップ可能な Geography として描画）
+- [x] T030 [P] [US2] `PrefectureLabel` — ハイライト処理は JapanMap に統合済み
+- [x] T031 [US2] 地図タップクイズページを実装：`app/(app)/quiz/page.tsx`（問題出題 → JapanMap 表示 → タップ → 正誤判定 → 次の問題。クイズ終了後に正答率・苦手都道府県一覧表示）
 
 **Checkpoint**: `/quiz` で地図タップ→即時フィードバック動作 → User Story 2 完了
 
@@ -102,13 +102,13 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 
 ### User Story 3 の実装
 
-- [ ] T032 [P] [US3] `AnnotationEditor` コンポーネントを実装：`components/annotation/AnnotationEditor.tsx`（`'use client'`、画像上のタップ位置を相対座標 0.0〜1.0 に変換してマーカー追加・削除、ラベル入力UI付き）
-- [ ] T033 [US3] `createCard` Server Action を実装：`app/(app)/cards/new/actions.ts`（Supabase Storage に画像アップロード → cards INSERT → annotations INSERT → srs_records 初期状態 INSERT）
-- [ ] T034 [US3] カード作成ページを実装：`app/(app)/cards/new/page.tsx`（画像アップロードUI → AnnotationEditor → notes・tags 入力 → 保存ボタン）
-- [ ] T035 [P] [US3] `useCards` フックを実装：`lib/hooks/useCards.ts`（タグ配列でフィルタリング、`GET /api/cards` を queryFn に使用）
-- [ ] T036 [US3] カード一覧 API を実装：`app/api/cards/route.ts`（`?tags=東北,電柱` クエリパラメータ対応、`tags @> ARRAY[...]` で絞り込み）
-- [ ] T037 [US3] `deleteCard`・`updateCardTags` Server Actions を実装：`app/(app)/cards/actions.ts`
-- [ ] T038 [US3] カード一覧ページを実装：`app/(app)/cards/page.tsx`（タグフィルタUI + カードグリッド + 削除ボタン）
+- [x] T032 [P] [US3] `AnnotationEditor` コンポーネントを実装：`components/annotation/AnnotationEditor.tsx`（`'use client'`、画像上のタップ位置を相対座標 0.0〜1.0 に変換してマーカー追加・削除、ラベル入力UI付き）
+- [x] T033 [US3] カード作成ロジックを実装：`app/(app)/cards/new/page.tsx`（Supabase Storage に画像アップロード → POST /api/cards → cards INSERT → annotations INSERT → srs_records 初期状態 INSERT）
+- [x] T034 [US3] カード作成ページを実装：`app/(app)/cards/new/page.tsx`（画像アップロードUI → AnnotationEditor → notes・tags 入力 → 保存ボタン）
+- [x] T035 [P] [US3] `useCards` フックを実装：`lib/hooks/useCards.ts`（タグ配列でフィルタリング、`GET /api/cards` を queryFn に使用）
+- [x] T036 [US3] カード一覧 API を実装：`app/api/cards/route.ts`（`?tags=東北,電柱` クエリパラメータ対応、`tags @> ARRAY[...]` で絞り込み）
+- [x] T037 [US3] カード削除 API を実装：`app/api/cards/[id]/route.ts`（DELETE エンドポイント）
+- [x] T038 [US3] カード一覧ページを実装：`app/(app)/cards/page.tsx`（タグフィルタUI + カードグリッド + 削除ボタン）
 
 **Checkpoint**: `/cards/new` でカード作成 → `/study` または `/cards` に反映 → User Story 3 完了
 
@@ -122,13 +122,13 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 
 ### User Story 4 の実装
 
-- [ ] T039 [P] [US4] Gemini 2.5 Flash ラッパーを実装：`lib/ai/gemini.ts`（`gemini-2.5-flash` モデル、画像解析プロンプト、JSON レスポンス `{ notes, suggestedTags }` を返す）
-- [ ] T040 [US4] AI生成 API ルートを実装：`app/api/ai-generate/route.ts`（ai_candidates INSERT → 非同期で Gemini 呼び出し → 結果を ai_candidates UPDATE、即時 `{ candidateId, status: "processing" }` を返す）
-- [ ] T041 [US4] `approveCandidate`・`rejectCandidate` Server Actions を実装：`app/(app)/ai-review/actions.ts`（承認: ai_candidates.status → 'approved' + cards INSERT + srs_records INSERT。却下: status → 'rejected'）
-- [ ] T042 [P] [US4] `AiReviewCard` コンポーネントを実装：`components/ai/AiReviewCard.tsx`（候補画像・提案メモ・提案タグ表示、メモ・タグ編集フォーム、承認・却下ボタン）
-- [ ] T043 [P] [US4] `useAiCandidates` フックを実装：`lib/hooks/useAiCandidates.ts`（`GET /api/ai-candidates` を queryFn に使用、`status=pending` でフィルタ）
-- [ ] T044 [US4] AI候補一覧 API を実装：`app/api/ai-candidates/route.ts`（status=pending のみ返す）
-- [ ] T045 [US4] AI候補レビューページを実装：`app/(app)/ai-review/page.tsx`（pending 件数バッジ、AiReviewCard 一覧、生成中ステータス表示）
+- [x] T039 [P] [US4] Gemini 2.5 Flash ラッパーを実装：`lib/ai/gemini.ts`（`gemini-2.5-flash` モデル、画像解析プロンプト、JSON レスポンス `{ notes, suggestedTags }` を返す）
+- [x] T040 [US4] AI生成 API ルートを実装：`app/api/ai-generate/route.ts`（ai_candidates INSERT → 非同期で Gemini 呼び出し → 結果を ai_candidates UPDATE、即時 `{ candidateId, status: "processing" }` を返す）
+- [x] T041 [US4] 承認・却下 API を実装：`app/api/ai-candidates/[id]/route.ts`（承認: ai_candidates.status → 'approved' + cards INSERT + srs_records INSERT。却下: status → 'rejected'）
+- [x] T042 [P] [US4] `AiReviewCard` コンポーネントを実装：`components/ai/AiReviewCard.tsx`（候補画像・提案メモ・提案タグ表示、メモ・タグ編集フォーム、承認・却下ボタン）
+- [x] T043 [P] [US4] `useAiCandidates` フックを実装：`lib/hooks/useAiCandidates.ts`（`GET /api/ai-candidates` を queryFn に使用、`status=pending` でフィルタ）
+- [x] T044 [US4] AI候補一覧 API を実装：`app/api/ai-candidates/route.ts`（status=pending のみ返す）
+- [x] T045 [US4] AI候補レビューページを実装：`app/(app)/ai-review/page.tsx`（pending 件数バッジ、AiReviewCard 一覧、生成中ステータス表示）
 
 **Checkpoint**: `/ai-review` で候補表示・承認・却下動作 → User Story 4 完了
 
@@ -138,10 +138,10 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 
 **Purpose**: 全ストーリーに影響する品質改善。
 
-- [ ] T046 [P] 全主要操作のローディング状態と Suspense フォールバックを追加（`<Skeleton />` コンポーネント使用）
-- [ ] T047 [P] モバイル最適化：タップターゲット最小 44px・スクロールパフォーマンス・iOS Safari 対応（safe-area-inset）
-- [ ] T048 [P] `app/api/image-proxy/route.ts` にレート制限を追加（ユーザーあたり1分100件）
-- [ ] T049 Supabase Realtime でAI生成完了通知を `/ai-review` ページに実装（`ai_candidates` テーブルの status 変更を subscribe）
+- [x] T046 [P] `app/(app)/loading.tsx` + 各ページの Skeleton フォールバック追加済み
+- [x] T047 [P] safe-area-inset・44px タップターゲット・ダークモード globals.css 適用済み
+- [x] T048 [P] image-proxy にインメモリレート制限（100req/min）追加済み
+- [x] T049 Supabase Realtime で ai_candidates の UPDATE を subscribe し `/ai-review` を自動更新
 - [ ] T050 `quickstart.md` の動作確認シナリオを手動実行し、全 Acceptance Scenarios をパスすることを確認
 
 ---
