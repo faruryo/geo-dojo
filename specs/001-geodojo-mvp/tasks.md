@@ -146,6 +146,21 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 
 ---
 
+## Phase 8: Post-MVP バグ修正・UX改善
+
+**Purpose**: MVP動作確認後に発見された不具合・UX問題の修正。
+
+- [x] T051 [P] `/cards/new` に「✨ AIに提案させる」ボタンを追加（`app/(app)/cards/new/page.tsx`）
+- [x] T052 [P] `AiReviewCard` の processing→pending 遷移時にフォームが空になる不具合を修正（`useEffect` で state 同期）
+- [x] T053 [P] `FlashCard`・`AnnotationEditor` の縦長画像クロップ問題を修正（`aspect-video` + `object-cover`）
+- [x] T054 `/study` ページの「残り -1 枚」バグを修正（`currentIndex` 廃止、常に `cards[0]` を表示）
+- [x] T055 `/study` ページのレイアウト改善（評価ボタンを画面下部に固定、カードエリアをスクロール可能に）
+- [x] T056 `react-easy-crop` を使った16:9クロップUI導入（`app/(app)/cards/new/page.tsx`）— アップロード前にユーザーが範囲調整可能
+- [x] T057 [P] `FlashCard`・`AnnotationEditor`・`AiReviewCard` を `max-w-2xl mx-auto self-center aspect-video` で統一（Web/モバイル両対応）
+- [x] T058 [P] `ai-generate` API の catch ブロックにエラーログを追加（デバッグ用）
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
