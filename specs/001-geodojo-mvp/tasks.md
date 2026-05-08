@@ -142,7 +142,7 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 - [x] T047 [P] safe-area-inset・44px タップターゲット・ダークモード globals.css 適用済み
 - [x] T048 [P] image-proxy にインメモリレート制限（100req/min）追加済み
 - [x] T049 Supabase Realtime で ai_candidates の UPDATE を subscribe し `/ai-review` を自動更新
-- [ ] T050 `quickstart.md` の動作確認シナリオを手動実行し、全 Acceptance Scenarios をパスすることを確認
+- [x] T050 `quickstart.md` の動作確認シナリオを手動実行し、全 Acceptance Scenarios をパスすることを確認
 
 ---
 
