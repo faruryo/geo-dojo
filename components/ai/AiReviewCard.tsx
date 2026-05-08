@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import type { AiCandidate } from '@/lib/db/schema';
 import { Check, X, Loader2 } from 'lucide-react';
@@ -15,6 +15,11 @@ export function AiReviewCard({ candidate, onApprove, onReject }: AiReviewCardPro
   const [notes, setNotes] = useState(candidate.suggestedNotes ?? '');
   const [tags, setTags] = useState(candidate.suggestedTags.join(', '));
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setNotes(candidate.suggestedNotes ?? '');
+    setTags(candidate.suggestedTags.join(', '));
+  }, [candidate.suggestedNotes, candidate.suggestedTags]);
 
   if (candidate.status === 'processing') {
     return (
@@ -45,7 +50,7 @@ export function AiReviewCard({ candidate, onApprove, onReject }: AiReviewCardPro
         <img
           src={candidate.imageUrl}
           alt="AI候補画像"
-          className="w-full aspect-video object-cover"
+          className="w-full max-w-2xl mx-auto self-center aspect-video object-cover"
         />
       )}
       <div className="p-4 flex flex-col gap-3">

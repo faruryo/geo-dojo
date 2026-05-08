@@ -3,12 +3,24 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
+import Cropper, { type Area } from 'react-easy-crop';
 import { AnnotationEditor, type AnnotationDraft } from '@/components/annotation/AnnotationEditor';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase/client';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+async function getCroppedBlob(src: string, crop: Area): Promise<Blob> {
+  const img = new Image();
+  img.src = src;
+  await new Promise<void>((resolve) => { img.onload = () => resolve(); });
+  const canvas = document.createElement('canvas');
+  canvas.width = crop.width;
+  canvas.height = crop.height;
+  canvas.getContext('2d')!.drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.92));
+}
 
 export default function NewCardPage() {
   const router = useRouter();
@@ -22,6 +34,12 @@ export default function NewCardPage() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fileError, setFileError] = useState('');
+
+  const [rawImageUrl, setRawImageUrl] = useState('');
+  const [showCropper, setShowCropper] = useState(false);
+  const [cropPosition, setCropPosition] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -37,8 +55,27 @@ export default function NewCardPage() {
     }
 
     setFileError('');
-    setImageFile(file);
-    setImageUrl(URL.createObjectURL(file));
+    setRawImageUrl(URL.createObjectURL(file));
+    setCropPosition({ x: 0, y: 0 });
+    setZoom(1);
+    setShowCropper(true);
+  }
+
+  async function handleCropConfirm() {
+    if (!croppedAreaPixels) return;
+    const blob = await getCroppedBlob(rawImageUrl, croppedAreaPixels);
+    setImageFile(new File([blob], 'cropped.jpg', { type: 'image/jpeg' }));
+    setImageUrl(URL.createObjectURL(blob));
+    setAnnotations([]);
+    setShowCropper(false);
+  }
+
+  function handleReset() {
+    setImageUrl('');
+    setImageFile(null);
+    setRawImageUrl('');
+    setAnnotations([]);
+    setShowCropper(false);
   }
 
   async function uploadImage(): Promise<string | null> {
@@ -48,16 +85,41 @@ export default function NewCardPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
 
-    const path = `${session.user.id}/${Date.now()}-${imageFile.name}`;
+    const path = `${session.user.id}/${Date.now()}-cropped.jpg`;
     const { error } = await supabase.storage
       .from('card-images')
-      .upload(path, imageFile, { contentType: imageFile.type });
+      .upload(path, imageFile, { contentType: 'image/jpeg' });
 
     setUploading(false);
     if (error) return null;
 
     const { data } = supabase.storage.from('card-images').getPublicUrl(path);
     return data.publicUrl;
+  }
+
+  async function handleAiGenerate() {
+    if (!imageFile) {
+      alert('画像を選択してください');
+      return;
+    }
+    setSaving(true);
+    const storedImageUrl = await uploadImage();
+    if (!storedImageUrl) {
+      setSaving(false);
+      alert('画像のアップロードに失敗しました');
+      return;
+    }
+    const res = await fetch('/api/ai-generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageUrl: storedImageUrl }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      router.push('/ai-review');
+    } else {
+      alert('AI生成のリクエストに失敗しました');
+    }
   }
 
   async function handleSave() {
@@ -101,7 +163,42 @@ export default function NewCardPage() {
       {/* 画像アップロード */}
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">画像（任意）</label>
-        {imageUrl ? (
+
+        {showCropper ? (
+          <div className="flex flex-col gap-3">
+            <div className="relative w-full h-64 bg-black rounded-xl overflow-hidden">
+              <Cropper
+                image={rawImageUrl}
+                crop={cropPosition}
+                zoom={zoom}
+                aspect={16 / 9}
+                onCropChange={setCropPosition}
+                onZoomChange={setZoom}
+                onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+              />
+            </div>
+            <div className="flex items-center gap-3 px-1">
+              <span className="text-xs text-muted-foreground shrink-0">ズーム</span>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.05}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="flex-1"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleCropConfirm} className="flex-1">
+                この範囲でトリミング
+              </Button>
+              <Button variant="ghost" onClick={handleReset}>
+                キャンセル
+              </Button>
+            </div>
+          </div>
+        ) : imageUrl ? (
           <div className="relative">
             <AnnotationEditor
               imageUrl={imageUrl}
@@ -110,7 +207,7 @@ export default function NewCardPage() {
             />
             <button
               className="absolute top-2 right-2 bg-background/80 text-xs px-2 py-1 rounded border border-border"
-              onClick={() => { setImageUrl(''); setImageFile(null); setAnnotations([]); }}
+              onClick={handleReset}
             >
               変更
             </button>
@@ -150,9 +247,20 @@ export default function NewCardPage() {
         />
       </div>
 
+      {imageUrl && !showCropper && (
+        <Button
+          onClick={handleAiGenerate}
+          disabled={saving || uploading}
+          variant="outline"
+          className="w-full"
+        >
+          {saving || uploading ? '処理中...' : '✨ AIに提案させる'}
+        </Button>
+      )}
+
       <Button
         onClick={handleSave}
-        disabled={saving || uploading}
+        disabled={saving || uploading || showCropper}
         className="w-full"
       >
         {saving || uploading ? '保存中...' : 'カードを保存'}

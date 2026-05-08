@@ -19,7 +19,7 @@ export function FlashCard({ card }: FlashCardProps) {
     <div className="flex flex-col gap-4">
       {/* 画像エリア */}
       <div
-        className="relative w-full aspect-video bg-muted rounded-xl overflow-hidden cursor-pointer"
+        className="relative w-full max-w-2xl mx-auto self-center aspect-video bg-muted rounded-xl overflow-hidden cursor-pointer"
         onClick={() => setRevealed((v) => !v)}
       >
         {imageSrc ? (

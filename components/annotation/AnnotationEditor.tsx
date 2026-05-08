@@ -48,7 +48,7 @@ export function AnnotationEditor({ imageUrl, annotations, onChange }: Annotation
       {/* 画像 + SVGオーバーレイ */}
       <div
         ref={containerRef}
-        className="relative w-full aspect-video bg-muted rounded-xl overflow-hidden cursor-crosshair"
+        className="relative w-full max-w-2xl mx-auto self-center aspect-video bg-muted rounded-xl overflow-hidden cursor-crosshair"
         onClick={handleImageClick}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
