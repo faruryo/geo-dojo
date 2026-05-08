@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDueCards } from '@/lib/hooks/useDueCards';
 import { FlashCard } from '@/components/flashcard/FlashCard';
@@ -13,10 +12,9 @@ import { BookOpen } from 'lucide-react';
 export default function StudyPage() {
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useDueCards();
-  const [currentIndex, setCurrentIndex] = useState(0);
 
   const cards = data?.cards ?? [];
-  const current = cards[currentIndex];
+  const current = cards[0];
 
   async function handleRate(rating: Rating) {
     if (!current) return;
@@ -28,11 +26,6 @@ export default function StudyPage() {
     });
 
     await queryClient.invalidateQueries({ queryKey: ['cards', 'due'] });
-
-    setCurrentIndex((i) => {
-      const remaining = cards.length - 1;
-      return i >= remaining ? 0 : i + 1;
-    });
   }
 
   if (isLoading) {
@@ -72,16 +65,20 @@ export default function StudyPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col h-full p-4 gap-4">
       {/* 進捗 */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>{currentIndex + 1} / {cards.length}</span>
-        <span>残り {cards.length - currentIndex - 1} 枚</span>
+      <div className="flex items-center justify-between text-sm text-muted-foreground shrink-0">
+        <span>残り {cards.length} 枚</span>
       </div>
 
-      {current && <FlashCard card={current} />}
+      {/* カードエリア: 縦長画像でもスクロール可能、ボタンを押し出さない */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {current && <FlashCard card={current} />}
+      </div>
 
-      <RatingButtons onRate={handleRate} />
+      <div className="shrink-0">
+        <RatingButtons onRate={handleRate} />
+      </div>
     </div>
   );
 }

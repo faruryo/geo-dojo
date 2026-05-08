@@ -47,7 +47,8 @@ export async function POST(req: NextRequest) {
         .set({ suggestedNotes: notes, suggestedTags, status: 'pending' })
         .where(eq(aiCandidates.id, candidateId));
     })
-    .catch(async () => {
+    .catch(async (err) => {
+      console.error('[ai-generate] Gemini processing failed:', err);
       const { eq } = await import('drizzle-orm');
       await db
         .update(aiCandidates)
