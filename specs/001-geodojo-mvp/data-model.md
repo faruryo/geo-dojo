@@ -97,15 +97,66 @@ export const aiCandidates = pgTable('ai_candidates', {
   createdAt:      timestamp('created_at').defaultNow().notNull(),
 });
 
+// ──────────────────────────────────────────
+// municipality_quiz_results
+// 市区町村クイズの正解/不正解記録（苦手優先モード用）
+// ──────────────────────────────────────────
+export const municipalityQuizResults = pgTable(
+  'municipality_quiz_results',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    userId:           uuid('user_id').notNull(),
+    municipalityCode: text('municipality_code').notNull(), // 行政区域コード（同名市区町村を区別）
+    municipalityName: text('municipality_name').notNull(),
+    prefecture:       text('prefecture').notNull(),
+    mode:             text('mode').notNull(),              // 'A'|'B'|'C'|'D'
+    isCorrect:        boolean('is_correct').notNull(),
+    answeredAt:       timestamp('answered_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userCodeIdx: index('mqr_user_code_idx').on(table.userId, table.municipalityCode),
+    userTimeIdx: index('mqr_user_time_idx').on(table.userId, table.answeredAt),
+  }),
+);
+
 // 型エクスポート（TypeScript型推論用）
-export type Card         = typeof cards.$inferSelect;
-export type NewCard      = typeof cards.$inferInsert;
-export type Annotation   = typeof annotations.$inferSelect;
-export type SrsRecord    = typeof srsRecords.$inferSelect;
-export type AiCandidate  = typeof aiCandidates.$inferSelect;
+export type Card                    = typeof cards.$inferSelect;
+export type NewCard                 = typeof cards.$inferInsert;
+export type Annotation              = typeof annotations.$inferSelect;
+export type SrsRecord               = typeof srsRecords.$inferSelect;
+export type AiCandidate             = typeof aiCandidates.$inferSelect;
+export type MunicipalityQuizResult  = typeof municipalityQuizResults.$inferSelect;
 ```
 
 ## テーブル設計の補足
+
+### municipality_quiz_results の設計
+
+- 1 レコード = 1 回の回答（同一市区町村に複数回答えても INSERT）
+- 苦手集計は直近 N 件でウィンドウを切って計算する（全件スキャン回避）
+- `municipality_code` は行政区域コード（5桁）で同名市区町村（例: 府中市）を区別する
+- 同名市区町村を全選択させるモードAでは、各選択につき 1 レコード INSERT する
+
+### Supabase RLS（追加）
+
+```sql
+ALTER TABLE municipality_quiz_results ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "mqr_own" ON municipality_quiz_results
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+```
+
+### 苦手優先クエリパターン
+
+```sql
+-- 市区町村ごとの直近100件における不正解率
+SELECT municipality_code, municipality_name, prefecture,
+       COUNT(*) FILTER (WHERE NOT is_correct)::float / COUNT(*) AS error_rate
+FROM municipality_quiz_results
+WHERE user_id = $userId
+GROUP BY municipality_code, municipality_name, prefecture
+ORDER BY error_rate DESC;
+```
 
 ### cards.imageUrl vs cards.panoId
 

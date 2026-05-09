@@ -298,3 +298,244 @@ export async function GET(req: NextRequest) {
   });
 }
 ```
+
+---
+
+## R-008: 市区町村 GeoJSON/TopoJSON データソース
+
+**Decision**: 国土数値情報 N03（行政区域データ）の最新版を **MLIT 公式から直接ダウンロード** し、`ogr2ogr`（Shapefile → GeoJSON）→ `mapshaper`（簡略化 + TopoJSON 化 + プロパティリネーム）のパイプラインで `public/japan-municipalities.topojson` を生成する。
+
+**Rationale（中継リポジトリを使わない理由）**:
+- `niiyz/JapanCityGeoJson` は **LICENSE ファイルなし**（"All rights reserved" がデフォルト）で再配布の法的根拠が不明確。
+- 同リポジトリのデータは **2020-01-01 時点**で6年以上古く、その後の市町村合併・改称が反映されていない。
+- 一方 MLIT N03 は **PDL1.0（Public Data License 1.0）** で商用利用可能、毎年4月頃に更新されている。
+
+**ライセンス遵守**:
+- N03 行政区域データは PDL1.0（商用可）。
+- アプリ内に **出典表記の表示が必須**（FR-016 参照）：
+  ```
+  「国土数値情報（行政区域データ）」（国土交通省）
+  https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-v3_1.html
+  をもとに GeoDojo が加工して作成
+  ```
+- 出典表記は `app/layout.tsx` の footer または `/about` ページで常時アクセス可能にする。
+
+**プロパティ命名規則**:
+- N03 標準プロパティ：`N03_001`（都道府県）・`N03_004`（市区町村）・`N03_007`（団体コード5桁）
+- これを既存の都道府県 TopoJSON と整合させるため、mapshaper の `-rename-fields` で `nam_ja`（市区町村名）・`pref_ja`（都道府県）・`code`（団体コード）に **明示的にリネーム**する。
+
+**変換パイプライン**:
+```bash
+# 1. MLIT 公式から最新の N03 Shapefile をダウンロード
+#    https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-v3_1.html
+#    → N03-YYYYMMDD_GML.zip を取得・解凍
+
+# 2. Shapefile → GeoJSON（GDAL の ogr2ogr が必要）
+ogr2ogr -f GeoJSON -t_srs EPSG:4326 \
+  japan-municipalities-raw.geojson \
+  N03-YYYYMMDD.shp
+
+# 3. mapshaper で簡略化 + プロパティ統一 + TopoJSON 化
+npx mapshaper japan-municipalities-raw.geojson \
+  -simplify 0.05 keep-shapes \
+  -rename-fields nam_ja=N03_004,pref_ja=N03_001,code=N03_007 \
+  -filter-fields nam_ja,pref_ja,code \
+  -o format=topojson public/japan-municipalities.topojson
+
+# 4. サイズ実測（目標: モバイル受容範囲 < 2MB）
+ls -lh public/japan-municipalities.topojson
+```
+
+**注意**: `-simplify` の値（0.05）と最終ファイルサイズは実測後に決定する。0.02 / 0.05 / 0.1 を比較し、視認性とサイズのバランスを取る。
+
+**PWA キャッシュ設定**:
+```ts
+// app/sw.ts に追加
+{
+  matcher: ({ url }) => url.pathname.endsWith('japan-municipalities.topojson'),
+  handler: 'CacheFirst',
+  options: { cacheName: 'map-data', expiration: { maxAgeSeconds: 2592000 } },
+},
+```
+
+**同名市区町村（複数都道府県に存在する例）**:
+- 府中市: 東京都・広島県
+- 八幡市: 京都府・福岡県
+- 栄町: 千葉県・長野県
+- 大多喜町: 千葉県・高知県
+
+これらは `code`（団体コード）で一意に識別する。クイズデータには `id: code` を付与する。
+
+**Alternatives considered**:
+- `niiyz/JapanCityGeoJson`: LICENSE なし・データが2020年で古いため不採用
+- `smartnews-smri/japan-topography`: LICENSE はあるが N03 N03 ベースでこちらも更新が遅延しがち
+- `dataofjapan/land`: 都道府県のみで市区町村未対応
+
+---
+
+## R-009: municipality_quiz_results テーブル設計
+
+**Decision**: `municipality_quiz_results` テーブルを新設し、正解/不正解を記録。苦手優先モードは直近 100 件の不正解率で重み付けする。
+
+**Rationale**:
+- SRS の `srs_records` とは独立して設計する（クイズ結果は SRS の学習履歴とは異なるエンティティ）。
+- 苦手優先モード実装に必要な最小フィールドのみ保持してテーブルを軽量に保つ。
+- `(user_id, municipality_code)` インデックスで苦手市区町村の集計クエリを高速化。
+
+**Drizzle スキーマ**:
+```ts
+export const municipalityQuizResults = pgTable(
+  'municipality_quiz_results',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    userId:           uuid('user_id').notNull(),
+    municipalityCode: text('municipality_code').notNull(), // 行政区域コード（一意識別）
+    municipalityName: text('municipality_name').notNull(),
+    prefecture:       text('prefecture').notNull(),
+    mode:             text('mode').notNull(),              // 'A'|'B'|'C'|'D'
+    isCorrect:        boolean('is_correct').notNull(),
+    answeredAt:       timestamp('answered_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userCodeIdx: index('mqr_user_code_idx').on(table.userId, table.municipalityCode),
+    userTimeIdx: index('mqr_user_time_idx').on(table.userId, table.answeredAt),
+  }),
+);
+```
+
+**苦手優先アルゴリズム**（weighted random selection）:
+```ts
+// 直近 100 件の結果から不正解率を計算
+// weight = 1 + (incorrect_count / total_count) * 4  → 1.0〜5.0
+// 全市区町村をこの weight に比例したランダム選択で出題
+```
+
+---
+
+## R-010: MunicipalityMap コンポーネント（モードD）
+
+**Decision**: 既存の `JapanMap` と同じ `@vnedyalk0v/react19-simple-maps` パターンで実装。都道府県名でフィルタして該当都道府県の市区町村のみ描画する。
+
+**Rationale**:
+- 全 1,741 市区町村を一度に SVG 描画すると重いため、選択した都道府県の市区町村のみを表示する。
+- TopoJSON を一度ロードしてメモリに保持し、都道府県切り替え時はフィルタのみ（再フェッチなし）。
+
+**プロパティ前提**: TopoJSON は R-008 のパイプラインで `nam_ja` / `pref_ja` / `code` にリネーム済み。既存 `JapanMap` と同じ命名規則。
+
+**Key implementation pattern**:
+```tsx
+'use client';
+import { ComposableMap, Geographies, Geography } from '@vnedyalk0v/react19-simple-maps';
+import { prefectureCenter } from '@/lib/quiz/prefecture-center'; // R-010-bis 参照
+
+const GEO_URL = '/japan-municipalities.topojson';
+
+export function MunicipalityMap({ prefecture, onMunicipalityClick, highlightCodes, wrongCodes }) {
+  const [topology, setTopology] = useState(null);
+
+  useEffect(() => {
+    fetch(GEO_URL).then(r => r.json()).then(setTopology).catch(console.error);
+  }, []);
+
+  return (
+    <ComposableMap projection="geoMercator" projectionConfig={prefectureCenter[prefecture]}>
+      <Geographies geography={topology}>
+        {({ geographies }) =>
+          geographies
+            .filter(geo => geo.properties.pref_ja === prefecture)
+            .map(geo => (
+              <Geography
+                key={geo.properties.code}
+                geography={geo}
+                onClick={() => onMunicipalityClick(geo.properties.code, geo.properties.nam_ja)}
+                style={{ ... }}
+              />
+            ))
+        }
+      </Geographies>
+    </ComposableMap>
+  );
+}
+```
+
+---
+
+## R-010-bis: prefectureCenter 定数の生成（モードD 初期ズーム）
+
+**Decision**: `lib/quiz/prefecture-center.ts` に各都道府県の `{ center: [lng, lat], scale: number }` を定義する。値は **TopoJSON の各都道府県 BBox から自動算出**する `scripts/generate-prefecture-center.ts` で生成する（手書きしない）。
+
+**Rationale**:
+- 北海道（広い）と東京（小さい）でスケールが大きく異なるため、固定値は不可。
+- BBox 算出は `topojson-client` の `feature()` + `d3-geo` の `geoBounds()` で機械的に決定可能。
+- 値が一度生成されれば変更頻度は低いため、定数として commit する。
+
+**生成スクリプト**（実装時）:
+```ts
+// scripts/generate-prefecture-center.ts
+import { feature } from 'topojson-client';
+import { geoBounds, geoCentroid } from 'd3-geo';
+import topology from '../public/japan-municipalities.topojson';
+
+const collection = feature(topology, topology.objects.municipalities) as any;
+const byPrefecture: Record<string, any[]> = {};
+for (const f of collection.features) {
+  const pref = f.properties.pref_ja;
+  (byPrefecture[pref] ||= []).push(f);
+}
+
+const result: Record<string, { center: [number, number]; scale: number }> = {};
+for (const [pref, feats] of Object.entries(byPrefecture)) {
+  const fc = { type: 'FeatureCollection', features: feats };
+  const [[w, s], [e, n]] = geoBounds(fc as any);
+  const center = geoCentroid(fc as any);
+  // モバイル 375px 想定で BBox を画面に収めるスケール
+  // ComposableMap の scale=1000 で日本全体が収まることを基準に逆算
+  const span = Math.max(e - w, (n - s) * 1.4);
+  const scale = Math.round(8000 / span);  // 経験則。実装時にチューニング
+  result[pref] = { center, scale };
+}
+
+writeFileSync('lib/quiz/prefecture-center.ts',
+  `export const prefectureCenter = ${JSON.stringify(result, null, 2)} as const;`);
+```
+
+**`scale` の係数 (8000)** は初期実装時に実機で確認しながら調整する。47都道府県を順に表示して画面外にはみ出る・小さすぎるケースを目視で確認する。
+
+---
+
+## R-011: 市区町村クイズ静的データ（public/municipalities.json）
+
+**Decision**: TopoJSON から生成した静的 JSON ファイルを `public/municipalities.json` に配置する。~1,741 件・暫定目標 < 300KB（実測で確定、plan.md「実測で確定する数値」参照）。
+
+**前提**: TopoJSON は R-008 のパイプラインで `nam_ja`/`pref_ja`/`code` にリネーム済み。生成スクリプトはこの命名を前提とする。
+
+**Rationale**:
+- API 不要で Supabase への接続コストゼロ。
+- PWA でオフラインキャッシュ可能（`defaultCache` に含まれる）。
+- 苦手優先モードは DB の `municipality_quiz_results` から weight を計算し、この静的リストに適用する。
+
+**フォーマット**:
+```json
+[
+  { "code": "13201", "name": "八王子市", "prefecture": "東京都", "region": "関東" },
+  { "code": "34202", "name": "府中市",   "prefecture": "広島県", "region": "中国" },
+  { "code": "13206", "name": "府中市",   "prefecture": "東京都", "region": "関東" }
+]
+```
+
+**同名市区町村の扱い**: `code` が異なれば別エントリ。クイズ出題時に `name` で検索して複数ヒットした場合は全選択必須（FR-013）。
+
+**生成スクリプト** (`scripts/generate-municipalities.ts`):
+```ts
+import topology from '../public/japan-municipalities.topojson';
+import { feature } from 'topojson-client';
+
+const geojson = feature(topology, topology.objects.municipalities);
+const municipalities = geojson.features.map(f => ({
+  code: f.properties.code,
+  name: f.properties.nam_ja,
+  prefecture: f.properties.pref_ja,
+  region: prefectureToRegion[f.properties.pref_ja],
+}));
+writeFileSync('public/municipalities.json', JSON.stringify(municipalities));
+```

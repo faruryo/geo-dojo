@@ -161,6 +161,57 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 
 ---
 
+## Phase 9: User Story 5 — 市区町村クイズ データアセット準備 (Priority: P5)
+
+**Purpose**: 市区町村クイズが依存する静的データファイルを生成する。コード実装前に完了する必要がある。
+
+- [ ] T059 [US5] MLIT 国土数値情報 N03 最新 Shapefile をダウンロードし、`ogr2ogr` + `mapshaper`（`-rename-fields nam_ja=N03_004,pref_ja=N03_001,code=N03_007` ）で `public/japan-municipalities.topojson` を生成する（research.md R-008 手順参照。実測サイズを plan.md に記録すること）
+- [ ] T060 [P] [US5] `scripts/generate-municipalities.ts` を実装・実行して `public/municipalities.json` を生成する（約1741件、`code`/`name`/`prefecture`/`region` フォーマット、research.md R-011 参照。実測サイズを plan.md に記録すること）
+- [ ] T061 [P] [US5] `scripts/generate-prefecture-center.ts` を実装・実行して `lib/quiz/prefecture-center.ts` を生成する（`d3-geo` の `geoBounds`/`geoCentroid` で BBox から自動計算、research.md R-010-bis 参照）
+
+**Checkpoint**: T059〜T061 完了 → 静的データが揃い実装開始可能
+
+---
+
+## Phase 10: User Story 5 — 市区町村クイズ 基盤追加 (Priority: P5)
+
+**Purpose**: US5 固有のデータベーステーブル・キャッシュ・出典表記を追加する。Phase 9 完了後に実施。
+
+- [ ] T062 [US5] `lib/db/schema.ts` に `municipalityQuizResults` テーブル（`municipality_quiz_results`）を追加し `pnpm drizzle-kit push` を実行する（data-model.md の Drizzle スキーマ参照。`mqr_user_code_idx`・`mqr_user_time_idx` インデックス必須）
+- [ ] T063 [US5] Supabase Dashboard で `municipality_quiz_results` テーブルに RLS ポリシー（`mqr_own`）を適用する（data-model.md「Supabase RLS（追加）」参照）
+- [ ] T064 [P] `app/sw.ts` に `japan-municipalities.topojson` の `CacheFirst` ルールを追加する（`cacheName: 'map-data'`、`maxAgeSeconds: 2592000`）
+- [ ] T065 [P] `app/layout.tsx` の footer に国土数値情報 PDL1.0 出典表記を追加する（FR-016：「『国土数値情報（行政区域データ）』（国土交通省）をもとに GeoDojo が加工して作成」を常時表示）
+
+**Checkpoint**: T062〜T065 完了 → US5 実装開始可能
+
+---
+
+## Phase 11: User Story 5 — 市区町村クイズ 実装 (Priority: P5)
+
+**Goal**: ユーザーが `/quiz/municipality` で モードA〜D・地域フィルター・苦手優先を使って市区町村クイズをプレイでき、結果が DB に記録される。
+
+**Independent Test**: `/quiz/municipality` にアクセスしてモードBで1問出題・回答・結果画面表示が動作すれば独立して機能する。
+
+### User Story 5 の実装
+
+- [ ] T066 [P] [US5] `lib/quiz/municipality-data.ts` を実装する — `municipalities.json` の型定義・ロード関数・有効コード `Set`（バリデーション用）・地域フィルター関数・weighted random selection（苦手 `errorRate` を weight として適用）
+- [ ] T067 [P] [US5] `components/map/MunicipalityMap.tsx` を実装する — `'use client'`・`/japan-municipalities.topojson` を fetch で非同期ロード・`pref_ja` フィルタで都道府県内のみ表示・`prefectureCenter[prefecture]` で初期ズーム・タップ可能な Geography・正解/不正解ハイライト props（`highlightCodes`・`wrongCodes`）・ズームコントロール（research.md R-010 参照）
+- [ ] T068 [P] [US5] `lib/hooks/useMunicipalityWeakness.ts` を実装する — `getMunicipalityWeakness` Server Action を `useQuery` で呼び出す TanStack Query フック（`queryKey: ['municipality', 'weakness']`）
+- [ ] T069 [US5] `app/(app)/quiz/municipality/actions.ts` を実装する — `saveMunicipalityQuizResult`（`mode` ホワイトリスト検証・`municipality_code` の `validCodes` Set 存在検証・60件/分インメモリレート制限・INSERT）と `getMunicipalityWeakness`（直近100件 error_rate 集計クエリ、contracts/server-actions.md 参照）
+- [ ] T070 [US5] `app/(app)/quiz/municipality/page.tsx` を実装する — ① モード選択・地域フィルター・問題数・苦手優先の設定画面 → ② ゲームループ（モードA: JapanMap + 確認ボタン + 残数カウンタ / モードB: 都道府県4択ボタン / モードC: 同都道府県内4択ボタン / モードD: MunicipalityMap） → ③ 結果画面（正解数・正答率・苦手市区町村一覧）。各回答後に `saveMunicipalityQuizResult` を呼び出す
+- [ ] T071 [US5] 既存 `app/(app)/quiz/page.tsx` に「市区町村クイズへ」リンクカードを追加する（`/quiz/municipality` へのナビゲーション）
+- [ ] T072 [P] [US5] モードD フォールバックを実装する — `japan-municipalities.topojson` の fetch 失敗時にモードC へ自動切り替えし「地図データの読み込みに失敗しました（モードCで代替表示）」を表示する（Edge Case）
+
+**Checkpoint**: `/quiz/municipality` でモードA〜D・地域フィルター・苦手優先が動作 → User Story 5 完了・独立してデモ可能
+
+---
+
+## Phase 12: User Story 5 — 検証
+
+- [ ] T073 [US5] `/quiz/municipality` の全 Acceptance Scenarios（7シナリオ）を手動実行して確認する。特に同名市区町村（例: 府中市）の全選択フロー・残数カウンタ・「解答する」送信・DB 記録・苦手優先出題の動作を確認する
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -179,6 +230,7 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 - **US2 (P2)**: Foundation 完了後、単独で開始可能（US1と並列可）
 - **US3 (P3)**: Foundation 完了後、単独で開始可能
 - **US4 (P4)**: Foundation 完了後、US3 の画像アップロード（T033）完了推奨
+- **US5 (P5)**: Phase 9（データアセット T059〜T061）→ Phase 10（基盤 T062〜T065）→ Phase 11（実装 T066〜T072）の順。他 US への依存なし
 
 ### Within Each User Story
 
@@ -196,6 +248,8 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 - Phase 5: T032・T035 は同時実行可能
 - Phase 6: T039・T042・T043 は同時実行可能
 - US1・US2・US3 は Phase 2 完了後に並列で進められる
+- Phase 9（US5）: T060・T061 は T059 完了後に並列実行可能
+- Phase 11（US5）: T066・T067・T068 は T069 着手前に並列実行可能
 
 ---
 
@@ -236,6 +290,7 @@ Task T028: "学習セッションページを実装 app/(app)/study/page.tsx"
 2. US1 追加 → 独立テスト → デプロイ（MVP！）
 3. US3 追加 → 独立テスト → デプロイ（カード作成でコンテンツ充実）
 4. US2 追加 → 独立テスト → デプロイ（クイズで学習を補完）
+5. US5 追加 → 独立テスト → デプロイ（市区町村クイズで地理知識を深化）
 5. US4 追加 → 独立テスト → デプロイ（AI生成でコンテンツ自動化）
 
 ### Parallel Team Strategy

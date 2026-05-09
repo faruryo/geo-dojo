@@ -128,6 +128,75 @@ export async function rejectCandidate(candidateId: string): Promise<void>
 
 ---
 
+## saveMunicipalityQuizResult
+
+市区町村クイズの回答結果を記録する（US5）。
+
+**File**: `app/(app)/quiz/municipality/actions.ts`
+
+**Signature**:
+```typescript
+export async function saveMunicipalityQuizResult(input: {
+  municipalityCode: string;
+  municipalityName: string;
+  prefecture: string;
+  mode: 'A' | 'B' | 'C' | 'D';
+  isCorrect: boolean;
+}): Promise<void>
+```
+
+**Business rules**:
+- 認証必須
+- 同名市区町村の全選択モードでは、各選択（各 code）ごとに個別に呼び出す
+- `municipality_quiz_results` テーブルに INSERT（累積記録）
+
+**Server-side input validation（必須）**:
+1. `mode` が `'A' | 'B' | 'C' | 'D'` のいずれかであること（ホワイトリスト検証）
+2. `municipalityCode` が `public/municipalities.json` に存在する有効な団体コードであること
+   - 起動時にサーバー側でロードした `Set<string>` に対して `has()` で検証
+   - これにより spam・苦手データ汚染（架空のコードで weight を歪める攻撃）を防ぐ
+3. `municipalityName` と `prefecture` が `code` に対応するマスタデータと一致すること（不一致なら警告ログのみ、保存は code を信頼）
+4. `isCorrect` は boolean 型に厳格化（truthy 値の暗黙変換を許可しない）
+
+**Rate limiting（必須）**:
+- 既存の `app/api/image-proxy/route.ts` と同じインメモリレート制限を適用
+- ユーザーあたり 60 件/分（クイズの自然な回答ペースを大きく超える値を遮断）
+- 超過時は `Error("Rate limit exceeded")` をスロー
+- レート超過は警告ログ出力（DoS 兆候の検出用）
+
+**Error cases**:
+- 未認証 → `Error("Unauthorized")`
+- `mode` が A/B/C/D 以外 → `Error("Invalid mode")`
+- `municipalityCode` がマスタに存在しない → `Error("Invalid municipality code")`
+- レート制限超過 → `Error("Rate limit exceeded")`
+
+**Note（MVPの設計判断）**: `isCorrect` の真正性はクライアント任せ。自分のデータを偽装しても自分の学習データが歪むだけで他者への影響はない。将来ランキング機能を追加する場合はサーバー側で正解判定する設計に変更する必要がある。
+
+---
+
+## getMunicipalityWeakness
+
+苦手な市区町村リストを取得する（苦手優先モード用）。
+
+**File**: `app/(app)/quiz/municipality/actions.ts`
+
+**Signature**:
+```typescript
+export async function getMunicipalityWeakness(): Promise<Array<{
+  municipalityCode: string;
+  municipalityName: string;
+  prefecture: string;
+  errorRate: number;  // 0.0〜1.0
+}>>
+```
+
+**Business rules**:
+- 直近 100 件の結果から不正解率を計算
+- 認証必須・自分の結果のみ
+- errorRate > 0 の市区町村のみ返す（空の場合は []）
+
+---
+
 ## updateCardTags
 
 カードのタグを更新する。

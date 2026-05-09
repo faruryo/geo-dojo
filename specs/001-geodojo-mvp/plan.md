@@ -1,60 +1,53 @@
-# Implementation Plan: GeoDojo MVP（Phase 1）
+# Implementation Plan: GeoDojo MVP（Phase 1 + 市区町村クイズ）
 
-**Branch**: `001-geodojo-mvp` | **Date**: 2026-05-06 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `specs/001-geodojo-mvp/spec.md`
+**Branch**: `main` | **Date**: 2026-05-09 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/001-geodojo-mvp/spec.md`
 
 ## Summary
 
-GeoGuessr（日本）学習プラットフォームのMVPを実装する。
-SRSフラッシュカード（SM-2 3段階評価）・日本地図タップクイズ・手動カード作成・AI生成レビューの4機能を、
-Next.js 15 App Router + Supabase + Drizzle ORM で構築する。
-セキュリティ制約（APIキー隠蔽・Street View画像保存禁止）を厳守する。
+GeoGuessrを学習したい日本語話者向けに、SM-2ベースのSRS学習・都道府県地図タップクイズ・手動カード作成・AI生成カードレビュー・市区町村クイズ（モードA〜D）の5機能を持つPWAを Next.js 15 App Router + Supabase + Gemini 2.5 Flash で実装する。T001〜T058（MVP）実装済み。市区町村クイズ（US5）を追加実装する。
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.x / Node.js 24 LTS
-**Primary Dependencies**:
-- Next.js 15.2.6+ (App Router, React 19)
-- Tailwind CSS v4 + shadcn/ui
-- Drizzle ORM + drizzle-kit
-- TanStack Query v5 (React Query)
-- @serwist/next (PWA / Workbox)
-- @vnedyalk0v/react19-simple-maps + topojson-client
-- @google/generative-ai (Gemini 2.5 Flash)
-- @supabase/supabase-js
-
-**Storage**: Supabase PostgreSQL（ユーザーデータ）+ Supabase Storage（ユーザーアップロード画像）
-**Testing**: vitest（unit）/ playwright（e2e、MVP後）
-**Target Platform**: PWA (mobile-first 375px、iOS Safari / Chrome Android)
-**Project Type**: web-app（Next.js PWA）
-**Performance Goals**: 地図タップ→フィードバック < 1秒、カード評価UX < 30秒開始
-**Constraints**:
-- Google Maps APIキーをクライアント側に露出禁止（`/api/image-proxy` 必須）
-- Street Viewパノラマ画像本体をDB/ストレージに保存禁止（pano_id のみ保持）
-- Next.js 15.2.6+ 必須（CVE-2025-66478 対策）
-- ダークモード（`#111111`）をデフォルト
-**Scale/Scope**: MVP（1開発者、ユーザー数数十〜数百人規模）
+**Language/Version**: TypeScript / Next.js 15.2.6（App Router, React 19）
+**Primary Dependencies**: Drizzle ORM, TanStack Query v5, @serwist/next, @vnedyalk0v/react19-simple-maps, @google/generative-ai, Tailwind CSS v4, shadcn/ui
+**Storage**: Supabase（PostgreSQL + Storage）。新規テーブル: `municipality_quiz_results`
+**Testing**: 手動 Acceptance Scenario テスト
+**Target Platform**: Web PWA（モバイルファースト 375px、ダークモード `#111111`）
+**Project Type**: web-service（Next.js App Router PWA）
+**Performance Goals**: 市区町村タップ→フィードバック < 1秒（SC-009）
+**Constraints**: 幅375px基準、APIキーはサーバー側のみ、`japan-municipalities.topojson` < 1MB
+**Scale/Scope**: 個人 MVPユーザー向け、市区町村約1,741件
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| 原則 | 要件 | Plan での対応 | 判定 |
-|------|------|--------------|------|
-| I. セキュリティ | APIキー隠蔽（`/api/image-proxy`） | `app/api/image-proxy/route.ts` を実装 | ✅ |
-| I. セキュリティ | pano_id のみ保存、画像本体禁止 | schema: `cards.pano_id` のみ。Storage に保存するのはユーザーアップロード画像のみ | ✅ |
-| I. セキュリティ | Next.js 15.2.6+ | package.json に `"next": ">=15.2.6"` を設定 | ✅ |
-| I. セキュリティ | Gemini 2.5 Flash（2.0 Flash 禁止） | `lib/ai/gemini.ts` で `gemini-2.5-flash` モデル指定 | ✅ |
-| II. アーキテクチャ | PWA: @serwist/next | `next.config.ts` に withSerwist を適用 | ✅ |
-| II. アーキテクチャ | TopoJSON 非同期フェッチ | `public/japan.topojson` を `fetch` で非同期ロード | ✅ |
-| II. アーキテクチャ | Read = TanStack Query | `lib/hooks/` に useDueCards, useCards 等を定義 | ✅ |
-| II. アーキテクチャ | Write = Server Actions | `app/` 配下の actions.ts で submitRating 等を定義 | ✅ |
-| II. アーキテクチャ | srs_records (user_id, due_date) 複合インデックス | schema.ts: `index('srs_user_due_idx').on(userId, dueDate)` | ✅ |
-| III. ロジック | SM-2 簡略化（1/3/5評価） | `lib/srs/algorithm.ts` で実装 | ✅ |
-| III. ロジック | アノテーション相対座標（0.0〜1.0） | annotations テーブル: `x_ratio`, `y_ratio` (real) | ✅ |
-| III. ロジック | モバイルファースト 375px、ダークモード `#111111` | tailwind.config.ts + globals.css | ✅ |
+### I. セキュリティ & コンプライアンス ✅
 
-**Constitution Check: 全ゲートPASS → Phase 0 に進む**
+| チェック項目 | 状態 | 備考 |
+|-------------|------|------|
+| Google Maps API キーをクライアント側に露出させない | ✅ PASS | 市区町村クイズは Maps API 不使用 |
+| Street View 画像本体を保存しない | ✅ PASS | 市区町村クイズは画像なし |
+| Next.js 15.2.6 以上を使用 | ✅ PASS | 変更なし |
+| Gemini 2.5 Flash を使用 | ✅ PASS | 市区町村クイズは AI 不使用 |
+
+### II. アーキテクチャ & パフォーマンス ✅
+
+| チェック項目 | 状態 | 備考 |
+|-------------|------|------|
+| PWA は @serwist/next | ✅ PASS | `japan-municipalities.topojson` も CacheFirst に追加 |
+| 地図データは TopoJSON + 非同期フェッチ | ✅ PASS | `MunicipalityMap` は `public/japan-municipalities.topojson` を fetch |
+| Write = Server Actions | ✅ PASS | `saveMunicipalityQuizResult`・`getMunicipalityWeakness` を actions.ts に実装 |
+| `srs_user_due_idx` 複合インデックス維持 | ✅ PASS | 変更なし |
+| 新規インデックス | ✅ PASS | `mqr_user_code_idx`・`mqr_user_time_idx` を追加 |
+
+### III. ロジック & UI ✅
+
+| チェック項目 | 状態 | 備考 |
+|-------------|------|------|
+| アノテーション座標は相対パーセント | ✅ PASS | 市区町村クイズは非対象 |
+| モバイルファースト 375px、ダークモードデフォルト | ✅ PASS | 市区町村クイズも同基準で実装 |
 
 ## Project Structure
 
@@ -63,81 +56,68 @@ Next.js 15 App Router + Supabase + Drizzle ORM で構築する。
 ```text
 specs/001-geodojo-mvp/
 ├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
-├── contracts/           # Phase 1 output
-│   ├── api-routes.md
-│   └── server-actions.md
-└── tasks.md             # /speckit-tasks command output
+├── research.md          # R-001〜R-011（市区町村クイズ追記済み）
+├── data-model.md        # municipality_quiz_results テーブル追記済み
+├── quickstart.md        # TopoJSON生成手順追記要
+├── contracts/
+│   ├── api-routes.md    # 既存 API（変更なし）
+│   └── server-actions.md # saveMunicipalityQuizResult・getMunicipalityWeakness 追記済み
+└── tasks.md             # /speckit-tasks で更新要
 ```
 
-### Source Code (repository root)
+### Source Code（追加・変更ファイル）
 
 ```text
 app/
-├── layout.tsx                     # Root layout (ThemeProvider, QueryProvider, Serwist)
-├── page.tsx                       # Redirect to /study or /login
-├── (auth)/
-│   ├── login/page.tsx
-│   └── signup/page.tsx
-├── (app)/
-│   ├── layout.tsx                 # App shell（bottom nav, auth guard）
-│   ├── study/
-│   │   └── page.tsx               # SRS学習セッション
-│   ├── quiz/
-│   │   └── page.tsx               # 地図タップクイズ
-│   ├── cards/
-│   │   ├── page.tsx               # カード一覧（タグフィルタ付き）
-│   │   └── new/page.tsx           # 手動カード作成
-│   └── ai-review/
-│       └── page.tsx               # AI生成候補レビュー
-└── api/
-    ├── image-proxy/route.ts       # Google Maps APIキー隠蔽プロキシ
-    └── ai-generate/route.ts       # Gemini非同期生成トリガー
+└── (app)/
+    └── quiz/
+        └── municipality/
+            ├── page.tsx          # 市区町村クイズページ（モード選択・設定・ゲームループ）
+            └── actions.ts        # saveMunicipalityQuizResult / getMunicipalityWeakness
 
 components/
-├── flashcard/
-│   ├── FlashCard.tsx              # カード表示 + アノテーションオーバーレイ
-│   ├── RatingButtons.tsx          # 1/3/5 評価ボタン
-│   └── AnnotationOverlay.tsx      # SVGレイヤー（相対座標で描画）
-├── map/
-│   ├── JapanMap.tsx               # react19-simple-maps ラッパー（Client）
-│   └── PrefectureLabel.tsx        # 都道府県ラベル・ハイライト
-├── annotation/
-│   ├── AnnotationEditor.tsx       # 画像上インタラクティブ編集（Client）
-│   └── MarkerPin.tsx              # マーカーピン SVG コンポーネント
-└── ai/
-    └── AiReviewCard.tsx           # AI候補レビューカード
+└── map/
+    └── MunicipalityMap.tsx       # モードD用（pref_ja フィルタ、都道府県別 projectionConfig）
 
 lib/
-├── db/
-│   ├── schema.ts                  # Drizzle スキーマ（唯一の真実のソース）
-│   └── index.ts                   # DB接続（Supabase connection string）
-├── srs/
-│   └── algorithm.ts               # SM-2 簡略化実装
-├── ai/
-│   └── gemini.ts                  # Gemini 2.5 Flash ラッパー
-├── supabase/
-│   └── client.ts                  # Supabase クライアント
 └── hooks/
-    ├── useDueCards.ts             # TanStack Query: 当日期限カード
-    ├── useCards.ts                # TanStack Query: タグ絞り込みカード一覧
-    └── useAiCandidates.ts        # TanStack Query: AI候補一覧
+    └── useMunicipalityWeakness.ts # TanStack Query: 苦手市区町村リスト取得
 
 public/
-└── japan.topojson                 # 国土地理院GeoJSON → mapshaper変換済み
+├── japan-municipalities.topojson  # 新規（mapshaper 変換、目標 1MB 以下）
+└── municipalities.json            # 新規（静的リスト、約1,741件・200KB以下）
 
-supabase/
-├── migrations/                    # drizzle-kit generate 出力
-└── functions/
-    └── ai-cron/                   # Gemini 定期生成 Edge Function（MVP後）
+scripts/
+└── generate-municipalities.ts     # TopoJSON から municipalities.json を生成するスクリプト
+
+lib/db/schema.ts                   # municipality_quiz_results テーブル追加
+app/sw.ts                          # japan-municipalities.topojson を CacheFirst に追加
 ```
 
-**Structure Decision**: Next.js App Router の Route Groups で認証/アプリを分離。
-lib/ に全コアロジックを集約し、LIFT原則に従いコンポーネントを機能別に配置。
-バックエンドロジックは Server Actions（書き込み）と TanStack Query（読み込み）で明確に分離する。
+### 既存ファイル（変更なし）
+
+```text
+app/(app)/quiz/page.tsx            # 都道府県クイズ（変更なし）
+components/map/JapanMap.tsx        # 都道府県地図（変更なし）
+```
+
+**Structure Decision**: 既存の Next.js App Router 単一プロジェクト構成を踏襲。市区町村クイズは `app/(app)/quiz/municipality/` に独立ページとして追加。`JapanMap` は変更せず、`MunicipalityMap` を新規作成する。
+
+## 実装時に実測で確定する数値（暫定値の置換ポリシー）
+
+以下の数値は計画段階の暫定値であり、実装時に実測してから plan.md / research.md を更新すること。
+
+| 暫定値 | 確定タイミング | 確定方法 |
+|--------|-------------|---------|
+| `japan-municipalities.topojson` < 2MB | TopoJSON 生成直後 | `ls -lh` で実測。2MB を超える場合は `-simplify` 値を 0.05 → 0.02 等に下げて再生成 |
+| `municipalities.json` < 300KB | JSON 生成直後 | `wc -c` で実測 |
+| `prefectureCenter.scale` の係数 8000 | モードD 実装時 | 47都道府県を順表示し、画面外はみ出し・小さすぎを目視確認して調整 |
+| 苦手判定ウィンドウ「直近100件」 | 実装後の実利用 | ユーザー1人あたりの累積回答数を観察して調整 |
+| `weight = 1 + error_rate * 4` の係数 4 | 実装後の実利用 | A/B テストまたはユーザーフィードバック |
+| `-simplify 0.05` | TopoJSON 生成時 | 0.02 / 0.05 / 0.1 を視認性とサイズで比較 |
+
+これらは MVP 実装ブロッカーではないが、リリース前にすべて実測値に置き換えること。
 
 ## Complexity Tracking
 
-> Constitution Check 全 PASS のため、このセクションは不要。
+> Constitution Check: すべてのゲートがパス — 違反なし。
