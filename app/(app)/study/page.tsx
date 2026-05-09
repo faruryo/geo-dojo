@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useDueCards } from '@/lib/hooks/useDueCards';
 import { FlashCard } from '@/components/flashcard/FlashCard';
 import { RatingButtons } from '@/components/flashcard/RatingButtons';
-import { submitRating } from './actions';
+import { submitRating } from '@/app/(app)/study/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Rating } from '@/lib/srs/algorithm';
 import { BookOpen } from 'lucide-react';
@@ -19,12 +19,7 @@ export default function StudyPage() {
   async function handleRate(rating: Rating) {
     if (!current) return;
 
-    await fetch('/api/study/rate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cardId: current.id, rating }),
-    });
-
+    await submitRating(current.id, rating);
     await queryClient.invalidateQueries({ queryKey: ['cards', 'due'] });
   }
 

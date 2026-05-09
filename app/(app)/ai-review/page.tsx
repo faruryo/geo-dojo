@@ -7,12 +7,12 @@ import { AiReviewCard } from '@/components/ai/AiReviewCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/lib/supabase/client';
 import { Sparkles } from 'lucide-react';
+import { approveCandidate, rejectCandidate } from '@/app/(app)/ai-review/actions';
 
 export default function AiReviewPage() {
   const queryClient = useQueryClient();
   const { data: candidates = [], isLoading } = useAiCandidates();
 
-  // Supabase Realtime: ai_candidates の status 変化を監視してキャッシュ更新
   useEffect(() => {
     const channel = supabase
       .channel('ai-candidates-changes')
@@ -31,26 +31,29 @@ export default function AiReviewPage() {
   }, [queryClient]);
 
   async function handleApprove(id: string, notes: string, tags: string[]) {
-    await fetch(`/api/ai-candidates/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'approve', notes, tags }),
-    });
+    await approveCandidate(id, notes, tags);
     await queryClient.invalidateQueries({ queryKey: ['ai-candidates'] });
     await queryClient.invalidateQueries({ queryKey: ['cards'] });
   }
 
   async function handleReject(id: string) {
-    await fetch(`/api/ai-candidates/${id}`, {
-      method: 'PATCH',
+    await rejectCandidate(id);
+    await queryClient.invalidateQueries({ queryKey: ['ai-candidates'] });
+  }
+
+  async function handleRetry(imageUrl?: string | null, panoId?: string | null) {
+    await fetch('/api/ai-generate', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reject' }),
+      body: JSON.stringify({ imageUrl: imageUrl ?? undefined, panoId: panoId ?? undefined }),
     });
     await queryClient.invalidateQueries({ queryKey: ['ai-candidates'] });
   }
 
   const pending = candidates.filter((c) => c.status === 'pending');
   const processing = candidates.filter((c) => c.status === 'processing');
+  const failed = candidates.filter((c) => c.status === 'failed');
+  const visible = [...pending, ...processing, ...failed];
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -67,7 +70,7 @@ export default function AiReviewPage() {
         <div className="flex flex-col gap-4">
           {[0, 1].map((i) => <Skeleton key={i} className="h-64 rounded-xl" />)}
         </div>
-      ) : candidates.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
           <Sparkles size={48} className="text-muted-foreground" />
           <p className="text-muted-foreground text-sm text-center">
@@ -82,12 +85,13 @@ export default function AiReviewPage() {
               {processing.length}件を解析中（自動更新）
             </p>
           )}
-          {[...pending, ...processing].map((candidate) => (
+          {visible.map((candidate) => (
             <AiReviewCard
               key={candidate.id}
               candidate={candidate}
               onApprove={handleApprove}
               onReject={handleReject}
+              onRetry={handleRetry}
             />
           ))}
         </div>

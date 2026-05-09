@@ -7,6 +7,7 @@ import { useCards } from '@/lib/hooks/useCards';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2 } from 'lucide-react';
+import { deleteCard } from '@/app/(app)/cards/actions';
 
 export default function CardsPage() {
   const queryClient = useQueryClient();
@@ -16,7 +17,7 @@ export default function CardsPage() {
   async function handleDelete(cardId: string) {
     if (!confirm('このカードを削除しますか？')) return;
 
-    await fetch(`/api/cards/${cardId}`, { method: 'DELETE' });
+    await deleteCard(cardId);
     await queryClient.invalidateQueries({ queryKey: ['cards'] });
   }
 

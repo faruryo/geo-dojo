@@ -16,7 +16,7 @@ export async function GET() {
     .where(
       and(
         eq(aiCandidates.userId, user.id),
-        inArray(aiCandidates.status, ['pending', 'processing']),
+        inArray(aiCandidates.status, ['pending', 'processing', 'failed']),
       ),
     )
     .orderBy(aiCandidates.createdAt);
