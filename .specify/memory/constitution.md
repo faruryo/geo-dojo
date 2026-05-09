@@ -73,13 +73,19 @@ Google との契約違反になりサービス停止リスクがある。旧 Nex
   バンドルサイズ削減のため、非同期フェッチでロードすること。
 - **データフロー**:
   - **Read**: クエリのキャッシュ管理には TanStack Query を使用すること。
-  - **Write**: データ更新（SRS 評価、カード作成等）には Server Actions を使用すること。
+  - **Write**:
+    - **原則**: アプリ内 UI からのデータ更新には **Server Actions** を使用すること。
+      型安全性（コンパイル時検出）・Progressive Enhancement・バンドルサイズ削減の利点がある。
+      TanStack Query の `useMutation` と組み合わせて使うこと。
+    - **例外**: 以下のケースでは API Routes（Route Handlers）を使用してよい：
+      webhook・ストリーミング応答・公開エンドポイント・非同期バックグラウンド処理。
 - **DB インデックス**: パフォーマンス維持のため、`srs_records` の `(user_id, due_date)`
   複合インデックスを常に維持すること。
 
 **Why**: TopoJSON は GeoJSON 比で通常 80% 以上のサイズ削減を達成し、モバイル通信でも
 高速に動作する。TanStack Query + Server Actions の分離はキャッシュの一貫性を保証し、
-不要な再レンダリングを防ぐ。
+不要な再レンダリングを防ぐ。API Routes は非同期バックグラウンド処理（Gemini 生成等）や
+外部トリガーに使用し、UI 起点の Write とは明確に役割を分ける。
 
 ### III. ロジック & UI
 
@@ -136,4 +142,4 @@ supabase/     # マイグレーションファイルおよび Edge Functions (AI
   本憲法への適合を確認すること。特にセキュリティ原則（I）は全 PR でチェック必須。
 - **ランタイムガイダンス**: 開発時の詳細なコンテキストは `CLAUDE.md` を参照すること。
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-06 | **Last Amended**: 2026-05-06
+**Version**: 1.1.0 | **Ratified**: 2026-05-06 | **Last Amended**: 2026-05-09
