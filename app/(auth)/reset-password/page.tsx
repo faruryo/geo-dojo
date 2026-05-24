@@ -38,7 +38,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    router.push('/study');
+    router.push('/quiz');
     router.refresh();
   }
 
