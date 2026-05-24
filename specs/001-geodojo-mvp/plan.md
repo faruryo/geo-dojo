@@ -109,8 +109,8 @@ components/map/JapanMap.tsx        # 都道府県地図（変更なし）
 
 | 暫定値 | 確定タイミング | 確定方法 |
 |--------|-------------|---------|
-| `japan-municipalities.topojson` < 2MB | TopoJSON 生成直後 | `ls -lh` で実測。2MB を超える場合は `-simplify` 値を 0.05 → 0.02 等に下げて再生成 |
-| `municipalities.json` < 300KB | JSON 生成直後 | `wc -c` で実測 |
+| `japan-municipalities.topojson` **実測: 16.3MB (非圧縮) / 2.0MB (gzip)**。N03-20240101 Shapefile を mapshaper 5% 簡略化（keep-shapes なし）で変換。2MB gzip 圧縮後 Next.js 静的配信が目標範囲内 | TopoJSON 生成済み（2026-05-10） | `ls -lh` で実測 |
+| `municipalities.json` **実測: 149.4KB**（1905件） | JSON 生成済み（2026-05-10） | `wc -c` で実測 |
 | `prefectureCenter.scale` の係数 8000 | モードD 実装時 | 47都道府県を順表示し、画面外はみ出し・小さすぎを目視確認して調整 |
 | 苦手判定ウィンドウ「直近100件」 | 実装後の実利用 | ユーザー1人あたりの累積回答数を観察して調整 |
 | `weight = 1 + error_rate * 4` の係数 4 | 実装後の実利用 | A/B テストまたはユーザーフィードバック |

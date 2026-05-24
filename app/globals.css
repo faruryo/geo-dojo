@@ -2,6 +2,11 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Tailwind v4 oxide scans .topojson/.json in public/ and hangs on large files.
+   Exclude public/ and node_modules/ to prevent hang. */
+@source not "../public";
+@source not "../node_modules";
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -40,29 +45,33 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@layer base {
+  /* `*` リセットは @layer base に入れること。
+     unlayered だと .mx-auto などの utility を上書きしてしまう */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-body {
-  background-color: var(--background);
-  font-family: var(--font-geist-sans, system-ui, -apple-system, sans-serif);
-  min-height: 100dvh;
-  /* Safe area for iPhone notch/home indicator */
-  padding-bottom: env(safe-area-inset-bottom);
-}
+  body {
+    background-color: var(--background);
+    font-family: var(--font-geist-sans, system-ui, -apple-system, sans-serif);
+    min-height: 100dvh;
+    /* Safe area for iPhone notch/home indicator */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 
-/* Mobile-first: 375px base */
-html {
-  font-size: 16px;
-}
+  /* Mobile-first: 375px base */
+  html {
+    font-size: 16px;
+  }
 
-/* Minimum tap target size */
-button, a, [role="button"] {
-  min-height: 44px;
-  min-width: 44px;
+  /* Minimum tap target size */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
 
 @theme inline {

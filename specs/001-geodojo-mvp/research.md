@@ -539,3 +539,152 @@ const municipalities = geojson.features.map(f => ({
 }));
 writeFileSync('public/municipalities.json', JSON.stringify(municipalities));
 ```
+
+---
+
+## R-012: e-Stat API による人口データ取得
+
+**Decision**: 政府統計の総合窓口（e-Stat）API v3.1 を使い、国勢調査 2020 の市区町村別人口を取得して `municipality_master` テーブルに upsert する。専用バッチスクリプトを `scripts/sync-municipality-master.ts` に実装し、**ローカル手動実行のみ**で運用する（国勢調査は5年周期なので自動化不要）。
+
+**Rationale**:
+- e-Stat は政府公式・無料・JSON対応・API key 認証のみで非常に低コスト
+- 国勢調査 2020 のデータは確定値が公開済み（2026年時点）
+- DB ベースにすることで、5年ごとの国勢調査更新・推計人口の月次取り込み・将来のクラウド正答率カラム追加に柔軟対応
+- `public/municipalities.json` の静的配信に population を埋めると更新時に PWA precache のキャッシュバスト問題が発生する → DB 化で回避
+
+**API 仕様**:
+- 登録: https://www.e-stat.go.jp/api/ で appId を発行（無料）
+- エンドポイント: `GET https://api.e-stat.go.jp/rest/3.1/app/json/getStatsData`
+- 必須パラメータ:
+  - `appId`: API key（環境変数 `E_STAT_APP_ID`）
+  - `statsDataId`: 統計表ID（国勢調査 2020 の市区町村別人口テーブルID — 実装時に e-Stat 統計表一覧から特定する）
+- 推奨パラメータ:
+  - `cdArea`: 団体コード絞り込み（複数 code を `,` 区切りで指定可能。1リクエストで複数取得）
+  - `metaGetFlg=N`: メタデータ省略でレスポンス軽量化
+- レート制限: 1秒あたり10リクエスト → バッチ側で 100ms 間隔の throttle
+- レスポンス: `GET_STATS_DATA.STATISTICAL_DATA.DATA_INF.VALUE[]` に値が入る
+
+**バッチ実装方針** (`scripts/sync-municipality-master.ts`):
+```ts
+import { db } from '@/lib/db';
+import { municipalityMaster, type Difficulty } from '@/lib/db/schema';
+import municipalities from '@/public/municipalities.json';
+
+const E_STAT_BASE = 'https://api.e-stat.go.jp/rest/3.1/app/json/getStatsData';
+const STATS_DATA_ID = '0003411993'; // ※実装時に正式 ID を確定（国勢調査 2020 市区町村別人口）
+const POPULATION_YEAR = 2020;
+const BATCH_SIZE = 50; // 1リクエストあたり 50 code（API レスポンスサイズと相談）
+
+function calculateDifficulty(input: { name: string; population: number | null }): Difficulty {
+  if (input.population !== null) {
+    if (input.population >= 100_000) return 'easy';
+    if (input.population >= 30_000)  return 'medium';
+    if (input.population >= 10_000)  return 'hard';
+    return 'expert';
+  }
+  // Phase 1 / fallback: 名称末尾ベース
+  if (input.name.endsWith('区')) return 'easy';
+  if (input.name.endsWith('市')) return 'medium';
+  if (input.name.endsWith('町')) return 'hard';
+  if (input.name.endsWith('村')) return 'expert';
+  return 'medium';
+}
+
+async function fetchPopulations(codes: string[]): Promise<Map<string, number>> {
+  const url = `${E_STAT_BASE}?appId=${process.env.E_STAT_APP_ID}&statsDataId=${STATS_DATA_ID}&cdArea=${codes.join(',')}&metaGetFlg=N`;
+  const res = await fetch(url);
+  const json = await res.json();
+  // VALUE 配列から code → population のマップを構築（実装時にレスポンス形状確認）
+  return new Map(/* ... */);
+}
+
+async function main() {
+  const allCodes = municipalities.map(m => m.code);
+  const populations = new Map<string, number>();
+
+  // チャンクに分けて取得（rate limit 配慮）
+  for (let i = 0; i < allCodes.length; i += BATCH_SIZE) {
+    const chunk = allCodes.slice(i, i + BATCH_SIZE);
+    const result = await fetchPopulations(chunk);
+    for (const [code, pop] of result) populations.set(code, pop);
+    await new Promise(r => setTimeout(r, 200)); // throttle: 5 req/sec
+  }
+
+  // 全件 upsert
+  for (const m of municipalities) {
+    const pop = populations.get(m.code) ?? null;
+    const difficulty = calculateDifficulty({ name: m.name, population: pop });
+    await db
+      .insert(municipalityMaster)
+      .values({
+        code: m.code, name: m.name, prefecture: m.prefecture, region: m.region,
+        population: pop, populationYear: pop !== null ? POPULATION_YEAR : null,
+        difficulty,
+      })
+      .onConflictDoUpdate({
+        target: municipalityMaster.code,
+        set: { population: pop, populationYear: pop !== null ? POPULATION_YEAR : null, difficulty, updatedAt: new Date() },
+      });
+  }
+}
+
+main().catch(console.error);
+```
+
+**実行方法**:
+```bash
+# 初回および国勢調査更新時（5年周期）
+pnpm tsx scripts/sync-municipality-master.ts
+```
+
+**実行環境**:
+- 開発者のローカル PC（Node.js + pnpm）で実行
+- `.env.local` の `DATABASE_URL`（Supabase Pooler）、`SUPABASE_SECRET_KEY`、`E_STAT_APP_ID` を使用
+- Supabase 本番 DB を直接更新するため、誤実行を防ぐためスクリプト冒頭で接続先 URL を `console.log` してから 3 秒待機して中断猶予を入れる
+
+**自動化を見送った理由**:
+- 国勢調査は 5 年に 1 回（2020 → 2025 → 2030...）。Cron で毎月走らせても新しいデータは無い
+- 自治体合併・改称も年に数件程度。Slack 通知などで検知して手動再実行で十分
+- Vercel Cron / Supabase pg_cron などのインフラ依存を増やさず、シンプルに保つ
+
+**将来の検討事項（MVP 外）**:
+- 推計人口（毎月更新）を取り込みたい場合 → Vercel Cron + 共通ロジック切り出し
+- 「バッチ実行履歴」を DB に残したい場合 → `municipality_sync_log` テーブル追加
+- いずれも本番運用後にニーズが出てから別 spec として切り出す
+
+**Alternatives considered**:
+- Wikidata SPARQL: 一部市区町村でデータ欠落、code 突合の安定性に欠ける
+- 国土交通省地価公示: 人口データではないので不適
+- 静的 JSON に埋め込み: PWA precache のキャッシュバストが必要で運用負荷が高い → DB ベースに優位性
+
+---
+
+## R-013: 難易度バケットの計算方針
+
+**Decision**: 人口バケット（Phase 2）を主、名称種別バケット（Phase 1）を fallback とする 2 段階方式。計算は **サーバー側（バッチ内）で焼き込み**、`municipality_master.difficulty` カラムに保存する。
+
+**Rationale**:
+- 人口は認知度との相関が最も強い単一指標（軽井沢町 ≒ 1.9万人 → 上級、北海道夕張市 ≒ 0.7万人 → 達人、というメンタルモデルと整合）
+- 名称種別だけだと「町＝難しい」が成立しない例外（軽井沢町・由布院町など）が多すぎる
+- e-Stat 未取得（新設合併・大都市の区など）には fallback の名称種別を適用
+- 計算をサーバー側に集約することで、クライアントは難易度カラムを単純フィルターするだけ → ロジック分散を防ぐ
+
+**バケット境界の根拠**（暫定値、実装時の実数で見直し）:
+
+| バケット | 境界 | 想定件数 | 代表例 |
+|---------|------|---------|--------|
+| ☆ easy   | ≥ 100,000 | 約280件 | 政令指定都市・中核市・主要市 |
+| ☆☆ medium| 30k〜99,999 | 約500件 | 県内主要都市・中規模ベッドタウン |
+| ☆☆☆ hard | 10k〜29,999 | 約500件 | 小規模市・著名な町・近郊町 |
+| ☆☆☆☆ expert | < 10,000 | 約600件 | 過疎地域の町・村 |
+
+実装後に件数分布を実測し、各バケットが極端に偏らないよう境界を調整する（plan.md の「実測で確定する数値」に追加する）。
+
+**Phase 3 (deferred): クラウド正答率の取り込み**:
+- `municipality_quiz_results` を集計して `municipality_master` に `global_accuracy` カラムを追加する案
+- combined score = `α * populationTier + (1-α) * (1 - globalAccuracy)`
+- ユーザー数・回答数が一定規模に達してから検討（cold start 期は populationTier のみで運用）
+
+**Alternatives considered**:
+- 動的計算（クライアント）: フィルター実装が複雑化、境界変更時に挙動が変わるリスク
+- 連続値スコア（0.0〜1.0）: UI で chip 形式に落とすので、最終的にバケット化が必要 → 最初からバケットで保存

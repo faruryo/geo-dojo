@@ -73,6 +73,9 @@ export default function LoginPage() {
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? 'ログイン中...' : 'ログイン'}
             </Button>
+            <p className="text-center text-sm">
+              <a href="/forgot-password" className="text-primary underline">パスワードを忘れた方</a>
+            </p>
             <p className="text-center text-sm text-muted-foreground">
               アカウントがない場合は{' '}
               <a href="/signup" className="text-primary underline">サインアップ</a>

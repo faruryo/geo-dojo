@@ -2,13 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Map, CreditCard, Sparkles } from 'lucide-react';
+import { Map, MapPin } from 'lucide-react';
 
 const navItems = [
-  { href: '/study', label: '学習', icon: BookOpen },
-  { href: '/quiz', label: 'クイズ', icon: Map },
-  { href: '/cards', label: 'カード', icon: CreditCard },
-  { href: '/ai-review', label: 'AI', icon: Sparkles },
+  { href: '/quiz/prefecture', label: '都道府県', icon: Map },
+  { href: '/quiz/municipality', label: '市区町村', icon: MapPin },
 ];
 
 export default function BottomNav() {

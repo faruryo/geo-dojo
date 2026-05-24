@@ -13,11 +13,16 @@ import { Plus, Minus, RotateCcw } from 'lucide-react';
 
 interface JapanMapProps {
   onPrefectureClick: (name: string) => void;
-  highlightCorrect?: string;
+  highlightCorrect?: string | string[];
   highlightWrong?: string;
+  selectedNames?: string[];
 }
 
-export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong }: JapanMapProps) {
+export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, selectedNames }: JapanMapProps) {
+  const correctSet = new Set(
+    Array.isArray(highlightCorrect) ? highlightCorrect : highlightCorrect ? [highlightCorrect] : [],
+  );
+  const selectedSet = new Set(selectedNames ?? []);
   const [topology, setTopology] = useState<Topology | null>(null);
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
@@ -62,20 +67,21 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong }
   function reset()   { setScale(1); setTranslate({ x: 0, y: 0 }); }
 
   if (!topology) {
-    return <div className="w-full aspect-[4/5] bg-muted rounded-xl animate-pulse" />;
+    return <div className="w-full h-full bg-muted rounded-xl animate-pulse" />;
   }
 
   return (
-    <div className="relative w-full overflow-hidden rounded-xl">
+    <div className="relative w-full h-full overflow-hidden rounded-xl">
       <div
         ref={containerRef}
-        className="w-full cursor-grab active:cursor-grabbing touch-none"
+        className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onWheel={handleWheel}
       >
         <div
+          className="w-full h-full"
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
             transformOrigin: 'center center',
@@ -87,22 +93,25 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong }
             projectionConfig={{ center: createCoordinates(138, 35), scale: 1000 }}
             width={400}
             height={500}
-            className="w-full"
+            className="w-full h-full"
           >
             <Geographies geography={topology}>
               {({ geographies }) =>
                 (geographies as PreparedFeature[]).map((geo) => {
                   const name = (geo.properties as { nam_ja: string }).nam_ja;
-                  const isCorrect = name === highlightCorrect;
+                  const isCorrect = correctSet.has(name);
                   const isWrong = name === highlightWrong;
+                  const isSelected = selectedSet.has(name);
+                  const baseFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#3b82f6' : '#2a2a2a';
+                  const hoverFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#60a5fa' : '#3a3a3a';
                   return (
                     <Geography
                       key={name || geo.rsmKey}
                       geography={geo}
                       onClick={() => { if (!didDrag.current) onPrefectureClick(name); }}
                       style={{
-                        default: { fill: isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : '#2a2a2a', stroke: '#444', strokeWidth: 0.5, outline: 'none' },
-                        hover:   { fill: isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : '#3a3a3a', stroke: '#555', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
+                        default: { fill: baseFill, stroke: '#444', strokeWidth: 0.5, outline: 'none' },
+                        hover:   { fill: hoverFill, stroke: '#555', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
                         pressed: { fill: '#2d5a3d', outline: 'none' },
                       }}
                     />

@@ -197,6 +197,74 @@ export async function getMunicipalityWeakness(): Promise<Array<{
 
 ---
 
+## getMunicipalityMaster
+
+市区町村マスタ（難易度バケット付き）を取得する（US6 設定画面・出題プール構築で使用）。
+
+**File**: `app/(app)/quiz/municipality/actions.ts`（既存ファイルに追加）
+
+**Signature**:
+```typescript
+export async function getMunicipalityMaster(): Promise<MunicipalityMaster[]>
+```
+
+**Business rules**:
+- 認証必須（個人データではないが未認証アクセスは弾く）
+- 全件返却（約1,900件、JSON 約 300KB）
+- レスポンスはサーバー側で 1 時間キャッシュ可能（`unstable_cache` または HTTP `Cache-Control`）
+- `municipality_master` テーブルが空の場合は空配列を返し、クライアント側で「データ準備中」表示
+
+**Error cases**:
+- 未認証 → `Error("Unauthorized")`
+
+**Client usage**:
+```ts
+// lib/hooks/useMunicipalityMaster.ts
+'use client';
+import { useQuery } from '@tanstack/react-query';
+import { getMunicipalityMaster } from '@/app/(app)/quiz/municipality/actions';
+
+export function useMunicipalityMaster() {
+  return useQuery({
+    queryKey: ['municipality-master'],
+    queryFn: getMunicipalityMaster,
+    staleTime: 60 * 60 * 1000, // 1h
+  });
+}
+```
+
+---
+
+## バッチスクリプト契約: scripts/sync-municipality-master.ts
+
+server action ではなく **Node.js スタンドアロンスクリプト**として実装する。開発者のローカル PC で手動実行する想定（Vercel・Supabase 上では動かない）。
+
+**実行コマンド**:
+```bash
+pnpm tsx scripts/sync-municipality-master.ts
+```
+
+**実行頻度**: 国勢調査公表時（5年に1回）+ 自治体合併・改称があった都度（年数件）
+
+**前提環境変数**（`.env.local` から読む）:
+- `DATABASE_URL`: Supabase Pooler 接続文字列（Server Action と同一）
+- `SUPABASE_SECRET_KEY`: service_role キー（RLS バイパス用、書き込みに必須）
+- `E_STAT_APP_ID`: e-Stat API キー（**NEXT_PUBLIC_ 厳禁**、server-side のみ）
+
+**処理フロー**:
+1. 起動時に接続先 URL を `console.log` して 3 秒待機（本番 DB 誤実行防止のため）
+2. `public/municipalities.json` を読み込み、全 code リストを取得
+3. e-Stat API から人口データをチャンク取得（50 code/req、200ms throttle）
+4. 各市区町村に対し `calculateDifficulty()` で difficulty を算出
+5. `municipality_master` テーブルに `INSERT ... ON CONFLICT (code) DO UPDATE` で upsert
+6. 失敗時はエラーをログに出し、終了コード 1 で終了（部分成功は許容しない）
+
+**冪等性**: 同じ国勢調査年・同じ入力データで何度実行しても結果が変わらないこと。
+
+**自動スケジュール化は MVP 外**: 国勢調査が 5 年周期で更新ニーズが低いため、Vercel Cron や Supabase pg_cron 等のインフラは導入しない。将来必要になったら共通ロジックを `lib/batch/` に切り出して別 spec として追加する。
+
+---
+
 ## updateCardTags
 
 カードのタグを更新する。

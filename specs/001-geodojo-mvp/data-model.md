@@ -119,6 +119,28 @@ export const municipalityQuizResults = pgTable(
   }),
 );
 
+// ──────────────────────────────────────────
+// municipality_master
+// 全市区町村の静的＋派生メタデータ（e-Stat 国勢調査をバッチ取り込み）
+// ──────────────────────────────────────────
+export const municipalityMaster = pgTable(
+  'municipality_master',
+  {
+    code:           text('code').primaryKey(),         // 団体コード 5桁
+    name:           text('name').notNull(),
+    prefecture:     text('prefecture').notNull(),
+    region:         text('region').notNull(),
+    population:     integer('population'),              // nullable: 取得失敗時・新設合併直後など
+    populationYear: integer('population_year'),         // 統計年（例: 2020 = 国勢調査令和2年）
+    difficulty:     text('difficulty').notNull(),       // 'easy'|'medium'|'hard'|'expert'
+    updatedAt:      timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    difficultyIdx: index('mm_difficulty_idx').on(table.difficulty),
+    regionDiffIdx: index('mm_region_diff_idx').on(table.region, table.difficulty),
+  }),
+);
+
 // 型エクスポート（TypeScript型推論用）
 export type Card                    = typeof cards.$inferSelect;
 export type NewCard                 = typeof cards.$inferInsert;
@@ -126,6 +148,8 @@ export type Annotation              = typeof annotations.$inferSelect;
 export type SrsRecord               = typeof srsRecords.$inferSelect;
 export type AiCandidate             = typeof aiCandidates.$inferSelect;
 export type MunicipalityQuizResult  = typeof municipalityQuizResults.$inferSelect;
+export type MunicipalityMaster      = typeof municipalityMaster.$inferSelect;
+export type Difficulty              = 'easy' | 'medium' | 'hard' | 'expert';
 ```
 
 ## テーブル設計の補足
@@ -144,6 +168,44 @@ ALTER TABLE municipality_quiz_results ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "mqr_own" ON municipality_quiz_results
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
+
+-- municipality_master: 認証ユーザーは全件読み取り可能、書き込みは service_role のみ（バッチ用）
+ALTER TABLE municipality_master ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "mm_read_authenticated" ON municipality_master
+  FOR SELECT TO authenticated USING (true);
+-- INSERT/UPDATE/DELETE は明示的ポリシーなし → service_role キーを使うバッチのみ書き込み可能
+```
+
+### municipality_master の設計
+
+- 1 レコード = 1 市区町村（`code` が PK、約1,900件）
+- `population` は nullable: 平成大合併後の新設自治体や政令指定都市の区など、e-Stat で個別取得できないものを許容
+- `difficulty` は **server-side で焼き込み**: バケット境界変更時はバッチを再実行
+- バッチ取り込み時の処理順:
+  1. `public/municipalities.json` を読み取り、code/name/prefecture/region をシード
+  2. e-Stat API から人口取得（同一 code で突合）
+  3. population または name 種別（市/町/村/区）から difficulty を計算
+  4. `INSERT ... ON CONFLICT (code) DO UPDATE` で upsert
+- バッチは `SUPABASE_SECRET_KEY`（service_role）で接続して RLS をバイパス
+
+### Difficulty 計算ロジック
+
+```ts
+function calculateDifficulty(input: { code: string; name: string; population: number | null }): Difficulty {
+  // Phase 2: 人口がある場合は人口ベース
+  if (input.population !== null) {
+    if (input.population >= 100_000) return 'easy';
+    if (input.population >= 30_000)  return 'medium';
+    if (input.population >= 10_000)  return 'hard';
+    return 'expert';
+  }
+  // Phase 1 / fallback: 名称末尾ベース
+  if (input.name.endsWith('区')) return 'easy';     // 政令指定都市の区
+  if (input.name.endsWith('市')) return 'medium';
+  if (input.name.endsWith('町')) return 'hard';
+  if (input.name.endsWith('村')) return 'expert';
+  return 'medium'; // 想定外パターンの安全側デフォルト
+}
 ```
 
 ### 苦手優先クエリパターン

@@ -3,109 +3,56 @@ import {
   uuid,
   text,
   integer,
-  real,
+  boolean,
   timestamp,
   index,
-  uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
 
 // ──────────────────────────────────────────────────────
-// cards — フラッシュカード（学習の基本単位）
+// municipality_quiz_results — 市区町村クイズ正解/不正解記録（苦手優先モード用）
 // ──────────────────────────────────────────────────────
-export const cards = pgTable(
-  'cards',
+export const municipalityQuizResults = pgTable(
+  'municipality_quiz_results',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull(),
-    notes: text('notes'),
-    tags: text('tags').array().notNull().default([]),
-    imageUrl: text('image_url'),
-    panoId: text('pano_id'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    id:               uuid('id').primaryKey().defaultRandom(),
+    userId:           uuid('user_id').notNull(),
+    municipalityCode: text('municipality_code').notNull(),
+    municipalityName: text('municipality_name').notNull(),
+    prefecture:       text('prefecture').notNull(),
+    mode:             text('mode').notNull(),
+    isCorrect:        boolean('is_correct').notNull(),
+    answeredAt:       timestamp('answered_at').defaultNow().notNull(),
   },
   (table) => [
-    // RLS フィルタ用（全ポリシーが user_id で絞り込む）
-    index('cards_user_id_idx').on(table.userId),
-    // GIN インデックス（tags @> 検索）は Supabase SQL Editor で手動適用:
-    // CREATE INDEX CONCURRENTLY cards_tags_gin_idx ON cards USING gin(tags);
+    index('mqr_user_code_idx').on(table.userId, table.municipalityCode),
+    index('mqr_user_time_idx').on(table.userId, table.answeredAt),
   ],
 );
 
 // ──────────────────────────────────────────────────────
-// annotations — 相対座標マーカー（憲法 III 条）
+// municipality_master — 市区町村マスタ（e-Stat 国勢調査をバッチ取り込み、難易度バケット付き）
 // ──────────────────────────────────────────────────────
-export const annotations = pgTable(
-  'annotations',
+export const municipalityMaster = pgTable(
+  'municipality_master',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    cardId: uuid('card_id')
-      .notNull()
-      .references(() => cards.id, { onDelete: 'cascade' }),
-    xRatio: real('x_ratio').notNull(),
-    yRatio: real('y_ratio').notNull(),
-    label: text('label').notNull(),
+    code:           text('code').primaryKey(),
+    name:           text('name').notNull(),
+    prefecture:     text('prefecture').notNull(),
+    region:         text('region').notNull(),
+    population:     integer('population'),
+    populationYear: integer('population_year'),
+    difficulty:     text('difficulty').notNull(),
+    updatedAt:      timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [
-    // Postgres は FK に自動インデックスを作らないため明示的に追加
-    index('annotations_card_id_idx').on(table.cardId),
-  ],
-);
-
-// ──────────────────────────────────────────────────────
-// srs_records — SRS 学習履歴
-// ──────────────────────────────────────────────────────
-export const srsRecords = pgTable(
-  'srs_records',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull(),
-    cardId: uuid('card_id')
-      .notNull()
-      .references(() => cards.id, { onDelete: 'cascade' }),
-    dueDate: timestamp('due_date').notNull().defaultNow(),
-    interval: integer('interval').notNull().default(1),
-    easiness: real('easiness').notNull().default(2.5),
-    reps: integer('reps').notNull().default(0),
-    lastRatedAt: timestamp('last_rated_at'),
-  },
-  (table) => [
-    // 憲法 II 条: (user_id, due_date) 複合インデックスを常に維持する
-    index('srs_user_due_idx').on(table.userId, table.dueDate),
-    uniqueIndex('srs_user_card_unique').on(table.userId, table.cardId),
-  ],
-);
-
-// ──────────────────────────────────────────────────────
-// ai_candidates — AI 生成カード候補（HITL 承認待ち）
-// ──────────────────────────────────────────────────────
-export const aiCandidates = pgTable(
-  'ai_candidates',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull(),
-    imageUrl: text('image_url'),
-    panoId: text('pano_id'),
-    suggestedNotes: text('suggested_notes'),
-    suggestedTags: text('suggested_tags').array().notNull().default([]),
-    status: text('status').notNull().default('pending'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-  },
-  (table) => [
-    // RLS フィルタ用
-    index('ai_candidates_user_id_idx').on(table.userId),
-    // (user_id, status) で pending/processing 絞り込みを高速化
-    index('ai_candidates_user_status_idx').on(table.userId, table.status),
+    index('mm_difficulty_idx').on(table.difficulty),
+    index('mm_region_diff_idx').on(table.region, table.difficulty),
   ],
 );
 
 // TypeScript 型エクスポート
-export type Card = typeof cards.$inferSelect;
-export type NewCard = typeof cards.$inferInsert;
-export type Annotation = typeof annotations.$inferSelect;
-export type NewAnnotation = typeof annotations.$inferInsert;
-export type SrsRecord = typeof srsRecords.$inferSelect;
-export type NewSrsRecord = typeof srsRecords.$inferInsert;
-export type AiCandidate = typeof aiCandidates.$inferSelect;
-export type NewAiCandidate = typeof aiCandidates.$inferInsert;
+export type MunicipalityQuizResult = typeof municipalityQuizResults.$inferSelect;
+export type NewMunicipalityQuizResult = typeof municipalityQuizResults.$inferInsert;
+export type MunicipalityMaster = typeof municipalityMaster.$inferSelect;
+export type NewMunicipalityMaster = typeof municipalityMaster.$inferInsert;
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';

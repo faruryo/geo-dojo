@@ -20,7 +20,8 @@ const serwist = new Serwist({
     {
       // 地図データは CacheFirst で30日キャッシュ（憲法 II 条: 部分オフライン対応）
       matcher: ({ url }: { url: URL }) =>
-        url.pathname.endsWith('japan.topojson'),
+        url.pathname.endsWith('japan.topojson') ||
+        url.pathname.endsWith('japan-municipalities.topojson'),
       handler: new CacheFirst({
         cacheName: 'map-data',
         plugins: [
