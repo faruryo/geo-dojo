@@ -1,0 +1,74 @@
+'use client';
+
+import Link from 'next/link';
+import { useWeaknessRanking } from '@/lib/hooks/useWeaknessRanking';
+import { EmptyState } from '@/components/dashboard/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+
+export function WeaknessRanking() {
+  const { data, isLoading } = useWeaknessRanking();
+
+  if (isLoading) {
+    return (
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold">苦手ランキング</h2>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full rounded-lg" />
+        ))}
+      </section>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold">苦手ランキング</h2>
+        <EmptyState message="苦手な市区町村はありません。素晴らしい！" />
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-sm font-semibold">苦手ランキング</h2>
+      <ul className="flex flex-col gap-2">
+        {data.map((item) => {
+          const accuracy = 1 - item.errorRate;
+          const accuracyPercent = Math.round(accuracy * 1000) / 10;
+          // Color gradient: red (0%) -> yellow (50%) -> green (100%)
+          const hue = Math.round(accuracy * 120); // 0=red, 120=green
+
+          return (
+            <li key={item.municipalityCode}>
+              <Link
+                href="/quiz/municipality"
+                className="block rounded-lg bg-card p-3 ring-1 ring-foreground/10 transition-colors hover:ring-foreground/20"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <div>
+                    <span className="font-medium">{item.municipalityName}</span>
+                    <span className="ml-1.5 text-xs text-muted-foreground">
+                      {item.prefecture}
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    正答率 {accuracyPercent}% ({item.totalCount}回)
+                  </span>
+                </div>
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${accuracyPercent}%`,
+                      backgroundColor: `hsl(${hue}, 70%, 50%)`,
+                    }}
+                  />
+                </div>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}

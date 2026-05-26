@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Map, MapPin } from 'lucide-react';
+import { Home, Map, MapPin } from 'lucide-react';
 
 const navItems = [
-  { href: '/quiz/prefecture', label: '都道府県', icon: Map },
-  { href: '/quiz/municipality', label: '市区町村', icon: MapPin },
+  { href: '/', label: 'ホーム', icon: Home, exact: true },
+  { href: '/quiz/prefecture', label: '都道府県', icon: Map, exact: false },
+  { href: '/quiz/municipality', label: '市区町村', icon: MapPin, exact: false },
 ];
 
 export default function BottomNav() {
@@ -15,8 +16,8 @@ export default function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
       <div className="flex">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname.startsWith(href);
+        {navItems.map(({ href, label, icon: Icon, exact }) => {
+          const active = exact ? pathname === href : pathname.startsWith(href);
           return (
             <Link
               key={href}
