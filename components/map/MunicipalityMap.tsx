@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import { feature } from 'topojson-client';
 import type { Topology, GeometryCollection } from 'topojson-specification';
+import { union } from '@turf/union';
 import { prefectureCenter } from '@/lib/quiz/prefecture-center';
 
 const GEO_URL = '/japan-municipalities.topojson';
@@ -108,13 +109,50 @@ export function MunicipalityMap({
 
         const objKey = Object.keys(topology.objects)[0];
         const fc = feature(topology, topology.objects[objKey] as GeometryCollection) as GeoJSON.FeatureCollection;
-        const filtered: GeoJSON.FeatureCollection = {
-          type: 'FeatureCollection',
-          features: fc.features.filter(
-            (f) => (f.properties as Record<string, string> | null)?.pref_ja === prefecture,
-          ),
-        };
-        data.addGeoJson(filtered, { idPropertyName: 'code' });
+        const prefFeatures = fc.features.filter(
+          (f) => (f.properties as Record<string, string> | null)?.pref_ja === prefecture,
+        );
+
+        // Merge all geometries that share the same display name (nam_ja) into one
+        // MultiPolygon. This handles two cases:
+        //   1. Same code split across multiple polygons (e.g. 高岡市 — islands/enclaves)
+        //   2. Same city name across different ward codes (e.g. 名古屋市 has 16 wards,
+        //      each with a distinct code but identical nam_ja — merging them shows the
+        //      whole city as one clickable area instead of confusing ward boundaries)
+        const byName = new Map<string, GeoJSON.Feature[]>();
+        for (const f of prefFeatures) {
+          const name = (f.properties as Record<string, string> | null)?.nam_ja ?? '';
+          if (!byName.has(name)) byName.set(name, []);
+          byName.get(name)!.push(f);
+        }
+        const mergedFeatures: GeoJSON.Feature[] = [];
+        byName.forEach((group) => {
+          if (group.length === 1) {
+            mergedFeatures.push(group[0]);
+          } else {
+            // Union-dissolve ward polygons so internal shared boundaries are removed.
+            // Without this, adjacent ward polygons each draw their shared edge and
+            // the internal ward grid is visible even though the city is one tap target.
+            try {
+              const valid = group.filter((f) => f.geometry != null);
+              if (valid.length === 0) { mergedFeatures.push(group[0]); return; }
+              const fc: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> = {
+                type: 'FeatureCollection',
+                features: valid as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>[],
+              };
+              const dissolved = union(fc);
+              if (dissolved) {
+                dissolved.properties = group[0].properties;
+                mergedFeatures.push(dissolved);
+              } else {
+                mergedFeatures.push(group[0]);
+              }
+            } catch {
+              mergedFeatures.push(group[0]);
+            }
+          }
+        });
+        data.addGeoJson({ type: 'FeatureCollection', features: mergedFeatures }, { idPropertyName: 'code' });
 
         // Fit map to features so different-sized prefectures all frame nicely.
         // LatLngBounds lives in the 'core' library; google.maps namespace is

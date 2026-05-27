@@ -105,10 +105,11 @@ function buildQuestions(
     return questions;
   }
 
-  // Mode B/C: same (name, prefecture) = identical question → deduplicate.
-  // (Mode D keeps all codes because each ward polygon is a distinct tap target.)
+  // Mode B/C/D: same (name, prefecture) = identical question → deduplicate.
+  // Mode D also deduplicates because ward-subdivided cities (e.g. 名古屋市) share
+  // the same display name and any ward tap is accepted as correct.
   const deduped =
-    settings.mode === 'B' || settings.mode === 'C'
+    settings.mode === 'B' || settings.mode === 'C' || settings.mode === 'D'
       ? (() => {
           const seen = new Set<string>();
           return pool.filter((m) => {
@@ -353,21 +354,26 @@ export default function MunicipalityQuizPage() {
 
   // ── Mode D: municipality map tap ──
   const handleDTap = useCallback(
-    async (code: string) => {
+    async (code: string, tappedName: string) => {
       if (feedback !== 'idle' || !currentQuestion || currentQuestion.kind !== 'BCD') return;
       const { municipality } = currentQuestion;
-      const correct = code === municipality.code;
+      // Accept any polygon whose display name matches — handles ward-subdivided cities
+      // (e.g. 名古屋市 where 16 wards each have a distinct code but share the same nam_ja).
+      const correct = tappedName === municipality.name;
+      const allCorrectCodes = allMunicipalities
+        .filter((m) => m.name === municipality.name && m.prefecture === municipality.prefecture)
+        .map((m) => m.code);
       if (correct) {
-        setCorrectCodes([code]);
+        setCorrectCodes(allCorrectCodes);
       } else {
         setWrongCodes([code]);
-        setCorrectCodes([municipality.code]);
+        setCorrectCodes(allCorrectCodes);
       }
       setFeedback(correct ? 'correct' : 'incorrect');
       await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'D' }]);
       setTimeout(advanceQuestion, 1500);
     },
-    [feedback, currentQuestion, recordAndAdvance, advanceQuestion],
+    [feedback, currentQuestion, allMunicipalities, recordAndAdvance, advanceQuestion],
   );
 
   const handleModeDFallback = useCallback(() => setModeDFailed(true), []);
@@ -377,12 +383,15 @@ export default function MunicipalityQuizPage() {
     if (feedback !== 'idle' || !currentQuestion) return;
     if (currentQuestion.kind === 'BCD' && currentQuestion.mode === 'D' && !modeDFailed) {
       const { municipality } = currentQuestion;
-      setCorrectCodes([municipality.code]);
+      const allCorrectCodes = allMunicipalities
+        .filter((m) => m.name === municipality.name && m.prefecture === municipality.prefecture)
+        .map((m) => m.code);
+      setCorrectCodes(allCorrectCodes);
       setFeedback('incorrect');
       await recordAndAdvance([{ municipality, isCorrect: false, mode: 'D' }]);
       setTimeout(advanceQuestion, 1500);
     }
-  }, [feedback, currentQuestion, modeDFailed, recordAndAdvance, advanceQuestion]);
+  }, [feedback, currentQuestion, modeDFailed, allMunicipalities, recordAndAdvance, advanceQuestion]);
 
   // ── Countdown for mode D ──
   // Resets on question change, stops once feedback is shown. Tick once per
