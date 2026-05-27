@@ -29,6 +29,11 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 max-w-3xl mx-auto">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">GeoDojo</h1>
+        <p className="text-xs text-muted-foreground">日本地理クイズ</p>
+      </div>
+
       {summary && summary.totalQuestions > 0 && (
         <MilestoneBanner
           totalCorrect={summary.totalCorrect}

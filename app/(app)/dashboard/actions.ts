@@ -454,91 +454,49 @@ export async function getWeaknessRanking() {
   const user = await requireUser();
   const userId = user.id;
 
-  // モード別の正答率を含めて取得
   const rows = await db
     .select({
       municipalityCode: municipalityQuizResults.municipalityCode,
       municipalityName: municipalityQuizResults.municipalityName,
       prefecture: municipalityQuizResults.prefecture,
       mode: municipalityQuizResults.mode,
+      region: municipalityMaster.region,
+      difficulty: municipalityMaster.difficulty,
       totalCount: sql<number>`COUNT(*)`,
       errorCount: sql<number>`SUM(CASE WHEN NOT ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END)`,
+      errorRate: sql<number>`SUM(CASE WHEN NOT ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END)::float / COUNT(*)`,
     })
     .from(municipalityQuizResults)
+    .innerJoin(municipalityMaster, eq(municipalityQuizResults.municipalityCode, municipalityMaster.code))
     .where(eq(municipalityQuizResults.userId, userId))
     .groupBy(
       municipalityQuizResults.municipalityCode,
       municipalityQuizResults.municipalityName,
       municipalityQuizResults.prefecture,
       municipalityQuizResults.mode,
-    );
+      municipalityMaster.region,
+      municipalityMaster.difficulty,
+    )
+    .having(
+      sql`SUM(CASE WHEN NOT ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END) > 0`,
+    )
+    .orderBy(
+      sql`SUM(CASE WHEN NOT ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END)::float / COUNT(*) DESC`,
+      sql`COUNT(*) DESC`,
+    )
+    .limit(20);
 
-  // 市区町村ごとに集約し、モード別の正答率を計算
-  const byMunicipality = new Map<string, {
-    municipalityCode: string;
-    municipalityName: string;
-    prefecture: string;
-    totalCount: number;
-    errorCount: number;
-    byMode: Record<string, { total: number; errors: number }>;
-  }>();
-
-  for (const r of [...rows]) {
-    const key = r.municipalityCode;
-    const total = Number(r.totalCount);
-    const errors = Number(r.errorCount);
-    const existing = byMunicipality.get(key);
-    if (existing) {
-      existing.totalCount += total;
-      existing.errorCount += errors;
-      existing.byMode[r.mode] = { total, errors };
-    } else {
-      byMunicipality.set(key, {
-        municipalityCode: r.municipalityCode,
-        municipalityName: r.municipalityName,
-        prefecture: r.prefecture,
-        totalCount: total,
-        errorCount: errors,
-        byMode: { [r.mode]: { total, errors } },
-      });
-    }
-  }
-
-  const result = Array.from(byMunicipality.values())
-    .filter((r) => r.errorCount > 0)
-    .map((r) => {
-      const errorRate = r.totalCount > 0 ? r.errorCount / r.totalCount : 0;
-      const modeAccuracy: Record<string, number | null> = {};
-      let worstMode = 'A';
-      let worstAccuracy = 2;
-      for (const m of ['A', 'B', 'C', 'D']) {
-        const d = r.byMode[m];
-        if (d && d.total > 0) {
-          const acc = 1 - d.errors / d.total;
-          modeAccuracy[m] = Math.round(acc * 1000) / 10;
-          if (acc < worstAccuracy) {
-            worstAccuracy = acc;
-            worstMode = m;
-          }
-        } else {
-          modeAccuracy[m] = null;
-        }
-      }
-      return {
-        municipalityCode: r.municipalityCode,
-        municipalityName: r.municipalityName,
-        prefecture: r.prefecture,
-        totalCount: r.totalCount,
-        errorCount: r.errorCount,
-        errorRate,
-        modeAccuracy,
-        worstMode,
-      };
-    })
-    .sort((a, b) => b.errorRate - a.errorRate || b.totalCount - a.totalCount)
-    .slice(0, 20);
-
-  return serialize(result);
+  return serialize(rows.map((r) => ({
+    municipalityCode: r.municipalityCode,
+    municipalityName: r.municipalityName,
+    prefecture: r.prefecture,
+    mode: r.mode,
+    region: r.region,
+    difficulty: r.difficulty,
+    totalCount: Number(r.totalCount),
+    errorCount: Number(r.errorCount),
+    errorRate: Number(r.errorRate),
+  })));
 }
 
 // ──────────────────────────────────────────────────────

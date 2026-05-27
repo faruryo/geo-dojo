@@ -39,36 +39,30 @@ export function WeaknessRanking() {
     <section className="flex flex-col gap-3">
       <h2 className="text-sm font-semibold">苦手ランキング</h2>
       <ul className="flex flex-col gap-2">
-        {data.map((item) => {
+        {data.map((item, i) => {
           const accuracy = 1 - item.errorRate;
           const accuracyPercent = Math.round(accuracy * 1000) / 10;
-          // Color gradient: red (0%) -> yellow (50%) -> green (100%)
-          const hue = Math.round(accuracy * 120); // 0=red, 120=green
-
-          const worstModeLabel = item.worstMode ? MODE_LABELS[item.worstMode] : null;
-          const quizHref = item.worstMode
-            ? `/quiz/municipality/${item.worstMode}`
-            : '/quiz/municipality';
+          const hue = Math.round(accuracy * 120);
+          const params = new URLSearchParams({ difficulty: item.difficulty, region: item.region });
+          const quizHref = `/quiz/municipality/${item.mode}?${params}`;
 
           return (
-            <li key={item.municipalityCode}>
+            <li key={`${item.municipalityCode}-${item.mode}-${i}`}>
               <Link
                 href={quizHref}
                 className="block rounded-lg bg-card p-3 ring-1 ring-foreground/10 transition-colors hover:ring-foreground/20"
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <div>
+                  <div className="min-w-0">
                     <span className="font-medium">{item.municipalityName}</span>
                     <span className="ml-1.5 text-xs text-muted-foreground">
                       {item.prefecture}
                     </span>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    {worstModeLabel && (
-                      <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
-                        {worstModeLabel}
-                      </span>
-                    )}
+                    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      {MODE_LABELS[item.mode]}
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       {accuracyPercent}% ({item.totalCount}回)
                     </span>
