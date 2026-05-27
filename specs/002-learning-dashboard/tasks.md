@@ -214,6 +214,17 @@
 
 ---
 
+## Phase 14: Post-spec Enhancements (spec-002 branch内追加実装)
+
+**Purpose**: spec策定後に実装した改善をトレーサビリティのため記録
+
+- [x] T047 [US3] `getWeaknessRanking` を（市区町村 × モード）行単位に変更。`municipality_master` JOIN で `region`・`difficulty` を取得 `app/(app)/dashboard/actions.ts`
+- [x] T048 [US3] `weakness-ranking` コンポーネントをモード別独立行表示に変更。リンクを `/quiz/municipality/[mode]?difficulty=&region=` 形式に更新 `components/dashboard/weakness-ranking.tsx`
+- [x] T049 クイズ設定ページで `useSearchParams()` を導入し、`difficulty`・`region` クエリパラメータを初期値として読み込む `app/(app)/quiz/municipality/[mode]/page.tsx`
+- [x] T050 ダッシュボードページ上部に「GeoDojo / 日本地理クイズ」ヘッダーを追加 `app/(app)/page.tsx`
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
