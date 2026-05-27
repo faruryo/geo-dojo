@@ -57,10 +57,18 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, 
     setTimeout(() => { didDrag.current = false; }, 10);
   }
 
-  function handleWheel(e: React.WheelEvent) {
-    e.preventDefault();
-    setScale((s) => Math.min(8, Math.max(1, s * (e.deltaY < 0 ? 1.15 : 0.87))));
-  }
+  // Native wheel listener with { passive: false } — React's onWheel is passive
+  // by default and silently ignores preventDefault(), letting the page scroll.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      setScale((s) => Math.min(8, Math.max(1, s * (e.deltaY < 0 ? 1.15 : 0.87))));
+    }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   function zoomIn()  { setScale((s) => Math.min(8, s * 2)); }
   function zoomOut() { setScale((s) => Math.max(1, s / 2)); }
@@ -78,7 +86,6 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, 
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onWheel={handleWheel}
       >
         <div
           className="w-full h-full"

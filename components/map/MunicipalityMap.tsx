@@ -219,5 +219,14 @@ export function MunicipalityMap({
     };
   }, []);
 
-  return <div ref={containerRef} className="w-full h-full rounded-xl overflow-hidden" />;
+  // Prevent page scroll / browser zoom when interacting with the map.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) { e.stopPropagation(); }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  return <div ref={containerRef} className="w-full h-full rounded-xl overflow-hidden touch-none" />;
 }
