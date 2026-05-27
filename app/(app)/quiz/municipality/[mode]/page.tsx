@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { notFound, useParams, useRouter } from 'next/navigation';
+import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -169,16 +169,20 @@ const MODE_LABEL: Record<GameMode, string> = {
 export default function MunicipalityQuizPage() {
   const router = useRouter();
   const params = useParams<{ mode: string }>();
+  const searchParams = useSearchParams();
   const modeFromUrl = (params.mode ?? '').toUpperCase() as GameMode;
   if (!VALID_MODES.includes(modeFromUrl)) notFound();
+
+  const initDifficulty = searchParams.get('difficulty') as Difficulty | null;
+  const initRegion = searchParams.get('region') as Region | null;
 
   const [phase, setPhase] = useState<Phase>('setup');
   const [settings, setSettings] = useState<Settings>({
     mode: modeFromUrl,
-    regions: ['全国'],
+    regions: initRegion && (REGIONS as readonly string[]).includes(initRegion) ? [initRegion as Region] : ['全国'],
     count: 10,
     weaknessFirst: false,
-    difficulties: ['easy', 'medium'],
+    difficulties: initDifficulty && DIFFICULTIES.includes(initDifficulty as Difficulty) ? [initDifficulty as Difficulty] : ['easy', 'medium'],
   });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [qIdx, setQIdx] = useState(0);

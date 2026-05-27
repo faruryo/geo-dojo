@@ -1,5 +1,5 @@
 ---
-description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作成・AI生成レビュー"
+description: "GeoDojo MVP — 都道府県クイズ・市区町村クイズ（4モード＋難易度フィルター）"
 ---
 
 # Tasks: GeoDojo MVP（Phase 1）
@@ -163,7 +163,7 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 - [x] T076 `app/auth/callback/route.ts` に `?next=` クエリ対応を追加（`/`始まりのパスのみ許可、未指定時は `/study`）。`app/(auth)/login/page.tsx` に「パスワードを忘れた方」リンクを追加
 - [x] T077 モードD（市区町村地図タップ）の背景を Google Maps JS API に置き換える — `components/map/MunicipalityMap.tsx` を `@googlemaps/js-api-loader` v2（`setOptions`+`importLibrary`）ベースで書き直し済み。TopoJSON を `map.data.addGeoJson()` で overlay、クリックは `map.data.addListener('click')` で `code`/`name` 取得、スタイル（選択中=青・正解=緑・不正解=赤）は `map.data.setStyle()` で動的更新。`fitBounds` で都道府県ごとに自動フィット、`gm_authFailure` で onLoadError → モードC フォールバック。モードA（JapanMap）は現状維持
 - [x] T078 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` を追加（client 側 Maps JS API 用）。`GOOGLE_MAPS_API_KEY` は image-proxy/Street View Static 用に server-side 専用として維持。`.env.local`・`.env.example` 更新済み。ローカル: Maps JavaScript API は有効化済み（2026-05-23）
-- [ ] T079 **本番デプロイ前必須** — Google Cloud Console で client 用キーを発行：① 新規 API キー作成、② 「Maps JavaScript API」のみに API 制限、③ HTTP referrer 制限（本番ドメイン + プレビュー用 `*.vercel.app` 等）、④ そのキー値を本番環境変数 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` に設定。**既存の `GOOGLE_MAPS_API_KEY`（image-proxy 用）にも server 用の制限を設定**（Vercel egress IP allowlist または「Street View Static API」のみに API 制限）
+- [x] T079 **本番デプロイ前必須** — Google Cloud Console で client 用キーを発行：① 新規 API キー作成、② 「Maps JavaScript API」のみに API 制限、③ HTTP referrer 制限（本番ドメイン + プレビュー用 `*.vercel.app` 等）、④ そのキー値を本番環境変数 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` に設定。**既存の `GOOGLE_MAPS_API_KEY`（image-proxy 用）にも server 用の制限を設定**（Vercel egress IP allowlist または「Street View Static API」のみに API 制限）
 
 ---
 
@@ -266,17 +266,6 @@ description: "GeoDojo MVP Phase 1 — SRS学習・地図クイズ・カード作
 - [x] T094 [US6] Phase 2 → Phase 3 移行用の TODO を tasks.md に追記（クラウド正答率カラムの追加・combined score の検討は別 spec 化）
 
 ---
-
-## Backlog: 将来対応（post-MVP）
-
-- [ ] T095 政令指定都市の区レベル詳細化（高難易度モード）
-  - 現状: 仙台市5区が全て `name:'仙台市'` → Mode C/D で重複出題・Mode D でタップ精度問題
-  - 案: expert 難易度のみ区名（`仙台市青葉区`）を個別エントリとして出題
-  - 対応ファイル: `scripts/generate-municipalities.ts`（`nam_ja` 生成ロジック）、`scripts/sync-municipality-master.ts`（difficulty 計算）、`lib/quiz/municipality-data.ts`
-- [ ] T096 難易度計算 Phase 3 — クラウド正答率の導入（別 spec 化が前提）
-  - 現状: Phase 2（e-Stat 人口ベース）で difficulty を静的に焼き込み済み
-  - 案: 全ユーザーの正答率データを集計し、人口ベース difficulty と combined score で最終難易度を算出
-  - 検討事項: 集計バッチの実行頻度、正答率カラム追加（`municipality_master.crowd_accuracy`）、combined score の重み付け
 
 ---
 
