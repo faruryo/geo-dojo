@@ -5,6 +5,13 @@ import { useWeaknessRanking } from '@/lib/hooks/useWeaknessRanking';
 import { EmptyState } from '@/components/dashboard/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 
+const MODE_LABELS: Record<string, string> = {
+  A: 'モードA',
+  B: 'モードB',
+  C: 'モードC',
+  D: 'モードD',
+};
+
 export function WeaknessRanking() {
   const { data, isLoading } = useWeaknessRanking();
 
@@ -38,10 +45,15 @@ export function WeaknessRanking() {
           // Color gradient: red (0%) -> yellow (50%) -> green (100%)
           const hue = Math.round(accuracy * 120); // 0=red, 120=green
 
+          const worstModeLabel = item.worstMode ? MODE_LABELS[item.worstMode] : null;
+          const quizHref = item.worstMode
+            ? `/quiz/municipality/${item.worstMode}`
+            : '/quiz/municipality';
+
           return (
             <li key={item.municipalityCode}>
               <Link
-                href="/quiz/municipality"
+                href={quizHref}
                 className="block rounded-lg bg-card p-3 ring-1 ring-foreground/10 transition-colors hover:ring-foreground/20"
               >
                 <div className="flex items-baseline justify-between gap-2">
@@ -51,9 +63,16 @@ export function WeaknessRanking() {
                       {item.prefecture}
                     </span>
                   </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    正答率 {accuracyPercent}% ({item.totalCount}回)
-                  </span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {worstModeLabel && (
+                      <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
+                        {worstModeLabel}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {accuracyPercent}% ({item.totalCount}回)
+                    </span>
+                  </div>
                 </div>
                 <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                   <div
