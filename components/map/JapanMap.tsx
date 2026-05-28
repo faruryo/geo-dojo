@@ -68,7 +68,7 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, 
     }
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, []);
+  }, [topology]);
 
   function zoomIn()  { setScale((s) => Math.min(8, s * 2)); }
   function zoomOut() { setScale((s) => Math.max(1, s / 2)); }
