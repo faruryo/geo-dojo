@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, MapPin, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -156,7 +156,11 @@ function ModePreview({ mode }: { mode: Mode }) {
 
 export default function MunicipalityModeSelectPage() {
   const router = useRouter();
-  const [selected, setSelected] = useState<Mode>('B');
+  const searchParams = useSearchParams();
+  const modeParam = searchParams.get('mode')?.toUpperCase() as Mode | undefined;
+  const [selected, setSelected] = useState<Mode>(
+    modeParam && (['A', 'B', 'C', 'D'] as Mode[]).includes(modeParam) ? modeParam : 'B',
+  );
   const selectedInfo = MODES.find((m) => m.key === selected)!;
 
   function handleProceed() {

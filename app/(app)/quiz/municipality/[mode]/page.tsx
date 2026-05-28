@@ -451,7 +451,7 @@ export default function MunicipalityQuizPage() {
     return (
       <div className="flex flex-col gap-5 p-4 max-w-md mx-auto">
         <Link
-          href="/quiz/municipality"
+          href={`/quiz/municipality?mode=${modeFromUrl}`}
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft size={14} />
@@ -596,7 +596,7 @@ export default function MunicipalityQuizPage() {
     return (
       <div className="flex flex-col gap-4 p-4 max-w-md mx-auto">
         <Link
-          href="/quiz/municipality"
+          href={`/quiz/municipality?mode=${modeFromUrl}`}
           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft size={14} />
