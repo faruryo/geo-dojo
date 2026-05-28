@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
+import { notFound, useParams, useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -168,7 +168,6 @@ const MODE_LABEL: Record<GameMode, string> = {
 };
 
 export default function MunicipalityQuizPage() {
-  const router = useRouter();
   const params = useParams<{ mode: string }>();
   const searchParams = useSearchParams();
   const modeFromUrl = (params.mode ?? '').toUpperCase() as GameMode;
@@ -229,12 +228,12 @@ export default function MunicipalityQuizPage() {
     window.history.pushState(null, '');
 
     function handlePopState() {
-      router.push('/quiz/municipality');
+      setPhase('setup');
     }
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [phase, router]);
+  }, [phase]);
 
   // ── Start ──
   function handleStart() {
@@ -667,13 +666,13 @@ export default function MunicipalityQuizPage() {
     return (
       <div className="flex flex-col h-full gap-2 p-3 max-w-4xl mx-auto">
         <div className="flex items-center justify-between text-xs text-muted-foreground shrink-0">
-          <Link
-            href="/quiz/municipality"
+          <button
+            onClick={() => setPhase('setup')}
             className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
           >
             <ChevronLeft size={14} />
             中断
-          </Link>
+          </button>
           <span>{progressText}</span>
           <span>{correctCount} 正解</span>
         </div>
@@ -728,13 +727,13 @@ export default function MunicipalityQuizPage() {
   return (
     <div className="flex flex-col h-full gap-2 p-3 max-w-4xl mx-auto">
       <div className="flex items-center justify-between text-xs text-muted-foreground shrink-0">
-        <Link
-          href="/quiz/municipality"
+        <button
+          onClick={() => setPhase('setup')}
           className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
         >
           <ChevronLeft size={14} />
           中断
-        </Link>
+        </button>
         <span>{progressText}</span>
         <span>{correctCount} 正解</span>
       </div>
