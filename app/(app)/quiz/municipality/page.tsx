@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, MapPin, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { RecommendHeroCard } from '@/components/recommend/recommend-hero-card';
 
 const MiniJapanMap = dynamic(
   () => import('@/components/map/MiniJapanMap').then((m) => m.MiniJapanMap),
@@ -177,6 +178,8 @@ export default function MunicipalityModeSelectPage() {
         クイズ選択に戻る
       </Link>
       <h1 className="text-xl font-semibold">市区町村クイズ・モード選択</h1>
+
+      <RecommendHeroCard />
 
       <div className="grid md:grid-cols-2 gap-4">
         {/* ── Mode cards ── */}

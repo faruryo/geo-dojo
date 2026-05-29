@@ -14,6 +14,7 @@ import { ReviewRecommendations } from '@/components/dashboard/review-recommendat
 import { WeeklyBest } from '@/components/dashboard/weekly-best';
 import { MilestoneBanner } from '@/components/dashboard/milestone-banner';
 import { FilterBar, type FilterMode } from '@/components/dashboard/filter-bar';
+import { RecommendHeroCard } from '@/components/recommend/recommend-hero-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
@@ -40,6 +41,8 @@ export default function DashboardPage() {
           coverageRate={summary.coverageRate}
         />
       )}
+
+      <RecommendHeroCard />
 
       <SummaryCards />
 
