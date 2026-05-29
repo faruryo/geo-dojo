@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { notFound, useParams, useSearchParams } from 'next/navigation';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useMunicipalityWeakness } from '@/lib/hooks/useMunicipalityWeakness';
 import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
 import { saveMunicipalityQuizResult } from '../actions';
+import { RecommendReplayButton } from '@/components/recommend/recommend-replay-button';
 import {
   type Difficulty,
   type GameMode,
@@ -173,16 +174,33 @@ export default function MunicipalityQuizPage() {
   const modeFromUrl = (params.mode ?? '').toUpperCase() as GameMode;
   if (!VALID_MODES.includes(modeFromUrl)) notFound();
 
+  // Legacy single-difficulty param (weakness ranking links) + new multi-difficulty param (recommend)
   const initDifficulty = searchParams.get('difficulty') as Difficulty | null;
+  const initDifficultiesParam = searchParams.get('difficulties');
   const initRegion = searchParams.get('region') as Region | null;
+  const sourceParam = searchParams.get('source');
+  const countParam = searchParams.get('count');
+  const isRecommendSource = sourceParam === 'recommend';
+  const recommendCount = countParam ? (parseInt(countParam, 10) as 10 | 20 | 30) : null;
+
+  const initRegions = initRegion
+    ? initRegion.split(',').filter((r) => (REGIONS as readonly string[]).includes(r)) as Region[]
+    : null;
+
+  const initDifficulties: Difficulty[] | null = initDifficultiesParam
+    ? (initDifficultiesParam.split(',').filter((d) => DIFFICULTIES.includes(d as Difficulty)) as Difficulty[])
+    : initDifficulty && DIFFICULTIES.includes(initDifficulty as Difficulty)
+      ? [initDifficulty as Difficulty]
+      : null;
 
   const [phase, setPhase] = useState<Phase>('setup');
+
   const [settings, setSettings] = useState<Settings>({
     mode: modeFromUrl,
-    regions: initRegion && (REGIONS as readonly string[]).includes(initRegion) ? [initRegion as Region] : ['全国'],
-    count: 10,
+    regions: initRegions && initRegions.length > 0 ? initRegions : ['全国'],
+    count: recommendCount && [10, 20, 30].includes(recommendCount) ? recommendCount : 10,
     weaknessFirst: false,
-    difficulties: initDifficulty && DIFFICULTIES.includes(initDifficulty as Difficulty) ? [initDifficulty as Difficulty] : ['easy', 'medium'],
+    difficulties: initDifficulties && initDifficulties.length > 0 ? initDifficulties : ['easy', 'medium'],
   });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [qIdx, setQIdx] = useState(0);
@@ -240,6 +258,7 @@ export default function MunicipalityQuizPage() {
     const weaknessMap = new Map<string, number>(
       weaknessData.map((w) => [w.municipalityCode, w.errorRate]),
     );
+    // Setup screen / retry: no code restriction — user chose settings manually
     const qs = buildQuestions(allMunicipalities, settings, weaknessMap);
     if (qs.length === 0) return;
     setQuestions(qs);
@@ -253,6 +272,27 @@ export default function MunicipalityQuizPage() {
     setModeDFailed(false);
     setPhase('playing');
   }
+
+  // ── Auto-start when coming from recommend (skip setup screen) ──
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!isRecommendSource || autoStarted.current || masterLoading || allMunicipalities.length === 0 || phase !== 'setup') return;
+    const weaknessMap = new Map<string, number>(weaknessData.map((w) => [w.municipalityCode, w.errorRate]));
+    const qs = buildQuestions(allMunicipalities, settings, weaknessMap);
+    if (qs.length === 0) return;
+    autoStarted.current = true;
+    setQuestions(qs);
+    setQIdx(0);
+    setResults([]);
+    setFeedback('idle');
+    setSelectedPrefectures(new Set());
+    setSelectedChoice(null);
+    setCorrectCodes([]);
+    setWrongCodes([]);
+    setModeDFailed(false);
+    setPhase('playing');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRecommendSource, masterLoading, allMunicipalities]);
 
   // ── Advance to next question ──
   const advanceQuestion = useCallback(() => {
@@ -445,6 +485,7 @@ export default function MunicipalityQuizPage() {
           ? '該当する市区町村なし — 地域か難易度を変更してください'
           : 'スタート';
 
+
   // ─── Render: Setup ──────────────────────────────────────────────
 
   if (phase === 'setup') {
@@ -624,6 +665,7 @@ export default function MunicipalityQuizPage() {
           </div>
         )}
 
+        {isRecommendSource && <RecommendReplayButton />}
         <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
           設定に戻る
         </Button>

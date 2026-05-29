@@ -6,6 +6,10 @@ import { createServerClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
 import { municipalityQuizResults, municipalityMaster, type MunicipalityMaster } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { inferSessions, computeCellAccuracies, computeCellCoverages } from '@/lib/quiz/recommendation/cell-stats';
+import { extractFitZone } from '@/lib/quiz/recommendation/fit-zone';
+import { generateRecommendation } from '@/lib/quiz/recommendation/engine';
+import type { LearnerState, Recommendation } from '@/lib/quiz/recommendation/types';
 
 // Lazy-loaded municipality validation set (loaded once, reused across requests)
 let _validCodes: Set<string> | null = null;
@@ -110,4 +114,133 @@ export async function getMunicipalityMaster(): Promise<MunicipalityMaster[]> {
   if (error || !user) throw new Error('Unauthorized');
 
   return db.select().from(municipalityMaster);
+}
+
+type GetRecommendationInput = {
+  excludeCodes?: string[];
+  clientNowIso?: string;
+};
+
+async function buildLearnerState(userId: string): Promise<{
+  state: LearnerState;
+  allMaster: Array<{ code: string; name: string; prefecture: string; region: string; difficulty: string }>;
+}> {
+  const [allResults, allMasterRows, crowdRows] = await Promise.all([
+    db
+      .select()
+      .from(municipalityQuizResults)
+      .where(eq(municipalityQuizResults.userId, userId))
+      .orderBy(municipalityQuizResults.answeredAt),
+    db.select().from(municipalityMaster),
+    db
+      .select({
+        difficulty: municipalityMaster.difficulty,
+        correctCount: sql<number>`CAST(COUNT(*) FILTER (WHERE ${municipalityQuizResults.isCorrect}) AS int)`,
+        totalCount: sql<number>`CAST(COUNT(*) AS int)`,
+      })
+      .from(municipalityQuizResults)
+      .innerJoin(municipalityMaster, eq(municipalityQuizResults.municipalityCode, municipalityMaster.code))
+      .groupBy(municipalityMaster.difficulty),
+  ]);
+
+  const masterMap = new Map(allMasterRows.map((m) => [m.code, m]));
+
+  const crowdAccuracyByDifficulty: Record<string, number> = {
+    easy: 0.6, medium: 0.55, hard: 0.5, expert: 0.45,
+  };
+  for (const row of crowdRows) {
+    if (row.totalCount > 0) {
+      crowdAccuracyByDifficulty[row.difficulty] = row.correctCount / row.totalCount;
+    }
+  }
+
+  const sessions = inferSessions(allResults.map((r) => ({
+    municipalityCode: r.municipalityCode,
+    municipalityName: r.municipalityName,
+    prefecture: r.prefecture,
+    mode: r.mode,
+    isCorrect: r.isCorrect,
+    answeredAt: r.answeredAt,
+  })));
+
+  const cellAccuracies = computeCellAccuracies(sessions, masterMap as Map<string, { code: string; region: string; difficulty: string }>, crowdAccuracyByDifficulty);
+  const fitZone = extractFitZone(cellAccuracies);
+
+  const correctCodesByUser = new Set(
+    allResults.filter((r) => r.isCorrect).map((r) => r.municipalityCode),
+  );
+  const cellCoverages = computeCellCoverages(allMasterRows, correctCodesByUser);
+
+  // Weakness map: municipalityCode → errorRate
+  const weaknessByMunicipality = new Map<string, number>();
+  const codeStats = new Map<string, { total: number; wrong: number }>();
+  for (const r of allResults) {
+    const s = codeStats.get(r.municipalityCode) ?? { total: 0, wrong: 0 };
+    s.total++;
+    if (!r.isCorrect) s.wrong++;
+    codeStats.set(r.municipalityCode, s);
+  }
+  for (const [code, { total, wrong }] of codeStats) {
+    if (total > 0) weaknessByMunicipality.set(code, wrong / total);
+  }
+
+  // Last session accuracy
+  const lastSession = sessions[sessions.length - 1] ?? null;
+  const lastSessionAccuracy = lastSession?.accuracy ?? null;
+
+  // Recent question counts (last 10 sessions)
+  const recentSessions = sessions.slice(-10);
+  const recentQuestionCounts = recentSessions.map((s) => s.count);
+
+  // Codes played within the last 30 days — used by the coverage axis to avoid
+  // re-surfacing recently seen municipalities when the unplayed pool is exhausted.
+  const now = Date.now();
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+  const recentlyPlayedCodes = new Set<string>();
+  for (const r of allResults) {
+    if (now - r.answeredAt.getTime() <= THIRTY_DAYS_MS) {
+      recentlyPlayedCodes.add(r.municipalityCode);
+    }
+  }
+
+  const state: LearnerState = {
+    userId,
+    totalSessions: sessions.length,
+    totalAnswers: allResults.length,
+    cellAccuracies,
+    cellCoverages,
+    fitZone,
+    weaknessByMunicipality,
+    lastSessionAccuracy,
+    recentQuestionCounts,
+    recentlyPlayedCodes,
+    crowdAccuracyByDifficulty: crowdAccuracyByDifficulty as Record<'easy' | 'medium' | 'hard' | 'expert', number>,
+  };
+
+  return { state, allMaster: allMasterRows };
+}
+
+export async function getRecommendation(
+  input: GetRecommendationInput = {},
+): Promise<Recommendation & { flags: { isColdStart: boolean; isRegressionGuarded: boolean; isProgressionFired: boolean; isDifficultyCapped: boolean }; notes: string[] }> {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) throw new Error('Unauthorized');
+  if (!checkRateLimit(user.id)) throw new Error('Rate limit exceeded');
+
+  const { state, allMaster } = await buildLearnerState(user.id);
+  const recommendation = generateRecommendation(state, input.excludeCodes ?? [], allMaster);
+
+  return {
+    ...recommendation,
+    flags: {
+      isColdStart: state.totalAnswers < 10,
+      isRegressionGuarded: recommendation.isRegressionGuarded,
+      isProgressionFired: recommendation.isProgressionFired,
+      isDifficultyCapped: state.fitZone.isCappedAt !== null,
+    },
+    notes: recommendation.poolBreakdown.randomFallback > 0
+      ? [`${recommendation.poolBreakdown.randomFallback}問は推薦範囲外のランダム補充です`]
+      : [],
+  };
 }
