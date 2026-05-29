@@ -1,233 +1,54 @@
 {
-  "id": "be12e1b8-67bd-4db3-a312-76a627d914e7",
+  "id": "ee774169-b6b5-4a31-b645-170350b6257e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.ai_candidates": {
-      "name": "ai_candidates",
+    "public.municipality_master": {
+      "name": "municipality_master",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
+        "code": {
+          "name": "code",
+          "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
+        "name": {
+          "name": "name",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "image_url": {
-          "name": "image_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pano_id": {
-          "name": "pano_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "suggested_notes": {
-          "name": "suggested_notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "suggested_tags": {
-          "name": "suggested_tags",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'"
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "ai_candidates_user_id_idx": {
-          "name": "ai_candidates_user_id_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ai_candidates_user_status_idx": {
-          "name": "ai_candidates_user_status_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.annotations": {
-      "name": "annotations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "card_id": {
-          "name": "card_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "x_ratio": {
-          "name": "x_ratio",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "y_ratio": {
-          "name": "y_ratio",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
+        "prefecture": {
+          "name": "prefecture",
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        }
-      },
-      "indexes": {
-        "annotations_card_id_idx": {
-          "name": "annotations_card_id_idx",
-          "columns": [
-            {
-              "expression": "card_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "annotations_card_id_cards_id_fk": {
-          "name": "annotations_card_id_cards_id_fk",
-          "tableFrom": "annotations",
-          "tableTo": "cards",
-          "columnsFrom": [
-            "card_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.cards": {
-      "name": "cards",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
+        "region": {
+          "name": "region",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "notes": {
-          "name": "notes",
-          "type": "text",
+        "population": {
+          "name": "population",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "tags": {
-          "name": "tags",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'"
-        },
-        "image_url": {
-          "name": "image_url",
-          "type": "text",
+        "population_year": {
+          "name": "population_year",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "pano_id": {
-          "name": "pano_id",
+        "difficulty": {
+          "name": "difficulty",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
+          "notNull": true
         },
         "updated_at": {
           "name": "updated_at",
@@ -238,11 +59,32 @@
         }
       },
       "indexes": {
-        "cards_user_id_idx": {
-          "name": "cards_user_id_idx",
+        "mm_difficulty_idx": {
+          "name": "mm_difficulty_idx",
           "columns": [
             {
-              "expression": "user_id",
+              "expression": "difficulty",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mm_region_diff_idx": {
+          "name": "mm_region_diff_idx",
+          "columns": [
+            {
+              "expression": "region",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "difficulty",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -361,129 +203,6 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.srs_records": {
-      "name": "srs_records",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "card_id": {
-          "name": "card_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "due_date": {
-          "name": "due_date",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "interval": {
-          "name": "interval",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "easiness": {
-          "name": "easiness",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 2.5
-        },
-        "reps": {
-          "name": "reps",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "last_rated_at": {
-          "name": "last_rated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "srs_user_due_idx": {
-          "name": "srs_user_due_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "due_date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "srs_user_card_unique": {
-          "name": "srs_user_card_unique",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "card_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "srs_records_card_id_cards_id_fk": {
-          "name": "srs_records_card_id_cards_id_fk",
-          "tableFrom": "srs_records",
-          "tableTo": "cards",
-          "columnsFrom": [
-            "card_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
