@@ -1,0 +1,43 @@
+name: Migrate (production)
+
+# main へのマージ/プッシュで本番 DB マイグレーションを実行する。
+# デプロイは Vercel の GitHub 連携（main→Production / PR→Preview）に任せる。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 手動実行も可能
+
+# 同時に複数のマイグレーションが走らないよう直列化
+concurrency:
+  group: migrate-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Run prod DB migrations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 本番 DB マイグレーション（drizzle-kit migrate）
+      #   DATABASE_URL は Supabase の直接接続/セッションプーラー（5432）を推奨。
+      #   マイグレーションは冪等（IF NOT EXISTS 等）なので既存テーブルでも安全。
+      - name: Run DB migrations
+        run: pnpm drizzle-kit migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
