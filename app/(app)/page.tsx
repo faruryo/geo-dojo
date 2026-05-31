@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useDashboardSummary } from '@/lib/hooks/useDashboardSummary';
-import { useRecentSessions } from '@/lib/hooks/useRecentSessions';
 import { SummaryCards } from '@/components/dashboard/summary-cards';
 import { AccuracyChart } from '@/components/dashboard/accuracy-chart';
 import { CompletionChart } from '@/components/dashboard/completion-chart';
@@ -11,7 +10,6 @@ import { StreakDisplay } from '@/components/dashboard/streak-display';
 import { CompletionProgress } from '@/components/dashboard/completion-progress';
 import { DifficultyProgress } from '@/components/dashboard/difficulty-progress';
 import { ReviewRecommendations } from '@/components/dashboard/review-recommendations';
-import { WeeklyBest } from '@/components/dashboard/weekly-best';
 import { MilestoneBanner } from '@/components/dashboard/milestone-banner';
 import { FilterBar, type FilterMode } from '@/components/dashboard/filter-bar';
 import { RecommendHeroCard } from '@/components/recommend/recommend-hero-card';
@@ -20,7 +18,6 @@ import { Separator } from '@/components/ui/separator';
 
 export default function DashboardPage() {
   const { data: summary } = useDashboardSummary();
-  const { data: sessions } = useRecentSessions(50);
 
   const [accMode, setAccMode] = useState<FilterMode>('all');
   const [accRegion, setAccRegion] = useState('全国');
@@ -48,10 +45,7 @@ export default function DashboardPage() {
 
       {summary && summary.totalQuestions > 0 && (
         <>
-          <div className="grid grid-cols-2 gap-3">
-            <StreakDisplay />
-            <WeeklyBest sessions={sessions} />
-          </div>
+          <StreakDisplay />
 
           <Card>
             <CardContent className="flex flex-col gap-5">
