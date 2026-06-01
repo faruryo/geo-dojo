@@ -16,15 +16,15 @@ CREATE TABLE "srs_records" (
 --> statement-breakpoint
 CREATE INDEX "srs_user_due_idx" ON "srs_records" USING btree ("user_id","due_date");--> statement-breakpoint
 CREATE UNIQUE INDEX "srs_user_code_mode_uidx" ON "srs_records" USING btree ("user_id","municipality_code","mode");--> statement-breakpoint
-CREATE INDEX "srs_user_status_idx" ON "srs_records" USING btree ("user_id","status");
+CREATE INDEX "srs_user_status_idx" ON "srs_records" USING btree ("user_id","status");--> statement-breakpoint
 
 -- RLS
-ALTER TABLE "srs_records" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "srs_records" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY "Users can manage own srs_records"
   ON "srs_records"
   FOR ALL
   USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  WITH CHECK (user_id = auth.uid());--> statement-breakpoint
 
 -- Backfill: 既存誤答ログから復習対象を初期生成（due_date=now で即時到来）
 INSERT INTO srs_records (
