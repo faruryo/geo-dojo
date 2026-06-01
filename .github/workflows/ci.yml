@@ -1,0 +1,78 @@
+name: CI
+
+# PR とデフォルトブランチへの push で lint / test / マイグレーション検証を実行する。
+# main のブランチ保護でこれらを必須チェックにし、通らない限りマージ不可にする。
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  # 本番と同じ drizzle-kit migrate を使い捨て Postgres に流し、マイグレーションが
+  # 実際に適用できることを検証する（postgres.js 経由なので複数文チャンク等も検出できる）。
+  migrate-check:
+    name: Migrate check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: migtest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/migtest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Bootstrap Supabase-compatible roles/functions
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f .github/ci/supabase-shim.sql
+      - name: Apply migrations (same path as production)
+        run: pnpm drizzle-kit migrate
