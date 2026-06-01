@@ -18,5 +18,6 @@ export function useReviewItemList(opts: {
       }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
+    retry: false, // 失敗時は即空表示（リトライのバックオフで遅延させない）
   });
 }
