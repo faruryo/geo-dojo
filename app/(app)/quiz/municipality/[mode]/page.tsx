@@ -1,16 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { notFound, useParams, useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useMunicipalityWeakness } from '@/lib/hooks/useMunicipalityWeakness';
 import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
-import { saveMunicipalityQuizResult } from '../actions';
 import { RecommendReplayButton } from '@/components/recommend/recommend-replay-button';
+import { QuizRunner } from '@/components/quiz/quiz-runner';
+import type { Question } from '@/components/quiz/quiz-runner';
 import {
   type Difficulty,
   type GameMode,
@@ -30,15 +29,6 @@ import {
   weightedSample,
 } from '@/lib/quiz/municipality-data';
 
-const JapanMap = dynamic(
-  () => import('@/components/map/JapanMap').then((m) => m.JapanMap),
-  { ssr: false, loading: () => <div className="w-full aspect-square bg-muted rounded-xl animate-pulse" /> },
-);
-const MunicipalityMap = dynamic(
-  () => import('@/components/map/MunicipalityMap').then((m) => m.MunicipalityMap),
-  { ssr: false, loading: () => <div className="w-full aspect-square bg-muted rounded-xl animate-pulse" /> },
-);
-
 // ─── Types ─────────────────────────────────────────────────────────
 
 interface Settings {
@@ -49,20 +39,6 @@ interface Settings {
   difficulties: Difficulty[];
 }
 
-interface ModeAQuestion {
-  kind: 'A';
-  name: string;
-  instances: Municipality[];
-  correctPrefectures: Set<string>;
-}
-interface SingleQuestion {
-  kind: 'BCD';
-  mode: 'B' | 'C' | 'D';
-  municipality: Municipality;
-  choices: string[];
-}
-type Question = ModeAQuestion | SingleQuestion;
-
 interface ResultEntry {
   name: string;
   prefecture: string;
@@ -70,9 +46,6 @@ interface ResultEntry {
 }
 
 type Phase = 'setup' | 'playing' | 'result';
-type FeedbackState = 'idle' | 'correct' | 'incorrect';
-
-const TIME_LIMIT_SEC = 30;
 
 // ─── Question builder ───────────────────────────────────────────────
 
@@ -81,7 +54,6 @@ function buildQuestions(
   settings: Settings,
   weaknessMap: Map<string, number>,
 ): Question[] {
-  // Apply region AND difficulty filters (per FR-018)
   const byRegion = filterByRegions(all, settings.regions);
   const filtered = filterByDifficulty(byRegion, settings.difficulties);
   const pool = settings.weaknessFirst
@@ -90,7 +62,7 @@ function buildQuestions(
 
   if (settings.mode === 'A') {
     const seen = new Set<string>();
-    const questions: ModeAQuestion[] = [];
+    const questions: Question[] = [];
     for (const m of pool) {
       if (questions.length >= settings.count) break;
       if (seen.has(m.name)) continue;
@@ -106,42 +78,27 @@ function buildQuestions(
     return questions;
   }
 
-  // Mode B/C/D: same (name, prefecture) = identical question → deduplicate.
-  // Mode D also deduplicates because ward-subdivided cities (e.g. 名古屋市) share
-  // the same display name and any ward tap is accepted as correct.
-  const deduped =
-    settings.mode === 'B' || settings.mode === 'C' || settings.mode === 'D'
-      ? (() => {
-          const seen = new Set<string>();
-          return pool.filter((m) => {
-            const key = `${m.name}::${m.prefecture}`;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          });
-        })()
-      : pool;
+  const deduped = (() => {
+    const seen = new Set<string>();
+    return pool.filter((m) => {
+      const key = `${m.name}::${m.prefecture}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
   const sliced = deduped.slice(0, settings.count);
 
-  // Prefectures across all selected regions — used to restrict distractor pools.
   const regionPrefs = getRegionsPrefectures(settings.regions);
-  // Fall back to all-Japan when the combined region set has fewer than 4 prefectures
-  // (can't fill 3 distractor slots from within the region alone).
   const regionPrefSet = new Set(regionPrefs);
 
-  return sliced.map((m): SingleQuestion => {
+  return sliced.map((m): Question => {
     if (settings.mode === 'B') {
-      // Distractors: other prefectures within the same region.
-      // Fallback to all-Japan if the region has <4 prefectures (can't fill 3 slots).
       const prefPool = regionPrefs.length >= 4 ? regionPrefs : ALL_PREFECTURES;
       const distractors = shuffle(prefPool.filter((p) => p !== m.prefecture)).slice(0, 3);
       const choices = shuffle([m.prefecture, ...distractors]);
       return { kind: 'BCD', mode: 'B', municipality: m, choices };
     }
-    // C or D: distractors are unique-named cities from OTHER prefectures in the
-    // same region. Exclude any name that also exists in the target prefecture
-    // (e.g. 中央区) so the only correct city in choices is m.name itself.
-    // Fall back to all-Japan when the region has <4 prefectures (too few options).
     const useRegionDistractors = regionPrefs.length >= 4;
     const namesInTargetPref = new Set(all.filter((a) => a.prefecture === m.prefecture).map((a) => a.name));
     const distractorPool = new Map<string, Municipality>();
@@ -174,7 +131,6 @@ export default function MunicipalityQuizPage() {
   const modeFromUrl = (params.mode ?? '').toUpperCase() as GameMode;
   if (!VALID_MODES.includes(modeFromUrl)) notFound();
 
-  // Legacy single-difficulty param (weakness ranking links) + new multi-difficulty param (recommend)
   const initDifficulty = searchParams.get('difficulty') as Difficulty | null;
   const initDifficultiesParam = searchParams.get('difficulties');
   const initRegion = searchParams.get('region') as Region | null;
@@ -194,7 +150,6 @@ export default function MunicipalityQuizPage() {
       : null;
 
   const [phase, setPhase] = useState<Phase>('setup');
-
   const [settings, setSettings] = useState<Settings>({
     mode: modeFromUrl,
     regions: initRegions && initRegions.length > 0 ? initRegions : ['全国'],
@@ -203,28 +158,11 @@ export default function MunicipalityQuizPage() {
     difficulties: initDifficulties && initDifficulties.length > 0 ? initDifficulties : ['easy', 'medium'],
   });
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [qIdx, setQIdx] = useState(0);
-  const [feedback, setFeedback] = useState<FeedbackState>('idle');
   const [results, setResults] = useState<ResultEntry[]>([]);
-  const [modeDFailed, setModeDFailed] = useState(false);
-
-  // Mode A state
-  const [selectedPrefectures, setSelectedPrefectures] = useState<Set<string>>(new Set());
-
-  // Mode B/C state
-  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
-
-  // Mode D highlight state
-  const [correctCodes, setCorrectCodes] = useState<string[]>([]);
-  const [wrongCodes, setWrongCodes] = useState<string[]>([]);
-
-  // Countdown timer (mode D only)
-  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_SEC);
 
   const { data: weaknessData = [] } = useMunicipalityWeakness();
   const { data: masterData, isLoading: masterLoading } = useMunicipalityMaster();
 
-  // Map DB rows to the runtime Municipality shape used throughout the quiz.
   const allMunicipalities: Municipality[] = useMemo(
     () =>
       (masterData ?? []).map((m) => ({
@@ -237,18 +175,11 @@ export default function MunicipalityQuizPage() {
     [masterData],
   );
 
-  const currentQuestion = questions[qIdx] ?? null;
-
-  // ── Back-button interception during play: send user to mode-select page ──
+  // ── Back-button interception during play ──
   useEffect(() => {
     if (phase !== 'playing') return;
-
     window.history.pushState(null, '');
-
-    function handlePopState() {
-      setPhase('setup');
-    }
-
+    function handlePopState() { setPhase('setup'); }
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [phase]);
@@ -258,22 +189,14 @@ export default function MunicipalityQuizPage() {
     const weaknessMap = new Map<string, number>(
       weaknessData.map((w) => [w.municipalityCode, w.errorRate]),
     );
-    // Setup screen / retry: no code restriction — user chose settings manually
     const qs = buildQuestions(allMunicipalities, settings, weaknessMap);
     if (qs.length === 0) return;
     setQuestions(qs);
-    setQIdx(0);
     setResults([]);
-    setFeedback('idle');
-    setSelectedPrefectures(new Set());
-    setSelectedChoice(null);
-    setCorrectCodes([]);
-    setWrongCodes([]);
-    setModeDFailed(false);
     setPhase('playing');
   }
 
-  // ── Auto-start when coming from recommend (skip setup screen) ──
+  // ── Auto-start when coming from recommend ──
   const autoStarted = useRef(false);
   useEffect(() => {
     if (!isRecommendSource || autoStarted.current || masterLoading || allMunicipalities.length === 0 || phase !== 'setup') return;
@@ -282,182 +205,11 @@ export default function MunicipalityQuizPage() {
     if (qs.length === 0) return;
     autoStarted.current = true;
     setQuestions(qs);
-    setQIdx(0);
     setResults([]);
-    setFeedback('idle');
-    setSelectedPrefectures(new Set());
-    setSelectedChoice(null);
-    setCorrectCodes([]);
-    setWrongCodes([]);
-    setModeDFailed(false);
     setPhase('playing');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRecommendSource, masterLoading, allMunicipalities]);
 
-  // ── Advance to next question ──
-  const advanceQuestion = useCallback(() => {
-    setFeedback('idle');
-    setSelectedPrefectures(new Set());
-    setSelectedChoice(null);
-    setCorrectCodes([]);
-    setWrongCodes([]);
-    setModeDFailed(false);
-    setQIdx((i) => {
-      if (i + 1 >= questions.length) {
-        setPhase('result');
-        return i;
-      }
-      return i + 1;
-    });
-  }, [questions.length]);
-
-  // ── Save result + advance ──
-  const recordAndAdvance = useCallback(
-    async (entries: { municipality: Municipality; isCorrect: boolean; mode: GameMode }[]) => {
-      setResults((prev) => [
-        ...prev,
-        ...entries.map((e) => ({ name: e.municipality.name, prefecture: e.municipality.prefecture, correct: e.isCorrect })),
-      ]);
-      await Promise.allSettled(
-        entries.map((e) =>
-          saveMunicipalityQuizResult({
-            municipalityCode: e.municipality.code,
-            municipalityName: e.municipality.name,
-            prefecture: e.municipality.prefecture,
-            mode: e.mode,
-            isCorrect: e.isCorrect,
-          }),
-        ),
-      );
-    },
-    [],
-  );
-
-  // ── Mode A: prefecture map tap ──
-  const handlePrefectureTap = useCallback(
-    (name: string) => {
-      if (feedback !== 'idle') return;
-      setSelectedPrefectures((prev) => {
-        const next = new Set(prev);
-        if (next.has(name)) next.delete(name);
-        else next.add(name);
-        return next;
-      });
-    },
-    [feedback],
-  );
-
-  // ── Mode A: submit ──
-  const handleModeASubmit = useCallback(async () => {
-    if (!currentQuestion || currentQuestion.kind !== 'A') return;
-    const { instances, correctPrefectures } = currentQuestion;
-
-    const correct =
-      selectedPrefectures.size === correctPrefectures.size &&
-      [...correctPrefectures].every((p) => selectedPrefectures.has(p));
-
-    setFeedback(correct ? 'correct' : 'incorrect');
-    await recordAndAdvance(
-      instances.map((m) => ({ municipality: m, isCorrect: correct, mode: 'A' })),
-    );
-    setTimeout(advanceQuestion, 1500);
-  }, [currentQuestion, selectedPrefectures, recordAndAdvance, advanceQuestion]);
-
-  // ── Mode B: prefecture choice ──
-  const handleBChoice = useCallback(
-    async (choice: string) => {
-      if (feedback !== 'idle' || !currentQuestion || currentQuestion.kind !== 'BCD') return;
-      const { municipality } = currentQuestion;
-      const correct = choice === municipality.prefecture;
-      setSelectedChoice(choice);
-      setFeedback(correct ? 'correct' : 'incorrect');
-      await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'B' }]);
-      setTimeout(advanceQuestion, 1200);
-    },
-    [feedback, currentQuestion, recordAndAdvance, advanceQuestion],
-  );
-
-  // ── Mode C: municipality choice ──
-  const handleCChoice = useCallback(
-    async (choice: string) => {
-      if (feedback !== 'idle' || !currentQuestion || currentQuestion.kind !== 'BCD') return;
-      const { municipality } = currentQuestion;
-      const correct = choice === municipality.name;
-      setSelectedChoice(choice);
-      setFeedback(correct ? 'correct' : 'incorrect');
-      await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'C' }]);
-      setTimeout(advanceQuestion, 1200);
-    },
-    [feedback, currentQuestion, recordAndAdvance, advanceQuestion],
-  );
-
-  // ── Mode D: municipality map tap ──
-  const handleDTap = useCallback(
-    async (code: string, tappedName: string) => {
-      if (feedback !== 'idle' || !currentQuestion || currentQuestion.kind !== 'BCD') return;
-      const { municipality } = currentQuestion;
-      // Accept any polygon whose display name matches — handles ward-subdivided cities
-      // (e.g. 名古屋市 where 16 wards each have a distinct code but share the same nam_ja).
-      const correct = tappedName === municipality.name;
-      const allCorrectCodes = allMunicipalities
-        .filter((m) => m.name === municipality.name && m.prefecture === municipality.prefecture)
-        .map((m) => m.code);
-      if (correct) {
-        setCorrectCodes(allCorrectCodes);
-      } else {
-        setWrongCodes([code]);
-        setCorrectCodes(allCorrectCodes);
-      }
-      setFeedback(correct ? 'correct' : 'incorrect');
-      await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'D' }]);
-      setTimeout(advanceQuestion, 1500);
-    },
-    [feedback, currentQuestion, allMunicipalities, recordAndAdvance, advanceQuestion],
-  );
-
-  const handleModeDFallback = useCallback(() => setModeDFailed(true), []);
-
-  // ── Timeout: mode D only — auto-grade as incorrect ──
-  const handleTimeout = useCallback(async () => {
-    if (feedback !== 'idle' || !currentQuestion) return;
-    if (currentQuestion.kind === 'BCD' && currentQuestion.mode === 'D' && !modeDFailed) {
-      const { municipality } = currentQuestion;
-      const allCorrectCodes = allMunicipalities
-        .filter((m) => m.name === municipality.name && m.prefecture === municipality.prefecture)
-        .map((m) => m.code);
-      setCorrectCodes(allCorrectCodes);
-      setFeedback('incorrect');
-      await recordAndAdvance([{ municipality, isCorrect: false, mode: 'D' }]);
-      setTimeout(advanceQuestion, 1500);
-    }
-  }, [feedback, currentQuestion, modeDFailed, allMunicipalities, recordAndAdvance, advanceQuestion]);
-
-  // ── Countdown for mode D ──
-  // Resets on question change, stops once feedback is shown. Tick once per
-  // second; trigger handleTimeout at 0 instead of letting timeLeft go negative.
-  useEffect(() => {
-    if (phase !== 'playing' || feedback !== 'idle' || !currentQuestion) return;
-    const isTimed =
-      currentQuestion.kind === 'BCD' && currentQuestion.mode === 'D' && !modeDFailed;
-    if (!isTimed) return;
-
-    setTimeLeft(TIME_LIMIT_SEC);
-    let remaining = TIME_LIMIT_SEC;
-    const interval = setInterval(() => {
-      remaining -= 1;
-      if (remaining <= 0) {
-        clearInterval(interval);
-        setTimeLeft(0);
-        handleTimeout();
-      } else {
-        setTimeLeft(remaining);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [phase, feedback, qIdx, currentQuestion, modeDFailed, handleTimeout]);
-
-  // Pool size after region + difficulty filters — drives Start button state.
-  // For mode A, the playable count is unique-name count, not raw rows.
   const effectivePoolSize = useMemo(() => {
     if (allMunicipalities.length === 0) return 0;
     const filtered = filterByDifficulty(
@@ -485,7 +237,6 @@ export default function MunicipalityQuizPage() {
           ? '該当する市区町村なし — 地域か難易度を変更してください'
           : 'スタート';
 
-
   // ─── Render: Setup ──────────────────────────────────────────────
 
   if (phase === 'setup') {
@@ -503,7 +254,6 @@ export default function MunicipalityQuizPage() {
           <p className="text-sm text-muted-foreground mt-0.5">{MODE_LABEL[modeFromUrl]}</p>
         </div>
 
-        {/* Region — multi-select chips; '全国' is a "select all" shortcut */}
         <div>
           <p className="text-sm font-medium mb-2">地域（複数選択可）</p>
           <div className="flex flex-wrap gap-2">
@@ -526,7 +276,6 @@ export default function MunicipalityQuizPage() {
                         const toggled = already
                           ? without全国.filter((x) => x !== r)
                           : [...without全国, r];
-                        // Collapse back to '全国' if nothing is left
                         newRegions = toggled.length === 0 ? ['全国'] : toggled;
                       }
                       return { ...s, regions: newRegions };
@@ -550,7 +299,6 @@ export default function MunicipalityQuizPage() {
           )}
         </div>
 
-        {/* Count */}
         <div>
           <p className="text-sm font-medium mb-2">問題数</p>
           <div className="flex gap-2">
@@ -570,7 +318,6 @@ export default function MunicipalityQuizPage() {
           </div>
         </div>
 
-        {/* Difficulty */}
         <div>
           <p className="text-sm font-medium mb-2">難易度</p>
           <div className="flex flex-wrap gap-2">
@@ -601,7 +348,6 @@ export default function MunicipalityQuizPage() {
           </div>
         </div>
 
-        {/* Weakness */}
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -612,11 +358,7 @@ export default function MunicipalityQuizPage() {
           <span className="text-sm">苦手優先モード</span>
         </label>
 
-        <Button
-          onClick={handleStart}
-          disabled={!canStart}
-          className="w-full"
-        >
+        <Button onClick={handleStart} disabled={!canStart} className="w-full">
           {startLabel}
         </Button>
         {effectivePoolSize > 0 && effectivePoolSize < settings.count && canStart && (
@@ -678,177 +420,15 @@ export default function MunicipalityQuizPage() {
 
   // ─── Render: Playing ────────────────────────────────────────────
 
-  if (!currentQuestion) return null;
-  const progressText = `${qIdx + 1} / ${questions.length}`;
-  const correctCount = results.filter((r) => r.correct).length;
-
-  // Countdown bar — green → yellow → red as time runs out. Rendered above
-  // the question card in mode D only.
-  const countdownBar = (
-    <div className="shrink-0 space-y-0.5">
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full transition-[width] duration-1000 ease-linear"
-          style={{
-            width: `${(timeLeft / TIME_LIMIT_SEC) * 100}%`,
-            backgroundColor: timeLeft > 8 ? '#22c55e' : timeLeft > 4 ? '#eab308' : '#ef4444',
-          }}
-        />
-      </div>
-      <p className="text-[10px] text-right text-muted-foreground">残り {timeLeft} 秒</p>
-    </div>
-  );
-
-  // ── Mode A ──
-  if (currentQuestion.kind === 'A') {
-    const { name, correctPrefectures } = currentQuestion;
-    const remaining = correctPrefectures.size - selectedPrefectures.size;
-    const canSubmit = remaining === 0 && feedback === 'idle';
-
-    return (
-      <div className="flex flex-col h-full gap-2 p-3 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between text-xs text-muted-foreground shrink-0">
-          <button
-            onClick={() => setPhase('setup')}
-            className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
-          >
-            <ChevronLeft size={14} />
-            中断
-          </button>
-          <span>{progressText}</span>
-          <span>{correctCount} 正解</span>
-        </div>
-
-        <div className="rounded-xl bg-card p-3 text-center shrink-0">
-          <p className="text-xs text-muted-foreground mb-1">この市区町村がある都道府県を地図でタップ</p>
-          <p className="text-2xl font-bold">{name}</p>
-          {correctPrefectures.size > 1 && (
-            <p className="text-xs text-muted-foreground mt-1">{correctPrefectures.size} か所あります</p>
-          )}
-          {feedback === 'idle' && correctPrefectures.size > 1 && selectedPrefectures.size < correctPrefectures.size && (
-            <p className="text-xs text-yellow-500 mt-1">あと {remaining} か所</p>
-          )}
-        </div>
-
-        {feedback !== 'idle' && (
-          <div className={`text-center text-base font-semibold shrink-0 ${feedback === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
-            {feedback === 'correct' ? '✓ 正解！' : `✗ 不正解（${[...correctPrefectures].join('・')}）`}
-          </div>
-        )}
-
-        <div className="flex-1 min-h-0 w-full">
-          <JapanMap
-            onPrefectureClick={handlePrefectureTap}
-            selectedNames={[...selectedPrefectures]}
-            highlightCorrect={feedback !== 'idle' ? [...correctPrefectures] : undefined}
-            highlightWrong={undefined}
-          />
-        </div>
-
-        {selectedPrefectures.size > 0 && feedback === 'idle' && (
-          <div className="flex flex-wrap gap-1 shrink-0 max-h-12 overflow-y-auto">
-            {[...selectedPrefectures].map((p) => (
-              <Badge key={p} variant="secondary" className="text-xs">{p}</Badge>
-            ))}
-          </div>
-        )}
-
-        <Button onClick={handleModeASubmit} disabled={!canSubmit} className="w-full shrink-0">
-          {feedback !== 'idle' ? '次へ...' : canSubmit ? '解答する' : `あと ${remaining} か所選択`}
-        </Button>
-      </div>
-    );
-  }
-
-  // ── Mode B / C / D ──
-  const { municipality, choices, mode } = currentQuestion;
-
-  // Mode D with fallback to C
-  const effectiveMode = mode === 'D' && modeDFailed ? 'C' : mode;
-
   return (
-    <div className="flex flex-col h-full gap-2 p-3 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between text-xs text-muted-foreground shrink-0">
-        <button
-          onClick={() => setPhase('setup')}
-          className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
-        >
-          <ChevronLeft size={14} />
-          中断
-        </button>
-        <span>{progressText}</span>
-        <span>{correctCount} 正解</span>
-      </div>
-
-      {effectiveMode === 'D' && countdownBar}
-
-      <div className="rounded-xl bg-card p-3 text-center shrink-0">
-        {mode === 'B' ? (
-          <>
-            <p className="text-xs text-muted-foreground mb-1">この市区町村はどの都道府県？</p>
-            <p className="text-2xl font-bold">{municipality.name}</p>
-          </>
-        ) : effectiveMode === 'D' ? (
-          <>
-            <p className="text-xs text-muted-foreground mb-1">この市区町村を地図でタップ</p>
-            <p className="text-2xl font-bold">{municipality.name}</p>
-            <p className="text-xs text-muted-foreground mt-1">（{municipality.prefecture}）</p>
-          </>
-        ) : (
-          <>
-            <p className="text-xs text-muted-foreground mb-1">{municipality.prefecture}の市区町村はどれ？</p>
-            <p className="text-xl font-bold">{municipality.prefecture}</p>
-          </>
-        )}
-      </div>
-
-      {feedback !== 'idle' && (
-        <div className={`text-center text-base font-semibold shrink-0 ${feedback === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
-          {feedback === 'correct'
-            ? '✓ 正解！'
-            : `✗ 不正解（${mode === 'B' ? municipality.prefecture : municipality.name}）`}
-        </div>
-      )}
-
-      {modeDFailed && (
-        <p className="text-center text-xs text-muted-foreground shrink-0">
-          地図データの読み込みに失敗しました（モードCで代替表示）
-        </p>
-      )}
-
-      {effectiveMode === 'D' ? (
-        <div className="flex-1 min-h-0 w-full">
-          <MunicipalityMap
-            prefecture={municipality.prefecture}
-            onMunicipalityClick={handleDTap}
-            highlightCodes={correctCodes}
-            wrongCodes={wrongCodes}
-            onLoadError={handleModeDFallback}
-          />
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {choices.map((choice) => {
-            const isSelected = selectedChoice === choice;
-            const isCorrect = mode === 'B' ? choice === municipality.prefecture : choice === municipality.name;
-            let btnStyle = 'border-border hover:border-primary/50';
-            if (feedback !== 'idle' && isSelected && isCorrect) btnStyle = 'border-green-500 bg-green-500/10 text-green-500';
-            else if (feedback !== 'idle' && isSelected && !isCorrect) btnStyle = 'border-red-500 bg-red-500/10 text-red-500';
-            else if (feedback !== 'idle' && isCorrect) btnStyle = 'border-green-500 bg-green-500/10 text-green-500';
-
-            return (
-              <button
-                key={choice}
-                disabled={feedback !== 'idle'}
-                onClick={() => (mode === 'B' ? handleBChoice : handleCChoice)(choice)}
-                className={`w-full rounded-xl border p-3 text-left text-sm transition-colors ${btnStyle}`}
-              >
-                {choice}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <QuizRunner
+      questions={questions}
+      allMunicipalities={allMunicipalities}
+      onAbort={() => setPhase('setup')}
+      onComplete={(completedResults) => {
+        setResults(completedResults);
+        setPhase('result');
+      }}
+    />
   );
 }

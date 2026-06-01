@@ -4,8 +4,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createServerClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
-import { municipalityQuizResults, municipalityMaster, type MunicipalityMaster } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { municipalityQuizResults, municipalityMaster, srsRecords, type MunicipalityMaster } from '@/lib/db/schema';
+import { eq, sql, and } from 'drizzle-orm';
+import { computeSrsUpdate } from '@/lib/quiz/srs/update';
+import type { SrsStatus } from '@/lib/quiz/srs/types';
 import { inferSessions, computeCellAccuracies, computeCellCoverages } from '@/lib/quiz/recommendation/cell-stats';
 import { extractFitZone } from '@/lib/quiz/recommendation/fit-zone';
 import { generateRecommendation } from '@/lib/quiz/recommendation/engine';
@@ -70,6 +72,71 @@ export async function saveMunicipalityQuizResult(input: {
     mode: input.mode,
     isCorrect: input.isCorrect,
   });
+
+  // SM-2 更新（全クイズ共通: 復習セッション・通常クイズ双方）
+  await upsertSrsRecord(user.id, input);
+}
+
+async function upsertSrsRecord(
+  userId: string,
+  input: { municipalityCode: string; municipalityName: string; prefecture: string; mode: string; isCorrect: boolean },
+): Promise<void> {
+  const now = new Date();
+
+  const [existing] = await db
+    .select()
+    .from(srsRecords)
+    .where(
+      and(
+        eq(srsRecords.userId, userId),
+        eq(srsRecords.municipalityCode, input.municipalityCode),
+        eq(srsRecords.mode, input.mode),
+      ),
+    )
+    .limit(1);
+
+  const action = computeSrsUpdate(
+    existing
+      ? {
+          easeFactor: existing.easeFactor,
+          repetition: existing.repetition,
+          interval: existing.interval,
+          status: existing.status as SrsStatus,
+          lastReviewedAt: existing.lastReviewedAt,
+        }
+      : null,
+    input.isCorrect,
+    now,
+  );
+
+  if (action.kind === 'skip') return;
+
+  await db
+    .insert(srsRecords)
+    .values({
+      userId,
+      municipalityCode: input.municipalityCode,
+      municipalityName: input.municipalityName,
+      prefecture: input.prefecture,
+      mode: input.mode,
+      easeFactor: action.easeFactor,
+      repetition: action.repetition,
+      interval: action.interval,
+      dueDate: action.dueDate,
+      lastReviewedAt: action.lastReviewedAt,
+      status: action.status,
+    })
+    .onConflictDoUpdate({
+      target: [srsRecords.userId, srsRecords.municipalityCode, srsRecords.mode],
+      set: {
+        easeFactor: action.easeFactor,
+        repetition: action.repetition,
+        interval: action.interval,
+        dueDate: action.dueDate,
+        lastReviewedAt: action.lastReviewedAt,
+        status: action.status,
+      },
+    });
 }
 
 export async function getMunicipalityWeakness(): Promise<

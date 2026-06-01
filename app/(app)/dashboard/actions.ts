@@ -5,8 +5,9 @@ import { db } from '@/lib/db';
 import {
   municipalityQuizResults,
   municipalityMaster,
+  srsRecords,
 } from '@/lib/db/schema';
-import { eq, sql, and, lt, count } from 'drizzle-orm';
+import { eq, sql, and, lt, count, lte, gt, asc, min } from 'drizzle-orm';
 import {
   getJSTToday,
   getJSTDateRange,
@@ -728,47 +729,150 @@ export async function getCompletionByMode({
 }
 
 // ──────────────────────────────────────────────────────
-// 6. getReviewRecommendations
+// 7. getDueReviewSummary — 今日の復習サマリ（SRS 期日駆動）
 // ──────────────────────────────────────────────────────
-export async function getReviewRecommendations() {
+export async function getDueReviewSummary(): Promise<{
+  dueCount: number;
+  reviewingCount: number;
+  graduatedCount: number;
+  nextDueAt: string | null;
+}> {
   const user = await requireUser();
-  const userId = user.id;
+  const now = new Date();
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const [dueRow, reviewingRow, graduatedRow, nextDueRow] = await Promise.all([
+    db
+      .select({ value: count() })
+      .from(srsRecords)
+      .where(and(eq(srsRecords.userId, user.id), eq(srsRecords.status, 'reviewing'), lte(srsRecords.dueDate, now))),
+    db
+      .select({ value: count() })
+      .from(srsRecords)
+      .where(and(eq(srsRecords.userId, user.id), eq(srsRecords.status, 'reviewing'))),
+    db
+      .select({ value: count() })
+      .from(srsRecords)
+      .where(and(eq(srsRecords.userId, user.id), eq(srsRecords.status, 'graduated'))),
+    db
+      .select({ value: min(srsRecords.dueDate) })
+      .from(srsRecords)
+      .where(and(eq(srsRecords.userId, user.id), eq(srsRecords.status, 'reviewing'), gt(srsRecords.dueDate, now))),
+  ]);
+
+  const nextDue = nextDueRow[0]?.value;
+  return {
+    dueCount: dueRow[0]?.value ?? 0,
+    reviewingCount: reviewingRow[0]?.value ?? 0,
+    graduatedCount: graduatedRow[0]?.value ?? 0,
+    nextDueAt: nextDue instanceof Date ? nextDue.toISOString() : nextDue ? String(nextDue) : null,
+  };
+}
+
+// ──────────────────────────────────────────────────────
+// 8. getUpcomingReviewSchedule — 今後 N 日の日別復習予定件数
+// ──────────────────────────────────────────────────────
+export async function getUpcomingReviewSchedule(days = 7): Promise<Array<{ date: string; count: number }>> {
+  const user = await requireUser();
+  const now = new Date();
+  const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
   const rows = await db
     .select({
-      municipalityCode: municipalityQuizResults.municipalityCode,
-      municipalityName: municipalityQuizResults.municipalityName,
-      prefecture: municipalityQuizResults.prefecture,
-      lastAnsweredAt: sql<string>`MAX(${municipalityQuizResults.answeredAt})`,
-      errorRate: sql<number>`SUM(CASE WHEN NOT ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END)::float / COUNT(*)`,
+      date: sql<string>`DATE(${srsRecords.dueDate} AT TIME ZONE 'Asia/Tokyo')`,
+      count: sql<number>`CAST(COUNT(*) AS int)`,
     })
-    .from(municipalityQuizResults)
-    .where(eq(municipalityQuizResults.userId, userId))
-    .groupBy(
-      municipalityQuizResults.municipalityCode,
-      municipalityQuizResults.municipalityName,
-      municipalityQuizResults.prefecture,
-    )
-    .having(
+    .from(srsRecords)
+    .where(
       and(
-        sql`SUM(CASE WHEN NOT ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END) > 0`,
-        sql`MAX(${municipalityQuizResults.answeredAt}) < ${sevenDaysAgo}::timestamptz`,
+        eq(srsRecords.userId, user.id),
+        eq(srsRecords.status, 'reviewing'),
+        gt(srsRecords.dueDate, now),
+        lte(srsRecords.dueDate, future),
       ),
     )
-    .orderBy(
-      sql`SUM(CASE WHEN NOT ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END)::float / COUNT(*) DESC`,
-    )
-    .limit(10);
+    .groupBy(sql`DATE(${srsRecords.dueDate} AT TIME ZONE 'Asia/Tokyo')`)
+    .orderBy(asc(sql`DATE(${srsRecords.dueDate} AT TIME ZONE 'Asia/Tokyo')`));
 
-  return serialize([...rows].map((r) => ({
-    municipalityCode: r.municipalityCode,
-    municipalityName: r.municipalityName,
-    prefecture: r.prefecture,
-    lastAnsweredAt: (r.lastAnsweredAt as unknown) instanceof Date
-      ? (r.lastAnsweredAt as unknown as Date).toISOString()
-      : new Date(String(r.lastAnsweredAt)).toISOString(),
-    errorRate: Number(r.errorRate),
-  })));
+  return rows.map((r) => ({ date: String(r.date), count: Number(r.count) }));
+}
+
+// ──────────────────────────────────────────────────────
+// 9. getReviewItemList — 復習中（学習途中）のアイテム一覧（ページング+モードフィルタ）
+//    メタ認知/進捗の可視化。答え（都道府県）は返さない（流暢性の錯覚を避ける）
+// ──────────────────────────────────────────────────────
+export async function getReviewItemList(opts?: {
+  mode?: 'A' | 'B' | 'C' | 'D';
+  limit?: number;
+  offset?: number;
+}): Promise<{
+  items: Array<{ municipalityName: string; mode: string; dueDate: string; repetition: number; interval: number }>;
+  total: number;
+}> {
+  const user = await requireUser();
+  const limit = opts?.limit ?? 25;
+  const offset = opts?.offset ?? 0;
+
+  const where = and(
+    eq(srsRecords.userId, user.id),
+    eq(srsRecords.status, 'reviewing'),
+    opts?.mode ? eq(srsRecords.mode, opts.mode) : undefined,
+  );
+
+  const [rows, totalRow] = await Promise.all([
+    db
+      .select({
+        municipalityName: srsRecords.municipalityName,
+        mode: srsRecords.mode,
+        dueDate: srsRecords.dueDate,
+        repetition: srsRecords.repetition,
+        interval: srsRecords.interval,
+      })
+      .from(srsRecords)
+      .where(where)
+      .orderBy(asc(srsRecords.dueDate))
+      .limit(limit)
+      .offset(offset),
+    db.select({ value: count() }).from(srsRecords).where(where),
+  ]);
+
+  return {
+    items: rows.map((r) => ({
+      municipalityName: r.municipalityName,
+      mode: r.mode,
+      dueDate: r.dueDate instanceof Date ? r.dueDate.toISOString() : String(r.dueDate),
+      repetition: r.repetition,
+      interval: r.interval,
+    })),
+    total: totalRow[0]?.value ?? 0,
+  };
+}
+
+// ──────────────────────────────────────────────────────
+// 10. getReviewModeBreakdown — モード別の復習中/定着済み件数（glanceable サマリ）
+// ──────────────────────────────────────────────────────
+export async function getReviewModeBreakdown(): Promise<
+  Array<{ mode: 'A' | 'B' | 'C' | 'D'; reviewing: number; graduated: number }>
+> {
+  const user = await requireUser();
+
+  const rows = await db
+    .select({
+      mode: srsRecords.mode,
+      status: srsRecords.status,
+      value: count(),
+    })
+    .from(srsRecords)
+    .where(eq(srsRecords.userId, user.id))
+    .groupBy(srsRecords.mode, srsRecords.status);
+
+  const map = new Map<string, { reviewing: number; graduated: number }>();
+  for (const m of ['A', 'B', 'C', 'D']) map.set(m, { reviewing: 0, graduated: 0 });
+  for (const r of rows) {
+    const e = map.get(r.mode) ?? { reviewing: 0, graduated: 0 };
+    if (r.status === 'graduated') e.graduated = Number(r.value);
+    else if (r.status === 'reviewing') e.reviewing = Number(r.value);
+    map.set(r.mode, e);
+  }
+
+  return (['A', 'B', 'C', 'D'] as const).map((mode) => ({ mode, ...map.get(mode)! }));
 }

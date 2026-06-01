@@ -10,6 +10,7 @@ import { StreakDisplay } from '@/components/dashboard/streak-display';
 import { CompletionProgress } from '@/components/dashboard/completion-progress';
 import { DifficultyProgress } from '@/components/dashboard/difficulty-progress';
 import { ReviewRecommendations } from '@/components/dashboard/review-recommendations';
+import { ReviewProgress } from '@/components/dashboard/review-progress';
 import { MilestoneBanner } from '@/components/dashboard/milestone-banner';
 import { FilterBar, type FilterMode } from '@/components/dashboard/filter-bar';
 import { RecommendHeroCard } from '@/components/recommend/recommend-hero-card';
@@ -88,6 +89,8 @@ export default function DashboardPage() {
           <WeaknessRanking />
 
           <ReviewRecommendations />
+
+          <ReviewProgress />
         </>
       )}
     </div>

@@ -8,11 +8,11 @@
   - 正答率の推移グラフ、苦手市区町村ランキング、連続学習日数（ストリーク）
   - 既存 `municipality_quiz_results` のデータを可視化、新テーブル不要の見込み
 
-- [ ] B002 間隔反復復習モード（spec-003 予定）
-  - 概要: 一度でも不正解だった市区町村を Leitner システム（1→3→7→14→30日）で復習出題する
-  - 正解で次の Box へ昇格、不正解で Box 1 に戻る。Box 5 正解で卒業
-  - 新規テーブル: `municipality_srs`（user_id, municipality_code, box, next_review_at）で Box 状態を管理
-  - 既存 `municipality_quiz_results`（ログ型）とは別に状態管理が必要
+- [x] B002 間隔反復復習モード → **005-spaced-review で SM-2 として着手済み**
+  - Leitner 想定から変更: SM-2（Anki方式）を採用（1問ごとに easeFactor で間隔動的最適化）
+  - 新規テーブル: `srs_records`（user_id, municipality_code, mode, ease_factor, interval, due_date, status）
+  - 管理単位: (municipalityCode, mode) — モードごとに独立した学習状態
+  - 既存誤答ログから初期バックフィル、全クイズ回答で SM-2 更新
 
 - [ ] B003 都道府県クイズ強化 + タイムアタック（spec-004 予定）
   - 都道府県クイズの結果を DB 保存 + 苦手優先 + 復習モード対応
@@ -26,7 +26,32 @@
   - 案: expert 難易度のみ区名（`仙台市青葉区`）を個別エントリとして出題
   - 対応ファイル: `scripts/generate-municipalities.ts`、`scripts/sync-municipality-master.ts`、`lib/quiz/municipality-data.ts`
 
+- [ ] B008 Mode A で東京23特別区が区ごとに出題される（全部答えが東京都）
+  - 症状: Mode A（逆引き地図・名前→都道府県）で `港区` `渋谷区` 等が個別に出題され、**23問すべて答えが「東京都」**になる。冗長・簡単すぎる
+  - 実データ（確認済）: `港区` は東京都のみ（code 13103・曖昧ではない）。東京都の「区」エントリ＝23（特別区が各個別）。一方、政令市県（愛知/大阪/宮城）に「区」エントリは無く、政令市の区は親市名にマージ済（例: 仙台市5区＝全て `name='仙台市'`）。→ **特別区は個別・政令市の区はマージ、という非対称**
+  - 補足: 特別区はデータ上は正しい（地方自治法上の独立した基礎自治体）。問題は「クイズ出題として東京23区を個別に出すか」の設計判断
+  - 案: ①Mode A では東京23特別区をまとめて扱う/出題比率を下げる ②そのまま許容（東京＝簡単枠と割り切る） ③難易度・出題ロジックで調整。いずれも [[B004]]（政令市の区レベル詳細化）と整合させて設計
+  - 関連: B004、B007（政令市の多コード）、[[project-sync-ward-name-trap]]。マスタ生成 `scripts/generate-municipalities.ts` / `sync-municipality-master.ts`
+
 - [ ] B005 難易度計算 Phase 3 — クラウド正答率の導入
   - 現状: Phase 2（e-Stat 人口ベース）で difficulty を静的に焼き込み済み
   - 案: 全ユーザーの正答率データを集計し、人口ベース difficulty と combined score で最終難易度を算出
   - 検討事項: 集計バッチの実行頻度、正答率カラム追加（`municipality_master.crowd_accuracy`）、combined score の重み付け
+
+- [x] B007 【バグ・修正済】Mode A で政令市の区の数だけ結果・記録が多重カウントされる
+  - 修正: `dedupeInstancesByPrefecture`（`lib/quiz/municipality-data.ts`）で都道府県ごとに代表1件へ畳んでから記録。`QuizRunner.handleModeASubmit` で適用。採点（`correctPrefectures`）は無変更。`__tests__/lib/quiz/mode-a-dedupe.test.ts` でテスト
+  - 注意: 修正は**今後の多重INSERTを防ぐ**もの。導入前に既に膨張した `srs_records`/`municipality_quiz_results` の行はそのまま残るため、必要なら `supabase db reset`（ローカル）で一掃する
+  - ↓ 当初の調査メモ
+  - 症状: Mode A を10問でプレイしても結果が「13 / 31」など水増し。苦手リストに `福岡市（福岡県）`×7・`川崎市（神奈川県）`×7 のように同名が区数ぶん重複
+  - 原因: `buildQuestions` の Mode A が `instances = all.filter(a => a.name === m.name)` で**同名の全エントリ（政令市の区を含む）を収集**し、`handleModeASubmit` が `recordAndAdvance(instances.map(...))` で**instance（=区コード）ごとに結果記録・保存**している。福岡市は7区が全て `name:'福岡市'` のため1問で7件記録される
+  - 影響: ①結果件数・正答率の母数が水増し ②`municipality_quiz_results` が区数ぶん多重INSERT ③**005 の `srs_records` も区ごとに登録され復習件数・SRS統計が歪む**（本機能に波及）
+  - 該当: `components/quiz/quiz-runner.tsx`（`handleModeASubmit`）/ `app/(app)/quiz/municipality/[mode]/page.tsx`（`buildQuestions` Mode A）
+  - 修正案: Mode A の記録単位を「**1問1記録**」または「**distinct (name, prefecture) ごと**」にする（`instances` を prefecture でユニーク化してから記録）。採点（`correctPrefectures`）は現状維持でよい
+  - 関連: [[B004]] 政令市の区マージ（根本はマスタで区が同名複数行）。既存コード由来の元バグ（005 のリファクタで持ち越し）
+
+- [ ] B006 地図タップモード（A/D）不正解時に正解位置へ自動スクロール
+  - 現状: 地図タップ系（Mode D 順引き地図 / Mode A 逆引き地図）で不正解でも地図が動かず、正解位置がビューポート外だと確認できない
+  - 案: 不正解時に**正解位置が見える位置へ地図をパン/ズーム**。できれば**「誤ってタップ/選択した位置」と「正解位置」の両方が画面内に収まる**よう移動（両者の bounding box にフィット）すると、誤り↔正解の対比で覚えやすい
+  - **Mode D**（順引き地図タップ）: 正解＝市区町村の位置。`components/map/MunicipalityMap.tsx`。タップ座標と正解 codes の座標から表示領域を計算してパン。`QuizRunner` の `correctCodes`/`wrongCodes` と連動
+  - **Mode A**（逆引き地図・都道府県タップ）: 正解＝対象都道府県（複数あり得る）。`components/map/JapanMap.tsx`。誤選択した都道府県と正解都道府県の両方が収まるようフィット。`QuizRunner` の `selectedPrefectures`/`correctPrefectures` と連動
+  - 補足: 同名複数区（政令市）や複数県（Mode A の同名グルーピング）は正解が複数 → 全体を含む領域にフィット。Mode A は全国地図が既に全体表示なので、ズーム可能化が前提（不可ならハイライト強調のみで可）
