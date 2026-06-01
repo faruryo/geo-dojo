@@ -1,66 +1,60 @@
 'use client';
 
 import Link from 'next/link';
-import { useReviewRecommendations } from '@/lib/hooks/useReviewRecommendations';
-import { EmptyState } from '@/components/dashboard/empty-state';
+import { useDueReviewSummary } from '@/lib/hooks/useDueReviewSummary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
-function daysAgo(isoDate: string): number {
-  const now = Date.now();
-  const then = new Date(isoDate).getTime();
-  return Math.floor((now - then) / (24 * 60 * 60 * 1000));
+function formatNextDue(isoDate: string): string {
+  const diff = new Date(isoDate).getTime() - Date.now();
+  const days = Math.ceil(diff / (24 * 60 * 60 * 1000));
+  if (days <= 0) return '今日';
+  if (days === 1) return '明日';
+  return `${days}日後`;
 }
 
 export function ReviewRecommendations() {
-  const { data, isLoading } = useReviewRecommendations();
+  const { data, isLoading } = useDueReviewSummary();
 
   if (isLoading) {
     return (
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">復習おすすめ</h2>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full rounded-lg" />
-        ))}
+        <h2 className="text-sm font-semibold">今日の復習</h2>
+        <Skeleton className="h-20 w-full rounded-xl" />
       </section>
     );
   }
 
-  if (!data || data.length === 0) {
-    return (
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">復習おすすめ</h2>
-        <EmptyState message="復習すべき市区町村はありません。新しい問題に挑戦しましょう！" />
-      </section>
-    );
-  }
+  const dueCount = data?.dueCount ?? 0;
+  const nextDueAt = data?.nextDueAt ?? null;
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold">復習おすすめ</h2>
-      <ul className="flex flex-col gap-2">
-        {data.map((item) => (
-          <li
-            key={item.municipalityCode}
-            className="flex items-center justify-between rounded-lg bg-card p-3 ring-1 ring-foreground/10"
-          >
-            <div>
-              <span className="font-medium">{item.municipalityName}</span>
-              <span className="ml-1.5 text-xs text-muted-foreground">
-                {item.prefecture}
-              </span>
+      <h2 className="text-sm font-semibold">今日の復習</h2>
+
+      <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10 flex flex-col gap-3">
+        {dueCount > 0 ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold text-primary">{dueCount}</span>
+              <span className="text-sm text-muted-foreground">件</span>
             </div>
-            <span className="shrink-0 text-xs text-muted-foreground">
-              最終: {daysAgo(item.lastAnsweredAt)}日前
-            </span>
-          </li>
-        ))}
-      </ul>
-      <Link href="/quiz/municipality/A?weakness=true">
-        <Button variant="outline" className="w-full">
-          復習クイズを始める
-        </Button>
-      </Link>
+            <p className="text-xs text-muted-foreground">復習期日が来ています</p>
+            <Link href="/quiz/review">
+              <Button className="w-full">復習を始める</Button>
+            </Link>
+          </>
+        ) : (
+          <>
+            <p className="text-sm font-medium">今日の復習はありません 🎉</p>
+            {nextDueAt && (
+              <p className="text-xs text-muted-foreground">
+                次の復習: {formatNextDue(nextDueAt)}
+              </p>
+            )}
+          </>
+        )}
+      </div>
     </section>
   );
 }

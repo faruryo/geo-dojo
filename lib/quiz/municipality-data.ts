@@ -86,6 +86,21 @@ export function filterByDifficulty(
   return municipalities.filter((m) => m.difficulty !== undefined && set.has(m.difficulty));
 }
 
+/**
+ * Mode A の採点対象を「都道府県ごとに代表1件」へ畳む。
+ * 政令市は同名の区が複数コードで存在するため（例: 札幌市=10区）、
+ * instances をそのまま記録すると区数ぶん多重カウントされる（B007）。
+ * 都道府県単位で代表1件に畳むことで、1問1県=1記録にする。
+ * 同名が複数県にある場合（例: 府中市=東京/広島）は県ごとに1件ずつ残す。
+ */
+export function dedupeInstancesByPrefecture(instances: Municipality[]): Municipality[] {
+  const byPref = new Map<string, Municipality>();
+  for (const m of instances) {
+    if (!byPref.has(m.prefecture)) byPref.set(m.prefecture, m);
+  }
+  return [...byPref.values()];
+}
+
 export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {

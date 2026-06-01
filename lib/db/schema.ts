@@ -4,8 +4,10 @@ import {
   text,
   integer,
   boolean,
+  real,
   timestamp,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 // ──────────────────────────────────────────────────────
@@ -50,7 +52,38 @@ export const municipalityMaster = pgTable(
   ],
 );
 
+// ──────────────────────────────────────────────────────
+// srs_records — SM-2 間隔反復の学習状態（市区町村×モード単位）
+// ──────────────────────────────────────────────────────
+export const srsRecords = pgTable(
+  'srs_records',
+  {
+    id:               uuid('id').primaryKey().defaultRandom(),
+    userId:           uuid('user_id').notNull(),
+    municipalityCode: text('municipality_code').notNull(),
+    municipalityName: text('municipality_name').notNull(),
+    prefecture:       text('prefecture').notNull(),
+    mode:             text('mode').notNull(),
+    easeFactor:       real('ease_factor').notNull().default(2.5),
+    repetition:       integer('repetition').notNull().default(0),
+    interval:         integer('interval').notNull().default(0),
+    dueDate:          timestamp('due_date', { withTimezone: true }).notNull().defaultNow(),
+    lastReviewedAt:   timestamp('last_reviewed_at', { withTimezone: true }),
+    status:           text('status').notNull().default('reviewing'),
+    createdAt:        timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('srs_user_due_idx').on(table.userId, table.dueDate),
+    uniqueIndex('srs_user_code_mode_uidx').on(table.userId, table.municipalityCode, table.mode),
+    index('srs_user_status_idx').on(table.userId, table.status),
+  ],
+);
+
 // TypeScript 型エクスポート
+export type SrsRecord = typeof srsRecords.$inferSelect;
+export type NewSrsRecord = typeof srsRecords.$inferInsert;
+export type SrsStatus = 'reviewing' | 'graduated';
+
 export type MunicipalityQuizResult = typeof municipalityQuizResults.$inferSelect;
 export type NewMunicipalityQuizResult = typeof municipalityQuizResults.$inferInsert;
 export type MunicipalityMaster = typeof municipalityMaster.$inferSelect;

@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "drizzle-kit": "drizzle-kit"
+    "drizzle-kit": "drizzle-kit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -52,6 +54,7 @@
     "mapshaper": "^0.7.10",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.7"
   }
 }

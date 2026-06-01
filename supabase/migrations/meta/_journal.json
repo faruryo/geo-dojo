@@ -8,6 +8,13 @@
       "when": 1780067855738,
       "tag": "0000_fancy_loki",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780248798421,
+      "tag": "0001_messy_meltdown",
+      "breakpoints": true
     }
   ]
 }
