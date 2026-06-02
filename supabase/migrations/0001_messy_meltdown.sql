@@ -1,4 +1,5 @@
-CREATE TABLE "srs_records" (
+-- 部分適用された本番でも再 migrate が安全に通るよう全て冪等化（IF NOT EXISTS / DROP+CREATE / ON CONFLICT）
+CREATE TABLE IF NOT EXISTS "srs_records" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"municipality_code" text NOT NULL,
@@ -14,12 +15,13 @@ CREATE TABLE "srs_records" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX "srs_user_due_idx" ON "srs_records" USING btree ("user_id","due_date");--> statement-breakpoint
-CREATE UNIQUE INDEX "srs_user_code_mode_uidx" ON "srs_records" USING btree ("user_id","municipality_code","mode");--> statement-breakpoint
-CREATE INDEX "srs_user_status_idx" ON "srs_records" USING btree ("user_id","status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "srs_user_due_idx" ON "srs_records" USING btree ("user_id","due_date");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "srs_user_code_mode_uidx" ON "srs_records" USING btree ("user_id","municipality_code","mode");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "srs_user_status_idx" ON "srs_records" USING btree ("user_id","status");--> statement-breakpoint
 
 -- RLS
 ALTER TABLE "srs_records" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+DROP POLICY IF EXISTS "Users can manage own srs_records" ON "srs_records";--> statement-breakpoint
 CREATE POLICY "Users can manage own srs_records"
   ON "srs_records"
   FOR ALL
