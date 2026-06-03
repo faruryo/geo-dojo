@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
 import { getDueReviewItems } from './actions';
@@ -28,6 +29,7 @@ export default function ReviewPage() {
   const [phase, setPhase] = useState<Phase>('loading');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [results, setResults] = useState<ResultEntry[]>([]);
+  const queryClient = useQueryClient();
 
   const { data: masterData, isLoading: masterLoading } = useMunicipalityMaster();
 
@@ -204,8 +206,11 @@ export default function ReviewPage() {
           </div>
         )}
 
+        <Link href="/?recommend=open">
+          <Button className="w-full">✨ 今日のおすすめクイズを試す</Button>
+        </Link>
         <Link href="/">
-          <Button className="w-full">ダッシュボードへ</Button>
+          <Button className="w-full" variant="outline">ダッシュボードへ</Button>
         </Link>
       </div>
     );
@@ -221,6 +226,7 @@ export default function ReviewPage() {
       onComplete={(completedResults) => {
         setResults(completedResults);
         setPhase('result');
+        queryClient.invalidateQueries({ queryKey: ['dashboard', 'srs-summary'] });
       }}
     />
   );

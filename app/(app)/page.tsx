@@ -40,12 +40,17 @@ export default function DashboardPage() {
         />
       )}
 
-      <RecommendHeroCard />
+      {/* 新規ユーザー向け: クイズ未経験の場合はおすすめクイズを最初のアクションとして表示 */}
+      {(!summary || summary.totalQuestions === 0) && <RecommendHeroCard />}
 
       <SummaryCards />
 
       {summary && summary.totalQuestions > 0 && (
         <>
+          {/* 優先度: 今日の復習 > 今日のおすすめクイズ (FR-020) */}
+          <ReviewRecommendations />
+          <RecommendHeroCard />
+
           <StreakDisplay />
 
           <Card>
@@ -87,8 +92,6 @@ export default function DashboardPage() {
           </Card>
 
           <WeaknessRanking />
-
-          <ReviewRecommendations />
 
           <ReviewProgress />
         </>
