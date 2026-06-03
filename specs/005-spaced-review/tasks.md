@@ -119,13 +119,28 @@ Next.js 単一プロジェクト（リポジトリルート）。純粋ロジッ
 
 ---
 
+## Phase 5b: Dashboard UX — 復習優先表示 & 復習→おすすめクイズ誘導
+
+**Goal**: ダッシュボードで「今日の復習」を「今日のおすすめクイズ」より先に表示し（FR-020）、復習完了後に ✨ 今日のおすすめクイズへシームレスに誘導する（FR-021）。復習セッション完了時にダッシュボードの件数キャッシュを無効化し（FR-022）、レコメンドエンジンの多様性を確保する（FR-023）。
+
+**Independent Test**: 期日到来分がある状態でダッシュボードを開き「今日の復習」セクションが「今日のおすすめクイズ」より上に表示されることを確認。dueCount=0 になると RecommendHeroCard が直下で次のアクションとして浮かび上がることを確認。復習セッション完了後の結果画面に「✨ 今日のおすすめクイズを試す」ボタンが表示され、タップでシートが開くことを確認。ダッシュボードへ戻った際に件数が即座に更新されることを確認。
+
+- [x] T028 [US2] `app/(app)/page.tsx` のレイアウトを変更: (a) `RecommendHeroCard` を `totalQuestions === 0` 分岐の中に移動（新規ユーザー向け先頭 CTA として保持）, (b) `{summary && summary.totalQuestions > 0}` ガード内の先頭に `ReviewRecommendations` を移動し「今日の復習 > 今日のおすすめクイズ」の優先順を実現, (c) `ReviewRecommendations` の直後に `RecommendHeroCard` を配置（contracts/dashboard-ux.md §1 / FR-020）
+- [x] T029 [US1] `app/(app)/quiz/review/page.tsx` の `phase === 'result'` セクションに「✨ 今日のおすすめクイズを試す」ボタンを追加（`href="/?recommend=open"`, primary）。既存の「ダッシュボードへ」ボタンは secondary/outline に格下げ（contracts/dashboard-ux.md §3 / FR-021）
+- [x] T030 [P] [US2] `app/(app)/quiz/review/page.tsx` の `onComplete` ハンドラで `queryClient.invalidateQueries({ queryKey: ['dashboard', 'srs-summary'] })` を実行し、復習完了時にダッシュボードの件数キャッシュを即座に無効化する（FR-022 SHOULD / `useQueryClient` import 追加）
+- [x] T031 [P] `lib/quiz/recommendation/engine.ts` を修正し、未試行モード（A/B/C/D）・未試行地域が存在する場合に優先的に推薦へ含める。`lib/quiz/recommendation/rationale.ts` に `isNovelMode`・`novelRegion` フラグを追加し適切な rationale テキストを返す。exploration pool の shuffle 漏れも修正（FR-023 SHOULD）
+
+**Checkpoint**: 復習 → ダッシュボード → おすすめクイズの自然なフローが成立。未試行コンテンツが定期的に推薦に現れる。
+
+---
+
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 **Purpose**: 横断的な仕上げと検証
 
 - [x] T024 [P] `pnpm lint`（型チェック/Lint）を通す。抽出・改修で生じた未使用 import / 型エラーを解消
 - [x] T025 [P] `pnpm test` を実行し SM-2/scheduler 単体テストが緑であることを確認
-- [ ] T026 quickstart.md の手動シナリオ S1〜S6 を実施し受け入れチェックを完了（混在セッション SC-007、データ分離 SC-004、同日ガード R3、卒業/復帰 R2 を含む）
+- [ ] T026 quickstart.md の手動シナリオ S1〜S6 を実施し受け入れチェックを完了（混在セッション SC-007、データ分離 SC-004、同日ガード R3、卒業/復帰 R2、FR-020 優先順、FR-021 CTA、FR-022 キャッシュ即時反映、FR-023 未試行モード出現を含む）
 - [x] T027 [P] `specs/backlog.md` の B002 を「005 で SM-2 として着手済み」に更新（旧 Leitner 想定の記載を整理）
 
 ---

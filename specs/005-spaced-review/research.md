@@ -107,6 +107,50 @@ spec の Assumptions / Clarifications で plan へ委ねられた論点を確定
 
 ---
 
+---
+
+## R9. ダッシュボード UX: 復習最上位配置 と 復習→おすすめクイズ誘導
+
+**Decision**:
+
+### ダッシュボードレイアウト
+
+`app/(app)/page.tsx` の配置を以下の順序に変更する。
+
+```
+[既存: 新規ユーザー向け（totalQuestions === 0）]
+  RecommendHeroCard  ← 引き続き先頭（新規ユーザーに変更なし）
+
+[guard: totalQuestions > 0（返却ユーザー向け）]
+  ReviewRecommendations  ← ★ 最上位に移動（復習が最優先タスク）
+  RecommendHeroCard      ← ★ 復習の直後に移動
+  SummaryCards / StreakDisplay / Charts / WeaknessRanking / ReviewProgress
+```
+
+この並びにより:
+- `dueCount > 0` の時: 復習カードがページ最上部 → 学習者が復習から始める
+- `dueCount === 0` の時: 「今日の復習なし/完了」表示の直下に RecommendHeroCard が自然に昇格し、「次のアクション」として視覚的に浮かび上がる
+- 新規ユーザー（`totalQuestions === 0`）: 現状どおり RecommendHeroCard が先頭
+
+### 復習セッション結果画面への CTA 追加
+
+`app/(app)/quiz/review/page.tsx` の `phase === 'result'` に「✨ 今日のおすすめクイズを試す」ボタンを追加。
+リンク先: `/?recommend=open`。
+`RecommendHeroCard` は `?recommend=open` を `useSearchParams` で検知して `RecommendSheet` を自動開放するため（`recommend-hero-card.tsx:openSheet` 参照）、ダッシュボードに戻った瞬間にシートが開き、ワンタップでおすすめクイズに入れる。
+
+ボタン順: 「✨ 今日のおすすめクイズを試す」（primary）→「ダッシュボードへ」（secondary/outline）。
+
+**Rationale**: 
+- 学習者の daily flow（復習 → クイズ）を UI の上下に忠実に反映。
+- `dueCount=0` 時に RecommendHeroCard が自然昇格する構造のため、追加の状態管理・条件分岐が不要。
+- 結果画面の CTA は既存 `/?recommend=open` ルーティングを再利用し、実装コストを最小化。
+
+**Alternatives considered**:
+- 結果画面に RecommendSheet を直接埋め込む → 実装過大、ルーティング設計を複雑化。
+- RecommendHeroCard に dueCount props を渡して見た目を変える → コンポーネントに余計な責務を持たせる。
+
+---
+
 ## 未解決事項
 
 なし（spec の plan 委譲項目はすべて上記で確定）。

@@ -14,6 +14,9 @@ type RationaleFlags = {
   daysSinceLastPlay?: number;
   weaknessCount?: number;
   newExplorationCount?: number;
+  isNovelMode?: boolean;
+  isCompletelyUntriedMode?: boolean;
+  novelRegion?: string | null;
 };
 
 export function selectRationale(
@@ -71,6 +74,23 @@ export function selectRationale(
         text: `現在の${DIFFICULTY_LABEL[current] ?? current}復習と、${DIFFICULTY_LABEL[next] ?? next}の挑戦を半々で進めます`,
       };
     }
+  }
+
+  if (flags.isNovelMode) {
+    const mode = recommendation.mode;
+    return {
+      category: 'new-exploration',
+      text: flags.isCompletelyUntriedMode
+        ? `モード${mode}は未挑戦！新しい問題形式に挑戦しましょう`
+        : `モード${mode}をもっと練習して得意にしましょう`,
+    };
+  }
+
+  if (flags.novelRegion) {
+    return {
+      category: 'new-exploration',
+      text: `${flags.novelRegion}など未挑戦のエリアが含まれています`,
+    };
   }
 
   if (flags.weaknessCount && flags.weaknessCount > 0) {

@@ -83,6 +83,30 @@ export function generateRecommendation(
   // Regression guard
   const progression = evaluateProgression(state.fitZone, state.lastSessionAccuracy);
 
+  // ── Under-explored mode / region detection ─────────────────────────────────
+  // "Under-explored" = mode not yet in the Fit Zone (not at 60-80% stable accuracy).
+  // Using Fit Zone membership (not raw sessionCount > 0) so that modes tried only
+  // once or twice — not yet established — still surface as exploration targets.
+  const playedModes = new Set<GameMode>(
+    [...state.cellAccuracies.values()]
+      .filter((ca) => ca.sessionCount > 0)
+      .map((ca) => ca.cell.mode),
+  );
+  const fitZoneModes = new Set<GameMode>(state.fitZone.cells.map((ca) => ca.cell.mode));
+  const underexploredModes = shuffle(
+    (['A', 'B', 'C', 'D'] as GameMode[]).filter((m) => !fitZoneModes.has(m)),
+  );
+
+  // For regions: a region is under-explored if no Fit Zone cell covers it.
+  const fitZoneRegions = new Set<string>(state.fitZone.cells.map((ca) => ca.cell.region));
+  const underexploredRegions = shuffle(
+    [...REGION_VALUES].filter((r) => !fitZoneRegions.has(r)),
+  ) as typeof REGION_VALUES[number][];
+
+  // Novelty injection is suppressed during regression guard or when progression already fired
+  const canInjectNovelty = !progression.isRegressionGuarded && !progression.isProgressionFired;
+  // ───────────────────────────────────────────────────────────────────────────
+
   // Determine target mode and difficulties
   let targetMode: GameMode = state.fitZone.cells[0]?.cell.mode ?? 'B';
   let targetDifficulties: Difficulty[] = [state.fitZone.maxDifficulty];
@@ -94,6 +118,15 @@ export function generateRecommendation(
     }
   }
 
+  // Novel mode injection: rotate to an under-explored mode when available
+  let isNovelMode = false;
+  let isCompletelyUntriedMode = false;
+  if (canInjectNovelty && underexploredModes.length > 0) {
+    targetMode = underexploredModes[0];
+    isNovelMode = true;
+    isCompletelyUntriedMode = !playedModes.has(targetMode);
+  }
+
   // Target regions from Fit Zone
   let targetRegions: Exclude<import('./types').Region, '全国'>[] =
     [...new Set(state.fitZone.cells.map((ca) => ca.cell.region))];
@@ -103,14 +136,30 @@ export function generateRecommendation(
     targetRegions = [...new Set([...targetRegions, progression.nextRegion as typeof REGION_VALUES[number]])];
   }
 
+  // Novel region injection: add up to 2 under-explored regions for diversity
+  let novelRegionsAdded: typeof REGION_VALUES[number][] = [];
+  if (canInjectNovelty && !isNovelMode && underexploredRegions.length > 0) {
+    novelRegionsAdded = underexploredRegions.slice(0, 2);
+    targetRegions = [...new Set([...targetRegions, ...novelRegionsAdded])];
+  }
+  const isNovelRegion = novelRegionsAdded.length > 0;
+
   // Build pools
   const fitZoneCellKeys = new Set(state.fitZone.cells.map((ca) => cellKey(ca.cell)));
 
   // 1. Fit Zone weakness pool (50%)
+  // When injecting novelty, fitZoneCellKeys only covers the old mode/region so we
+  // fall back to filtering by difficulty + all targetRegions directly.
   const fitZoneCodes = allMaster
     .filter((m) => {
-      return fitZoneCellKeys.has(`${m.difficulty}_${m.region}_${targetMode}`) &&
-        targetDifficulties.includes(m.difficulty as Difficulty);
+      const diffMatch = targetDifficulties.includes(m.difficulty as Difficulty);
+      if (isNovelMode || isNovelRegion) {
+        return diffMatch && (targetRegions as string[]).includes(m.region);
+      }
+      return (
+        fitZoneCellKeys.has(`${m.difficulty}_${m.region}_${targetMode}`) &&
+        diffMatch
+      );
     })
     .map((m) => m.code);
 
@@ -131,10 +180,10 @@ export function generateRecommendation(
   );
   const coverageSampled = coverageCodes.filter((c) => !excludeSet.has(c)).slice(0, coverageCount);
 
-  // 3. Exploration pool (30%)
+  // 3. Exploration pool (30%) — shuffle before slicing to avoid always picking same codes
   const explorationCount = Math.round(count * 0.3);
   const explorationPool = selectExplorationPool(allMaster, state.cellAccuracies, state.cellCoverages, state.fitZone);
-  const explorationSampled = explorationPool.filter((c) => !excludeSet.has(c)).slice(0, explorationCount);
+  const explorationSampled = shuffle(explorationPool.filter((c) => !excludeSet.has(c))).slice(0, explorationCount);
 
   // Combine and deduplicate
   const selectedSet = new Set<string>();
@@ -172,6 +221,9 @@ export function generateRecommendation(
       alternativeStrategy: progression.alternativeStrategy,
       weaknessCount: [...state.weaknessByMunicipality.values()].filter((r) => r > 0.5).length,
       newExplorationCount: explorationSampled.length,
+      isNovelMode,
+      isCompletelyUntriedMode,
+      novelRegion: !isNovelMode && isNovelRegion ? (novelRegionsAdded[0] ?? null) : null,
     },
   );
 
