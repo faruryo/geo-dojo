@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { saveMunicipalityQuizResult } from '@/app/(app)/quiz/municipality/actions';
 import { dedupeInstancesByPrefecture, type GameMode, type Municipality } from '@/lib/quiz/municipality-data';
+import { toQuestionResult } from '@/lib/quiz/quiz-results';
 
 const JapanMap = dynamic(
   () => import('@/components/map/JapanMap').then((m) => m.JapanMap),
@@ -89,14 +90,9 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
   // delayMs: フィードバック表示時間。A/D は地図確認のため長め(1500)、B/C は短め(1200)。
   const recordAndAdvance = useCallback(
     async (entries: { municipality: Municipality; isCorrect: boolean; mode: GameMode }[], delayMs: number) => {
-      // 1回の呼び出し = 1問。Mode A で同名・複数県の市は採点は1回（県ごとに DB 保存はするが
-      // entries は同一 isCorrect）なので、表示用の結果は1件だけ追加する。保存件数で数えると
-      // 伊達市/川崎町のような複数県の市が二重カウントされ「19問なのに21完了」になる。
-      const head = entries[0];
-      const updatedResults = [
-        ...results,
-        { name: head.municipality.name, prefecture: head.municipality.prefecture, correct: head.isCorrect },
-      ];
+      // 1回の呼び出し = 1問。保存件数で数えると複数県の同名市が二重カウントされ
+      // 「19問なのに21完了」になるため、表示用の結果は toQuestionResult で1問1件に正規化する。
+      const updatedResults = [...results, toQuestionResult(entries)];
       setResults(updatedResults);
       const saved = await Promise.allSettled(
         entries.map((e) =>
