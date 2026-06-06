@@ -5,3 +5,5 @@ at specs/005-spaced-review/plan.md
 
 Backlog（将来の spec 候補）は specs/backlog.md に管理
 <!-- SPECKIT END -->
+
+プロジェクト全体（技術スタック・コマンド・DB・本番障害の教訓など）は AGENTS.md を参照。
