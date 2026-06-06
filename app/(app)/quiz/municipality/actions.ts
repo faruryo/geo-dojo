@@ -50,32 +50,44 @@ export async function saveMunicipalityQuizResult(input: {
   mode: 'A' | 'B' | 'C' | 'D';
   isCorrect: boolean;
 }): Promise<void> {
-  const supabase = await createServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized');
+  // 本番では Next.js が server action の throw を digest に隠すため、原因を必ず明示ログしてから
+  // 再 throw する。クライアントは Promise.allSettled で握り潰すので、ここが唯一の検知点になる。
+  try {
+    const supabase = await createServerClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) throw new Error('Unauthorized');
 
-  if (!checkRateLimit(user.id)) throw new Error('Rate limit exceeded');
+    if (!checkRateLimit(user.id)) throw new Error('Rate limit exceeded');
 
-  // Whitelist validate mode
-  if (!['A', 'B', 'C', 'D'].includes(input.mode)) throw new Error('Invalid mode');
+    // Whitelist validate mode
+    if (!['A', 'B', 'C', 'D'].includes(input.mode)) throw new Error('Invalid mode');
 
-  // Validate municipality code against master data
-  if (!(await getValidCodes()).has(input.municipalityCode)) throw new Error('Invalid municipality code');
+    // Validate municipality code against master data
+    if (!(await getValidCodes()).has(input.municipalityCode)) throw new Error('Invalid municipality code');
 
-  // Strict boolean check
-  if (typeof input.isCorrect !== 'boolean') throw new Error('Invalid isCorrect');
+    // Strict boolean check
+    if (typeof input.isCorrect !== 'boolean') throw new Error('Invalid isCorrect');
 
-  await db.insert(municipalityQuizResults).values({
-    userId: user.id,
-    municipalityCode: input.municipalityCode,
-    municipalityName: input.municipalityName,
-    prefecture: input.prefecture,
-    mode: input.mode,
-    isCorrect: input.isCorrect,
-  });
+    await db.insert(municipalityQuizResults).values({
+      userId: user.id,
+      municipalityCode: input.municipalityCode,
+      municipalityName: input.municipalityName,
+      prefecture: input.prefecture,
+      mode: input.mode,
+      isCorrect: input.isCorrect,
+    });
 
-  // SM-2 更新（全クイズ共通: 復習セッション・通常クイズ双方）
-  await upsertSrsRecord(user.id, input);
+    // SM-2 更新（全クイズ共通: 復習セッション・通常クイズ双方）
+    await upsertSrsRecord(user.id, input);
+  } catch (e) {
+    console.error('[saveMunicipalityQuizResult] failed', {
+      code: input.municipalityCode,
+      mode: input.mode,
+      isCorrect: input.isCorrect,
+      error: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+    });
+    throw e;
+  }
 }
 
 async function upsertSrsRecord(
