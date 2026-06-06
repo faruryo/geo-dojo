@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { saveMunicipalityQuizResult } from '@/app/(app)/quiz/municipality/actions';
 import { dedupeInstancesByPrefecture, type GameMode, type Municipality } from '@/lib/quiz/municipality-data';
+import { toQuestionResult } from '@/lib/quiz/quiz-results';
 
 const JapanMap = dynamic(
   () => import('@/components/map/JapanMap').then((m) => m.JapanMap),
@@ -89,14 +90,11 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
   // delayMs: フィードバック表示時間。A/D は地図確認のため長め(1500)、B/C は短め(1200)。
   const recordAndAdvance = useCallback(
     async (entries: { municipality: Municipality; isCorrect: boolean; mode: GameMode }[], delayMs: number) => {
-      const newEntries = entries.map((e) => ({
-        name: e.municipality.name,
-        prefecture: e.municipality.prefecture,
-        correct: e.isCorrect,
-      }));
-      const updatedResults = [...results, ...newEntries];
+      // 1回の呼び出し = 1問。保存件数で数えると複数県の同名市が二重カウントされ
+      // 「19問なのに21完了」になるため、表示用の結果は toQuestionResult で1問1件に正規化する。
+      const updatedResults = [...results, toQuestionResult(entries)];
       setResults(updatedResults);
-      await Promise.allSettled(
+      const saved = await Promise.allSettled(
         entries.map((e) =>
           saveMunicipalityQuizResult({
             municipalityCode: e.municipality.code,
@@ -107,6 +105,16 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
           }),
         ),
       );
+      // 保存失敗は UX を止めないが握り潰すと今回のような本番障害に気付けないため必ずログする
+      saved.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          console.error('[quiz-runner] failed to save result', {
+            code: entries[i].municipality.code,
+            mode: entries[i].mode,
+            reason: r.reason,
+          });
+        }
+      });
       setTimeout(() => advanceQuestion(updatedResults), delayMs);
     },
     [results, advanceQuestion],
