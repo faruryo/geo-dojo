@@ -1,7 +1,5 @@
 'use server';
 
-import * as fs from 'fs';
-import * as path from 'path';
 import { createServerClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
 import { municipalityQuizResults, municipalityMaster, srsRecords, type MunicipalityMaster } from '@/lib/db/schema';
@@ -13,14 +11,17 @@ import { extractFitZone } from '@/lib/quiz/recommendation/fit-zone';
 import { generateRecommendation } from '@/lib/quiz/recommendation/engine';
 import type { LearnerState, Recommendation } from '@/lib/quiz/recommendation/types';
 
-// Lazy-loaded municipality validation set (loaded once, reused across requests)
+// Lazy-loaded municipality validation set (loaded once, reused across warm invocations).
+// NOTE: 以前は public/municipalities.json を fs で読んでいたが、Vercel の serverless
+// 関数バンドル(/var/task)に public/ の静的アセットは含まれず ENOENT で全保存が 500 に
+// なっていた。DB の municipality_master（クライアントの出題元と同一の信頼できる情報源）を
+// 参照することで実行時のファイル依存を排除する。
 let _validCodes: Set<string> | null = null;
 
-function getValidCodes(): Set<string> {
+async function getValidCodes(): Promise<Set<string>> {
   if (_validCodes) return _validCodes;
-  const filePath = path.join(process.cwd(), 'public', 'municipalities.json');
-  const data = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as { code: string }[];
-  _validCodes = new Set(data.map((m) => m.code));
+  const rows = await db.select({ code: municipalityMaster.code }).from(municipalityMaster);
+  _validCodes = new Set(rows.map((m) => m.code));
   return _validCodes;
 }
 
@@ -59,7 +60,7 @@ export async function saveMunicipalityQuizResult(input: {
   if (!['A', 'B', 'C', 'D'].includes(input.mode)) throw new Error('Invalid mode');
 
   // Validate municipality code against master data
-  if (!getValidCodes().has(input.municipalityCode)) throw new Error('Invalid municipality code');
+  if (!(await getValidCodes()).has(input.municipalityCode)) throw new Error('Invalid municipality code');
 
   // Strict boolean check
   if (typeof input.isCorrect !== 'boolean') throw new Error('Invalid isCorrect');

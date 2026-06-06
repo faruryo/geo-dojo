@@ -96,7 +96,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
       }));
       const updatedResults = [...results, ...newEntries];
       setResults(updatedResults);
-      await Promise.allSettled(
+      const saved = await Promise.allSettled(
         entries.map((e) =>
           saveMunicipalityQuizResult({
             municipalityCode: e.municipality.code,
@@ -107,6 +107,16 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
           }),
         ),
       );
+      // 保存失敗は UX を止めないが握り潰すと今回のような本番障害に気付けないため必ずログする
+      saved.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          console.error('[quiz-runner] failed to save result', {
+            code: entries[i].municipality.code,
+            mode: entries[i].mode,
+            reason: r.reason,
+          });
+        }
+      });
       setTimeout(() => advanceQuestion(updatedResults), delayMs);
     },
     [results, advanceQuestion],
