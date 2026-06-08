@@ -7,31 +7,13 @@ import {
   municipalityMaster,
   srsRecords,
 } from '@/lib/db/schema';
-import { eq, sql, and, lt, count, lte, gt, asc, min } from 'drizzle-orm';
+import { eq, sql, and, count, lte, gt, asc, min } from 'drizzle-orm';
+import { getJSTToday, getJSTDateRange } from '@/lib/utils/date-jst';
 import {
-  getJSTToday,
-  getJSTDateRange,
-  getJSTStartOfToday,
-} from '@/lib/utils/date-jst';
-
-function stripDates(obj: unknown): unknown {
-  if (obj === null || obj === undefined) return obj;
-  if (obj instanceof Date) return obj.toISOString();
-  if (typeof obj === 'bigint') return Number(obj);
-  if (Array.isArray(obj)) return obj.map(stripDates);
-  if (typeof obj === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-      result[k] = stripDates(v);
-    }
-    return result;
-  }
-  return obj;
-}
-
-function serialize<T>(data: T): T {
-  return stripDates(data) as T;
-}
+  serialize,
+  getMasterPoolSize,
+  getDashboardSummaryData,
+} from './queries';
 
 async function requireUser() {
   const supabase = await createServerClient();
@@ -43,161 +25,12 @@ async function requireUser() {
   return user;
 }
 
-async function getMasterPoolSize(
-  mode: 'all' | 'A' | 'B' | 'C' | 'D',
-  region?: string,
-): Promise<number> {
-  const regionCond = region && region !== '全国'
-    ? sql`${municipalityMaster.region} = ${region}`
-    : undefined;
-
-  if (mode === 'B' || mode === 'C') {
-    const [row] = await db
-      .select({
-        value: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
-      })
-      .from(municipalityMaster)
-      .where(regionCond);
-    return Number(row.value);
-  }
-
-  const [row] = await db
-    .select({ value: count() })
-    .from(municipalityMaster)
-    .where(regionCond);
-  const total = row.value;
-
-  if (mode === 'all') {
-    const [dedupRow] = await db
-      .select({
-        value: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
-      })
-      .from(municipalityMaster)
-      .where(regionCond);
-    const deduped = Number(dedupRow.value);
-    return total * 2 + deduped * 2;
-  }
-
-  return total;
-}
-
 // ──────────────────────────────────────────────────────
 // 1. getDashboardSummary
 // ──────────────────────────────────────────────────────
 export async function getDashboardSummary() {
   const user = await requireUser();
-  const userId = user.id;
-  const todayStart = getJSTStartOfToday();
-
-  // --- Current (all time) ---
-  const [totalRow] = await db
-    .select({ value: count() })
-    .from(municipalityQuizResults)
-    .where(eq(municipalityQuizResults.userId, userId));
-  const totalQuestions = totalRow.value;
-
-  const [correctRow] = await db
-    .select({ value: count() })
-    .from(municipalityQuizResults)
-    .where(
-      and(
-        eq(municipalityQuizResults.userId, userId),
-        eq(municipalityQuizResults.isCorrect, true),
-      ),
-    );
-  const totalCorrect = correctRow.value;
-
-  const overallAccuracy = totalQuestions > 0 ? totalCorrect / totalQuestions : 0;
-
-  const [studiedRow] = await db
-    .select({
-      value: sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})`,
-    })
-    .from(municipalityQuizResults)
-    .where(eq(municipalityQuizResults.userId, userId));
-  const studiedCount = studiedRow.value;
-
-  // モード×市区町村のユニーク組み合わせで正解済みカウント
-  const [clearedRow] = await db
-    .select({
-      value: sql<number>`COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode}))`,
-    })
-    .from(municipalityQuizResults)
-    .where(
-      and(
-        eq(municipalityQuizResults.userId, userId),
-        eq(municipalityQuizResults.isCorrect, true),
-      ),
-    );
-  const clearedCount = clearedRow.value;
-
-  const totalSlots = await getMasterPoolSize('all');
-
-  const coverageRate =
-    totalSlots > 0 ? clearedCount / totalSlots : 0;
-
-  // --- Prev (before today JST 0:00) ---
-  const prevCondition = and(
-    eq(municipalityQuizResults.userId, userId),
-    lt(municipalityQuizResults.answeredAt, todayStart),
-  );
-
-  const [prevTotalRow] = await db
-    .select({ value: count() })
-    .from(municipalityQuizResults)
-    .where(prevCondition);
-  const prevTotalQuestions = prevTotalRow.value;
-
-  const [prevCorrectRow] = await db
-    .select({ value: count() })
-    .from(municipalityQuizResults)
-    .where(
-      and(prevCondition, eq(municipalityQuizResults.isCorrect, true)),
-    );
-  const prevTotalCorrect = prevCorrectRow.value;
-
-  const prevOverallAccuracy =
-    prevTotalQuestions > 0 ? prevTotalCorrect / prevTotalQuestions : 0;
-
-  const [prevStudiedRow] = await db
-    .select({
-      value: sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})`,
-    })
-    .from(municipalityQuizResults)
-    .where(prevCondition);
-  const prevStudiedCount = prevStudiedRow.value;
-
-  const [prevClearedRow] = await db
-    .select({
-      value: sql<number>`COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode}))`,
-    })
-    .from(municipalityQuizResults)
-    .where(
-      and(prevCondition, eq(municipalityQuizResults.isCorrect, true)),
-    );
-  const prevClearedCount = prevClearedRow.value;
-
-  const prevCoverageRate =
-    totalSlots > 0 ? prevClearedCount / totalSlots : 0;
-
-  return serialize({
-    totalQuestions,
-    totalCorrect,
-    overallAccuracy,
-    studiedCount,
-    clearedCount,
-    totalMunicipalities: totalSlots,
-    coverageRate,
-    prev: {
-      totalQuestions: prevTotalQuestions,
-      totalCorrect: prevTotalCorrect,
-      overallAccuracy: prevOverallAccuracy,
-      studiedCount: prevStudiedCount,
-      clearedCount: prevClearedCount,
-      totalMunicipalities: totalSlots,
-      coverageRate: prevCoverageRate,
-    },
-  });
+  return getDashboardSummaryData(user.id);
 }
 
 // ──────────────────────────────────────────────────────
