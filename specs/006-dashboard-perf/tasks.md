@@ -28,7 +28,7 @@ description: "Task list for ダッシュボード表示速度の改善"
 **Purpose**: 測定基盤とテストの土台を整える（コードのロジック変更なし）
 
 - [ ] T001 [P] ベースライン指標を `specs/006-dashboard-perf/quickstart.md` の HAR 解析スニペットで再確認し、改修前の `POST count / overlapping pairs / 総ウォール時間` を `specs/006-dashboard-perf/baseline-metrics.md` に記録（改修後比較用）
-- [ ] T002 [P] Vitest シード用の隔離テストデータ方針を確認（`vitest.config.ts` の `__tests__/**/*.test.ts` 包含・`environment: 'node'`・`@` エイリアスは既存のまま流用）。シードフィクスチャ配置先 `__tests__/lib/dashboard/fixtures/` を作成
+- [X] T002 [P] Vitest シード方針確定（`vitest.config.ts` の `__tests__/**/*.test.ts`・`environment:'node'`・`@` エイリアスを流用）。`__tests__/lib/dashboard/fixtures/` 作成。DB 統合テストは `DATABASE_URL` 有無で実行/スキップを切替
 
 ---
 
@@ -38,11 +38,11 @@ description: "Task list for ダッシュボード表示速度の改善"
 
 **⚠️ CRITICAL**: ここが終わるまで US1/US2 のテストは書けない（共有シードに依存）
 
-> **🚧 ブロッカー（要判断）**: T004–T006 の数値一致 Vitest は **DB 統合テスト**であり、現リポジトリには DB 統合テスト基盤が存在しない（既存 `__tests__` は全て純粋関数・`environment: 'node'`）。加えてローカルに `DATABASE_URL`/`.env` が無く `supabase` も停止中のため、本セッションでは実行不能。実装には (a) `supabase start`＋テスト用 env、(b) 隔離シード/クリーンアップ（memory `local supabase stack` の共有データ警告に注意）が必要。→ US1 の数値一致は「移設は SQL・集計・返却 shape を不変に保つ純粋リファクタ」であることと改修後 HAR/目視で担保し、Vitest 基盤整備は本ブロッカー解消後に着手する。
+> **✅ ブロッカー解消**: ローカル supabase（`pnpm dev` の `supabase start`、DB=`postgresql://postgres:postgres@127.0.0.1:54322/postgres`）を DB エミュレータとして利用し DB 統合テストを実装。`DATABASE_URL` 未設定時は `describe.skipIf` でスキップし既定 `pnpm test` を壊さない（CI 安全）。`user_id` に FK が無いことを確認し、ランダム synthetic userId で隔離シード→テスト後 cleanup（orphan 0 を確認）。
 
 - [X] T003 read クエリの純粋関数置き場 `app/(app)/dashboard/queries.ts` を新規作成（`stripDates`/`serialize`/`getMasterPoolSize` を `actions.ts` から移設し双方で再利用。`getDashboardSummaryData(userId)` を追加。発行 SQL・集計ロジック・返却 shape は不変）
-- [ ] T004 固定シード（固定 `userId` の `municipality_quiz_results` / `srs_records` 投入、`municipality_master` は既存）を生成するテストヘルパ `__tests__/lib/dashboard/seed.ts` を作成。投入は隔離し、テスト後クリーンに戻す（memory: verify-with-tests-not-DB 方針）
-- [ ] T005 シードに対する主要指標のゴールデン期待値を `__tests__/lib/dashboard/fixtures/expected-metrics.ts` に固定（`totalQuestions` / `totalCorrect` / `overallAccuracy` / `coverageRate` / `currentStreak` / `longestStreak` / 苦手上位コード・errorRate / `dueCount` / `reviewingCount` / 今後7日予定件数）
+- [X] T004 隔離シード `__tests__/lib/dashboard/seed.ts` を作成（ランダム synthetic userId に既知の回答ログ7件=prev4/today3 を投入、`cleanupSummaryUser` で完全削除）。`municipality_master` は既存流用
+- [X] T005 ゴールデン期待値 `__tests__/lib/dashboard/fixtures/expected-metrics.ts` を固定（`totalQuestions`/`totalCorrect`/`overallAccuracy`/`studiedCount`/`clearedCount`/`prev.*`）。coverageRate は master 依存=環境依存のためテスト側で同一式から導出して照合。注: streak / weakness / dueCount 等は US2 で残り read を純粋化する際に T012 で拡充
 
 **Checkpoint**: 共有シード＋ゴールデン値が確定。US1/US2 はこれに対して数値一致を検証できる
 
@@ -58,7 +58,7 @@ description: "Task list for ダッシュボード表示速度の改善"
 
 > 実装前にテストを書き、シード未対応で FAIL することを確認する
 
-- [ ] T006 [P] [US1] `__tests__/lib/dashboard/summary.test.ts` を作成し、`getDashboardSummaryData(userId)`（T007で抽出）の返却がゴールデン（`expected-metrics.ts`）と一致することを検証
+- [X] T006 [P] [US1] `__tests__/lib/dashboard/summary.test.ts` を作成し、`getDashboardSummaryData(userId)` の返却がゴールデンと一致することを検証。**結果: DB ありで 43 passed / DB なしで 3 skipped**。テストが既存挙動（`studiedCount`/`clearedCount` は raw `COUNT(DISTINCT)` のため文字列で返る）を捕捉、`Number()` で値照合
 
 ### Implementation for User Story 1
 
