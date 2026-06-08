@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
-import { createServerClient } from '@/lib/supabase/server';
+import { getCurrentUserId } from '@/lib/auth/current-user';
 import BottomNav from './bottom-nav';
 
 export default async function AppLayout({
@@ -9,10 +9,10 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // getClaims 優先（非対称鍵ならローカル検証で往復ゼロ、未対応時は getUser フォールバック）
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect('/login');
   }
 

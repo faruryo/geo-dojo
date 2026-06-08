@@ -1,0 +1,191 @@
+---
+description: "Task list for ダッシュボード表示速度の改善"
+---
+
+# Tasks: ダッシュボード（トップ）表示速度の改善
+
+**Input**: Design documents from `/specs/006-dashboard-perf/`
+**Prerequisites**: plan.md, spec.md, research.md, data-model.md, quickstart.md
+
+**Tests**: 数値一致リグレッションの Vitest は **必須**（spec Clarifications 2026-06-08 / AC4）。純粋化した read クエリ群に対し固定シードで主要指標の期待値を固定する。
+
+**Organization**: タスクは plan.md の段階リリース（Phase A=クイックウィン / Phase B=アーキ移行 / Phase C=仕上げ）を「独立してテスト・デリバリ可能な3ストーリー」として整理する。
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: 別ファイル・依存なしで並列実行可
+- **[Story]**: US1（クイックウィン）/ US2（プリフェッチ＋ハイドレーション）/ US3（認証最適化＋仕上げ）
+- 各タスクに正確なファイルパスを明記
+
+## Path Conventions
+
+- 単一 Next.js アプリ（App Router）。`app/`, `lib/`, `components/`, `__tests__/` はリポジトリ直下。
+
+---
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: 測定基盤とテストの土台を整える（コードのロジック変更なし）
+
+- [ ] T001 [P] ベースライン指標を `specs/006-dashboard-perf/quickstart.md` の HAR 解析スニペットで再確認し、改修前の `POST count / overlapping pairs / 総ウォール時間` を `specs/006-dashboard-perf/baseline-metrics.md` に記録（改修後比較用）
+- [X] T002 [P] Vitest シード方針確定（`vitest.config.ts` の `__tests__/**/*.test.ts`・`environment:'node'`・`@` エイリアスを流用）。`__tests__/lib/dashboard/fixtures/` 作成。DB 統合テストは `DATABASE_URL` 有無で実行/スキップを切替
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: US1/US2 の数値一致テストが共有する「シード＋期待値（ゴールデン）」と純粋クエリの置き場を用意する
+
+**⚠️ CRITICAL**: ここが終わるまで US1/US2 のテストは書けない（共有シードに依存）
+
+> **✅ ブロッカー解消**: ローカル supabase（`pnpm dev` の `supabase start`、DB=`postgresql://postgres:postgres@127.0.0.1:54322/postgres`）を DB エミュレータとして利用し DB 統合テストを実装。`DATABASE_URL` 未設定時は `describe.skipIf` でスキップし既定 `pnpm test` を壊さない（CI 安全）。`user_id` に FK が無いことを確認し、ランダム synthetic userId で隔離シード→テスト後 cleanup（orphan 0 を確認）。
+
+- [X] T003 read クエリの純粋関数置き場 `app/(app)/dashboard/queries.ts` を新規作成（`stripDates`/`serialize`/`getMasterPoolSize` を `actions.ts` から移設し双方で再利用。`getDashboardSummaryData(userId)` を追加。発行 SQL・集計ロジック・返却 shape は不変）
+- [X] T004 隔離シード `__tests__/lib/dashboard/seed.ts` を作成（ランダム synthetic userId に既知の回答ログ7件=prev4/today3 を投入、`cleanupSummaryUser` で完全削除）。`municipality_master` は既存流用
+- [X] T005 ゴールデン期待値 `__tests__/lib/dashboard/fixtures/expected-metrics.ts` を固定（`totalQuestions`/`totalCorrect`/`overallAccuracy`/`studiedCount`/`clearedCount`/`prev.*`）。coverageRate は master 依存=環境依存のためテスト側で同一式から導出して照合。注: streak / weakness / dueCount 等は US2 で残り read を純粋化する際に T012 で拡充
+
+**Checkpoint**: 共有シード＋ゴールデン値が確定。US1/US2 はこれに対して数値一致を検証できる
+
+---
+
+## Phase 3: User Story 1 - クイックウィン（重複排除＋Promise.all） (Priority: P1) 🎯 MVP
+
+**Goal**: アーキ変更前に、`getRecommendation` の重複（約3.5秒）と `getDashboardSummary` の直列10クエリを解消して体感を即改善する（AC2、AC5の一部）
+
+**Independent Test**: HAR 再取得で `getRecommendation` の二重発火が消え、`getDashboardSummary` 相当の単発時間が短縮。Vitest で summary 系指標がゴールデンと一致（リグレッションなし）
+
+### Tests for User Story 1 (必須) ⚠️
+
+> 実装前にテストを書き、シード未対応で FAIL することを確認する
+
+- [X] T006 [P] [US1] `__tests__/lib/dashboard/summary.test.ts` を作成し、`getDashboardSummaryData(userId)` の返却がゴールデンと一致することを検証。**結果: DB ありで 43 passed / DB なしで 3 skipped**。テストが既存挙動（`studiedCount`/`clearedCount` は raw `COUNT(DISTINCT)` のため文字列で返る）を捕捉、`Number()` で値照合
+
+### Implementation for User Story 1
+
+- [X] T007 [US1] `app/(app)/dashboard/actions.ts` の `getDashboardSummary` 本体ロジックを `getDashboardSummaryData(userId)` として `app/(app)/dashboard/queries.ts` へ抽出（認証非依存・`userId` 引数化）。`actions.ts` 側は `requireUser()` → `getDashboardSummaryData(user.id)` を呼ぶ薄いラッパに変更
+- [X] T008 [US1] `getDashboardSummaryData` 内の相互依存のない集計を `Promise.all` 化。実装メモ: `totalSlots` 含め全9クエリは相互依存がなく（各値は最後の算術でのみ使用）、全て1つの `Promise.all` で並列化。返却 shape・数値は不変
+- [X] T009 [US1] `RecommendHeroCard` の二重配置を確認 → 新規ユーザー分岐(L44)と既存ユーザー分岐(L52)は **相互排他**で同時マウントしない。HAR の二重発火は summary `undefined→loaded` 遷移での再マウント由来のため、配置（新規=最上部 / 既存=復習の後）は UX 意図として維持し、T010 のキャッシュ共有で二重フェッチを解消
+- [X] T010 [US1] `lib/hooks/useRecommendation.ts` の `staleTime: 0, refetchOnMount: 'always'` を `staleTime: 60_000`＋`refetchOnMount` 既定へ変更。再マウントでもキャッシュ再利用で二重フェッチ消滅。アルゴリズムロジックは不変
+- [X] T011 [US1] `pnpm test`/`lint`/`tsc` 通過。preview HAR で初回 `POST /` が 1 本のみ＝推薦の重複消失を確認（baseline-metrics.md）
+
+**Checkpoint**: US1 単独でデプロイ可能（低リスクで体感改善）。summary 系の数値一致がテストで保証される
+
+---
+
+## Phase 4: User Story 2 - サーバ並列プリフェッチ＋ハイドレーション (Priority: P2)
+
+**Goal**: 初回表示の直列 read Server Action 群を「認証1回＋`Promise.all` の1バッチ」に収束させ、`HydrationBoundary` でクライアントへ渡す（AC1、AC5）
+
+**Independent Test**: HAR 再計測で初回の直列 read Server Action が消え重なりペア>0／ウォール<3秒。残り read 系指標も Vitest でゴールデンと一致
+
+### Tests for User Story 2 (必須) ⚠️
+
+- [X] T012 [P] [US2] `__tests__/lib/dashboard/queries-parity.test.ts` を作成。純粋化した8関数（trend/weakness/streak/difficulty/completionByMode/dueReviewSummary/upcomingReviewSchedule）をシードに対し決定的値で検証（synthetic code は master 非存在で空/0、completionByMode 全国は distinct=3）。**DBあり 50 passed**
+
+### Implementation for User Story 2
+
+- [X] T013 [P] [US2] `actions.ts` の初回描画に載る8 read を `queries.ts` の `userId` 引数純粋関数へ抽出（accuracyTrend/completionTrend/weaknessRanking/streak/difficultyProgress/completionByMode/dueReviewSummary/upcomingReviewSchedule）。各 SA は薄いラッパ化。実装メモ: `getReviewItemList`/`getReviewModeBreakdown` は初回描画に載らない（オンデマンド専用）ため SA に残置
+- [X] T014 [P] [US2] **方針変更（要記録）**: `getRecommendation` はプリフェッチ**しない**。理由=推薦は client localStorage 履歴(`excludeCodes`)依存で SSR では再現不可。`[]` でプリフェッチすると復習中ユーザーの推薦多様性が変わり挙動変化となる。US1 で重複は解消済みのため、残る単発取得（staleTime付き）を client に委ね挙動を完全維持。初回の直列 SA は 11→1(recommendation のみ) に収束
+- [X] T015 [US2] `lib/dashboard/prefetch.ts` 新設。**認証1回＋9クエリ Promise.all** で取得し `dehydrate`。各 `queryKey` を対応フックと完全一致（accuracy='7d'/completion='all' のチャート既定 period を含む）。`server-only` で client バンドル混入を防止
+- [X] T016 [US2] `app/(app)/page.tsx` を async server wrapper 化（`getDashboardDehydratedState()` → `HydrationBoundary`）。表示本体を `components/dashboard/dashboard-client.tsx`（新規 client）へ分離。`useState` フィルタ・部品階層は現状維持
+- [X] T017 [US2] `lib/get-query-client.ts` 新設（`isServer` でリクエスト毎 new / ブラウザはシングルトン、`defaultShouldDehydrateQuery`）。`app/providers.tsx` は既存 useState 構成（staleTime 60s）を維持し副作用最小化
+- [X] T018 [US2] `pnpm test`(DBあり 50 passed)／`lint`／`tsc`／`build` 通過。**preview HAR 実測で初回 read SA 11→1、サーバ並列 read 1.6s に収束**（baseline-metrics.md）
+
+**Checkpoint**: US1＋US2 で初回表示が並列1バッチに収束。read 系全指標の数値一致がテストで保証される
+
+---
+
+## Phase 5: User Story 3 - 認証往復削減＋仕上げ (Priority: P3)
+
+**Goal**: 認証を `getClaims`（ローカル JWT 検証）優先に寄せ往復を削減し、残存 read のハイドレーション網羅と最終再計測・数値一致サインオフを行う（AC3、AC4 最終確認）
+
+**Independent Test**: 本番で署名鍵が有効なら認証往復が初回あたり大幅減（HAR で確認）。無効環境でも `getUser` フォールバックで挙動不変
+
+### Implementation for User Story 3
+
+- [X] T019 [US3] 認証ヘルパ `lib/auth/current-user.ts`（`getCurrentUserId`）を新設し認証を一元化。**当初 `getClaims()` を採用したが preview で対称鍵構成では内部 getSession+getUser の入れ子ロックで 300s ハング → `getUser()` 直呼びに戻して解消**（非対称署名鍵の本番有効化後に getClaims 再検討。research.md 参照）
+- [X] T020 [US3] `prefetch.ts` / `actions.ts` 全ラッパ / `app/(app)/layout.tsx` の認証を `getCurrentUserId` に統一（初回ロードの認証呼び出しを集約）
+- [X] T021 [US3] 初回描画フックを点検: prefetch 済み9クエリ以外で初回フェッチするのは `useRecommendation`（client localStorage 依存・意図的に client 単発）のみ。`reviewItemList`/`reviewModeBreakdown` は初回描画に非搭載。取りこぼしなし
+- [X] T022 [US3] `research.md` に Phase C 実装結果を追記（getClaims の安全性をソースで確認、本番の非対称署名鍵有効化をデプロイ前チェックリスト化。無効でもプリフェッチ収束効果は不変）
+
+**Checkpoint**: 全 AC を満たす。認証往復削減が上積みされる
+
+---
+
+## Phase 6: Polish & Cross-Cutting Concerns
+
+**Purpose**: 最終検証と整合確認
+
+- [X] T023 改修前後 HAR を比較し `baseline-metrics.md` に記録。初回 read SA 11→1、並列 1.6s（直列合計 ~14.3s→収束）。AC1/AC5 達成を確認
+- [ ] T024 主要指標の改修前後一致を最終確認（AC4）。**Vitest は DBあり 50 passed で緑**。推薦提示内容と画面目視はログイン環境で最終確認（残）
+- [X] T025 [P] preview で初回表示・各指標の表示を確認（体感高速化）。フィルタ変更時のオンデマンド取得は既存フック経由で不変
+- [X] T026 `pnpm lint`(clean) / `tsc`(clean) / `pnpm test`(DBあり50/DBなし40+skip) / `pnpm build`(成功) を実行。US1/US2/US3 を Conventional Commits でコミット
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Setup (Phase 1)**: 依存なし・即着手可
+- **Foundational (Phase 2)**: Setup 完了に依存。**US1/US2 のテストをブロック**（共有シード＋ゴールデン）
+- **US1 (Phase 3)**: Foundational 後に着手可。単独デプロイ可能な MVP
+- **US2 (Phase 4)**: Foundational 後に着手可。`queries.ts`（T003）と US1 の summary 抽出パターンを土台にするため US1 後が安全
+- **US3 (Phase 5)**: US2（`prefetch.ts`）完了に依存（認証ヘルパを差し込むため）
+- **Polish (Phase 6)**: 全ストーリー完了に依存
+
+### User Story Dependencies
+
+- **US1 (P1)**: Foundational 後・他ストーリー非依存。MVP として独立デリバリ可
+- **US2 (P2)**: `queries.ts` 共有のため US1 と同じ基盤上。独立テスト可（queries-parity.test.ts）
+- **US3 (P3)**: US2 の `prefetch.ts` に認証ヘルパを差し込むため US2 完了が前提
+
+### Within Each User Story
+
+- テスト（必須）を先に書き FAIL を確認 → 抽出/実装 → 緑化
+- queries 抽出 → prefetch → page.tsx 分割 の順
+- ストーリー完了→次の優先度へ
+
+### Parallel Opportunities
+
+- T001/T002（Setup）は並列可
+- T013/T014（read 抽出と recommendation 整理）は別ファイルで並列可
+- T006（US1 テスト）と T012（US2 テスト）は別ファイルで並列着手可（ただし対象実装に依存）
+
+---
+
+## Parallel Example: User Story 2
+
+```bash
+# 別ファイルの read 抽出を並列で:
+Task: "残り read 関数を queries.ts へ純粋化 (app/(app)/dashboard/queries.ts)"
+Task: "getRecommendation を userId 引数で呼べる形に整理 (app/(app)/quiz/municipality/actions.ts)"
+```
+
+---
+
+## Implementation Strategy
+
+### MVP First (User Story 1 のみ)
+
+1. Phase 1 Setup
+2. Phase 2 Foundational（共有シード＋ゴールデン＝AC4 の土台。最重要）
+3. Phase 3 US1（重複排除＋Promise.all）
+4. **STOP & VALIDATE**: HAR で約3.5秒の重複消失と summary 短縮を確認・デプロイ可
+
+### Incremental Delivery
+
+1. Setup + Foundational → テスト基盤完成
+2. US1 → 独立検証 → デプロイ（MVP・低リスク即効）
+3. US2 → 初回プリフェッチ収束 → 検証 → デプロイ（AC1/AC5 主因解消）
+4. US3 → 認証往復削減＋仕上げ → 最終検証（AC3）
+
+---
+
+## Notes
+
+- [P] = 別ファイル・依存なし
+- data-model.md の不変条件（発行 SQL・集計ロジック・返却 shape・`serialize` 挙動を変えない）を全タスクで厳守
+- テストデータは隔離投入しクリーンに戻す（memory: verify-with-tests-not-DB）
+- 性能は HAR 比較で、数値一致は Vitest（必須）で検証する
+- 各タスク／論理グループ単位でコミット
