@@ -9,8 +9,7 @@ import { WeaknessRanking } from '@/components/dashboard/weakness-ranking';
 import { StreakDisplay } from '@/components/dashboard/streak-display';
 import { CompletionProgress } from '@/components/dashboard/completion-progress';
 import { DifficultyProgress } from '@/components/dashboard/difficulty-progress';
-import { ReviewRecommendations } from '@/components/dashboard/review-recommendations';
-import { ReviewProgress } from '@/components/dashboard/review-progress';
+import { ReviewCard } from '@/components/dashboard/review-card';
 import { MilestoneBanner } from '@/components/dashboard/milestone-banner';
 import { FilterBar, type FilterMode } from '@/components/dashboard/filter-bar';
 import { RecommendHeroCard } from '@/components/recommend/recommend-hero-card';
@@ -53,8 +52,8 @@ export function DashboardClient() {
 
       {summary && summary.totalQuestions > 0 && (
         <>
-          {/* 優先度: 今日の復習 > 今日のおすすめクイズ (FR-020) */}
-          <ReviewRecommendations />
+          {/* 復習ハブ（行動+状態を集約）。優先度: 復習 > 今日のおすすめクイズ (FR-020) */}
+          <ReviewCard />
           <RecommendHeroCard />
 
           <StreakDisplay />
@@ -98,8 +97,6 @@ export function DashboardClient() {
           </Card>
 
           <WeaknessRanking />
-
-          <ReviewProgress />
         </>
       )}
     </div>
