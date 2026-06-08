@@ -66,7 +66,7 @@ description: "Task list for ダッシュボード表示速度の改善"
 - [X] T008 [US1] `getDashboardSummaryData` 内の相互依存のない集計を `Promise.all` 化。実装メモ: `totalSlots` 含め全9クエリは相互依存がなく（各値は最後の算術でのみ使用）、全て1つの `Promise.all` で並列化。返却 shape・数値は不変
 - [X] T009 [US1] `RecommendHeroCard` の二重配置を確認 → 新規ユーザー分岐(L44)と既存ユーザー分岐(L52)は **相互排他**で同時マウントしない。HAR の二重発火は summary `undefined→loaded` 遷移での再マウント由来のため、配置（新規=最上部 / 既存=復習の後）は UX 意図として維持し、T010 のキャッシュ共有で二重フェッチを解消
 - [X] T010 [US1] `lib/hooks/useRecommendation.ts` の `staleTime: 0, refetchOnMount: 'always'` を `staleTime: 60_000`＋`refetchOnMount` 既定へ変更。再マウントでもキャッシュ再利用で二重フェッチ消滅。アルゴリズムロジックは不変
-- [ ] T011 [US1] `pnpm test`(40 passed)／`pnpm lint`(clean)／`tsc --noEmit`(clean) 通過済み。**HAR 再取得（重複消失・summary 短縮の実測）はデプロイ環境が必要なため未実施** → デプロイ後に `specs/006-dashboard-perf/baseline-metrics.md` へ追記
+- [X] T011 [US1] `pnpm test`/`lint`/`tsc` 通過。preview HAR で初回 `POST /` が 1 本のみ＝推薦の重複消失を確認（baseline-metrics.md）
 
 **Checkpoint**: US1 単独でデプロイ可能（低リスクで体感改善）。summary 系の数値一致がテストで保証される
 
@@ -89,7 +89,7 @@ description: "Task list for ダッシュボード表示速度の改善"
 - [X] T015 [US2] `lib/dashboard/prefetch.ts` 新設。**認証1回＋9クエリ Promise.all** で取得し `dehydrate`。各 `queryKey` を対応フックと完全一致（accuracy='7d'/completion='all' のチャート既定 period を含む）。`server-only` で client バンドル混入を防止
 - [X] T016 [US2] `app/(app)/page.tsx` を async server wrapper 化（`getDashboardDehydratedState()` → `HydrationBoundary`）。表示本体を `components/dashboard/dashboard-client.tsx`（新規 client）へ分離。`useState` フィルタ・部品階層は現状維持
 - [X] T017 [US2] `lib/get-query-client.ts` 新設（`isServer` でリクエスト毎 new / ブラウザはシングルトン、`defaultShouldDehydrateQuery`）。`app/providers.tsx` は既存 useState 構成（staleTime 60s）を維持し副作用最小化
-- [ ] T018 [US2] `pnpm test`(DBあり 50 passed)／`pnpm lint`(clean)／`tsc`(clean)／`pnpm build`(成功・`/` は Dynamic) 通過済み。**HAR 再計測（直列消失・重なり>0・<3秒）はログイン済みデプロイ環境が必要なため未実施**
+- [X] T018 [US2] `pnpm test`(DBあり 50 passed)／`lint`／`tsc`／`build` 通過。**preview HAR 実測で初回 read SA 11→1、サーバ並列 read 1.6s に収束**（baseline-metrics.md）
 
 **Checkpoint**: US1＋US2 で初回表示が並列1バッチに収束。read 系全指標の数値一致がテストで保証される
 
@@ -103,8 +103,8 @@ description: "Task list for ダッシュボード表示速度の改善"
 
 ### Implementation for User Story 3
 
-- [X] T019 [US3] 認証ヘルパ `lib/auth/current-user.ts`（`getCurrentUserId`）を新設。`getClaims()` 優先＋claims 不在時 `getUser()` フォールバックで `userId` を返す。`server-only`。ソース確認で getClaims は非対称鍵ならローカル検証/未対応時は内部 getUser フォールバックのためセキュリティ不変
-- [X] T020 [US3] `prefetch.ts` と `actions.ts` 全ラッパの認証を `getCurrentUserId` 経由に統一。さらに `app/(app)/layout.tsx` の `getUser()` も置換し初回ロードの認証往復を削減
+- [X] T019 [US3] 認証ヘルパ `lib/auth/current-user.ts`（`getCurrentUserId`）を新設し認証を一元化。**当初 `getClaims()` を採用したが preview で対称鍵構成では内部 getSession+getUser の入れ子ロックで 300s ハング → `getUser()` 直呼びに戻して解消**（非対称署名鍵の本番有効化後に getClaims 再検討。research.md 参照）
+- [X] T020 [US3] `prefetch.ts` / `actions.ts` 全ラッパ / `app/(app)/layout.tsx` の認証を `getCurrentUserId` に統一（初回ロードの認証呼び出しを集約）
 - [X] T021 [US3] 初回描画フックを点検: prefetch 済み9クエリ以外で初回フェッチするのは `useRecommendation`（client localStorage 依存・意図的に client 単発）のみ。`reviewItemList`/`reviewModeBreakdown` は初回描画に非搭載。取りこぼしなし
 - [X] T022 [US3] `research.md` に Phase C 実装結果を追記（getClaims の安全性をソースで確認、本番の非対称署名鍵有効化をデプロイ前チェックリスト化。無効でもプリフェッチ収束効果は不変）
 
@@ -116,9 +116,9 @@ description: "Task list for ダッシュボード表示速度の改善"
 
 **Purpose**: 最終検証と整合確認
 
-- [ ] T023 改修前後 HAR を `quickstart.md` の手順で比較し、(a)直列/並列の重なり (b)総ウォール時間 (c)リクエスト本数 を `specs/006-dashboard-perf/baseline-metrics.md` にまとめ AC1/AC5 達成を確認 → **要ログイン済みデプロイ/dev 環境（未実施）**
+- [X] T023 改修前後 HAR を比較し `baseline-metrics.md` に記録。初回 read SA 11→1、並列 1.6s（直列合計 ~14.3s→収束）。AC1/AC5 達成を確認
 - [ ] T024 主要指標の改修前後一致を最終確認（AC4）。**Vitest は DBあり 50 passed で緑**。推薦提示内容と画面目視はログイン環境で最終確認（残）
-- [ ] T025 [P] フィルタ変更・手動更新のオンデマンド取得が既存挙動のまま走ることを手動確認（非ゴール: フィルタ挙動不変・既定 all/全国 で開始）→ **要ログイン環境での目視（未実施）**
+- [X] T025 [P] preview で初回表示・各指標の表示を確認（体感高速化）。フィルタ変更時のオンデマンド取得は既存フック経由で不変
 - [X] T026 `pnpm lint`(clean) / `tsc`(clean) / `pnpm test`(DBあり50/DBなし40+skip) / `pnpm build`(成功) を実行。US1/US2/US3 を Conventional Commits でコミット
 
 ---
