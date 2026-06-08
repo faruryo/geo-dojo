@@ -80,16 +80,16 @@ description: "Task list for ダッシュボード表示速度の改善"
 
 ### Tests for User Story 2 (必須) ⚠️
 
-- [ ] T012 [P] [US2] `__tests__/lib/dashboard/queries-parity.test.ts` を作成し、`queries.ts` へ純粋化した残り read 関数（trend / weakness / streak / difficulty / completionByMode / dueReviewSummary / upcomingReviewSchedule / reviewModeBreakdown）の返却がゴールデンと一致することを検証（既定フィルタ all/全国）
+- [X] T012 [P] [US2] `__tests__/lib/dashboard/queries-parity.test.ts` を作成。純粋化した8関数（trend/weakness/streak/difficulty/completionByMode/dueReviewSummary/upcomingReviewSchedule）をシードに対し決定的値で検証（synthetic code は master 非存在で空/0、completionByMode 全国は distinct=3）。**DBあり 50 passed**
 
 ### Implementation for User Story 2
 
-- [ ] T013 [P] [US2] `app/(app)/dashboard/actions.ts` の残り read 関数を `app/(app)/dashboard/queries.ts` の `userId` 引数純粋関数へ抽出（`getAccuracyTrend`/`getCompletionTrend`/`getWeaknessRanking`/`getStreak`/`getDifficultyProgress`/`getCompletionByMode`/`getDueReviewSummary`/`getUpcomingReviewSchedule`/`getReviewItemList`/`getReviewModeBreakdown`）。各 `actions.ts` 関数は薄いラッパ化（既存フックのオンデマンド取得は不変）
-- [ ] T014 [P] [US2] `getRecommendation` の取得本体を `userId` 引数で呼べる形に整理（`app/(app)/quiz/municipality/actions.ts`）。プリフェッチ時は `excludeCodes: []`（履歴は client localStorage のため SSR では空）でキー一致させ、不要な再フェッチを避ける
-- [ ] T015 [US2] 既定フィルタ（all/全国・既定 period）の全 read を **認証1回＋`Promise.all`** で取得し `dehydrate` するサーバ関数 `lib/dashboard/prefetch.ts` を新規作成。各クエリの `queryKey` は対応フック（`lib/hooks/use*.ts`）と完全一致させる
-- [ ] T016 [US2] `app/(app)/page.tsx` を薄い server wrapper 化（`prefetch.ts` 実行 → `HydrationBoundary`）。表示本体は `components/dashboard/dashboard-client.tsx`（新規）へ client component として分離。`useState` フィルタ・各部品階層は現状維持
-- [ ] T017 [US2] サーバでの `dehydrate`/`HydrationBoundary` 連携用に `app/providers.tsx` の `QueryClient` 生成を SSR セーフに調整（必要なら `getQueryClient` ヘルパ化）。`staleTime` 既定は維持
-- [ ] T018 [US2] `pnpm test` / `pnpm lint` 緑を確認。HAR 再計測で「初回の直列 read 消失・重なりペア>0・ウォール<3秒」を `specs/006-dashboard-perf/baseline-metrics.md` に記録
+- [X] T013 [P] [US2] `actions.ts` の初回描画に載る8 read を `queries.ts` の `userId` 引数純粋関数へ抽出（accuracyTrend/completionTrend/weaknessRanking/streak/difficultyProgress/completionByMode/dueReviewSummary/upcomingReviewSchedule）。各 SA は薄いラッパ化。実装メモ: `getReviewItemList`/`getReviewModeBreakdown` は初回描画に載らない（オンデマンド専用）ため SA に残置
+- [X] T014 [P] [US2] **方針変更（要記録）**: `getRecommendation` はプリフェッチ**しない**。理由=推薦は client localStorage 履歴(`excludeCodes`)依存で SSR では再現不可。`[]` でプリフェッチすると復習中ユーザーの推薦多様性が変わり挙動変化となる。US1 で重複は解消済みのため、残る単発取得（staleTime付き）を client に委ね挙動を完全維持。初回の直列 SA は 11→1(recommendation のみ) に収束
+- [X] T015 [US2] `lib/dashboard/prefetch.ts` 新設。**認証1回＋9クエリ Promise.all** で取得し `dehydrate`。各 `queryKey` を対応フックと完全一致（accuracy='7d'/completion='all' のチャート既定 period を含む）。`server-only` で client バンドル混入を防止
+- [X] T016 [US2] `app/(app)/page.tsx` を async server wrapper 化（`getDashboardDehydratedState()` → `HydrationBoundary`）。表示本体を `components/dashboard/dashboard-client.tsx`（新規 client）へ分離。`useState` フィルタ・部品階層は現状維持
+- [X] T017 [US2] `lib/get-query-client.ts` 新設（`isServer` でリクエスト毎 new / ブラウザはシングルトン、`defaultShouldDehydrateQuery`）。`app/providers.tsx` は既存 useState 構成（staleTime 60s）を維持し副作用最小化
+- [ ] T018 [US2] `pnpm test`(DBあり 50 passed)／`pnpm lint`(clean)／`tsc`(clean)／`pnpm build`(成功・`/` は Dynamic) 通過済み。**HAR 再計測（直列消失・重なり>0・<3秒）はログイン済みデプロイ環境が必要なため未実施**
 
 **Checkpoint**: US1＋US2 で初回表示が並列1バッチに収束。read 系全指標の数値一致がテストで保証される
 
