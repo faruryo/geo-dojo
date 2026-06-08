@@ -67,3 +67,16 @@ Next.js App Router では、クライアントから呼び出された Server Ac
 ## 未解決事項（NEEDS CLARIFICATION）
 
 - Supabase の非対称 JWT 署名鍵（getClaims ローカル検証）が本番で有効か未確認。→ Phase C で確認。無効でも案3本体は成立。
+
+### Phase C 実装結果（2026-06-08）
+
+- 認証ヘルパ `lib/auth/current-user.ts`（`getCurrentUserId`）を新設。`@supabase/auth-js` の
+  `getClaims()` は **非対称署名鍵（JWKS）が有効ならローカル検証**（往復ゼロ）、未対応（対称鍵）時は
+  内部で `getUser()` にフォールバックする実装であることをソースで確認（`GoTrueClient.js`:
+  「getUser succeeds so the claims in the JWT can be trusted」）。**よって本番の鍵設定の有無に関わらず
+  セキュリティ低下なし**で導入可能。
+- 適用箇所: `lib/dashboard/prefetch.ts`（初回プリフェッチの認証1回）、`app/(app)/dashboard/actions.ts`
+  の全ラッパ、`app/(app)/layout.tsx`。
+- **デプロイ前チェックリスト（本番での往復ゼロ化を実効にするため）**: 本番 Supabase プロジェクトで
+  非対称 JWT 署名鍵（JWT Signing Keys）を有効化しているか確認する。未設定の場合は `getClaims` が
+  `getUser` 相当の往復を行うため AC3 の往復削減効果は限定的（ただし案3本体＝プリフェッチ収束の効果は不変）。

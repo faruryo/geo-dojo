@@ -1,9 +1,9 @@
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
 import { srsRecords } from '@/lib/db/schema';
 import { eq, and, count, asc } from 'drizzle-orm';
+import { getCurrentUserId } from '@/lib/auth/current-user';
 import {
   getDashboardSummaryData,
   getAccuracyTrendData,
@@ -16,14 +16,10 @@ import {
   getUpcomingReviewScheduleData,
 } from './queries';
 
-async function requireUser() {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized');
-  return user;
+async function requireUserId(): Promise<string> {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Unauthorized');
+  return userId;
 }
 
 // 以下の read 系 Server Action は、認証非依存の純粋クエリ（./queries.ts）への
@@ -32,8 +28,8 @@ async function requireUser() {
 
 // 1. getDashboardSummary
 export async function getDashboardSummary() {
-  const user = await requireUser();
-  return getDashboardSummaryData(user.id);
+  const userId = await requireUserId();
+  return getDashboardSummaryData(userId);
 }
 
 // 2. getAccuracyTrend
@@ -42,8 +38,8 @@ export async function getAccuracyTrend(params: {
   mode: 'all' | 'A' | 'B' | 'C' | 'D';
   region: string;
 }) {
-  const user = await requireUser();
-  return getAccuracyTrendData(user.id, params);
+  const userId = await requireUserId();
+  return getAccuracyTrendData(userId, params);
 }
 
 // 2b. getCompletionTrend
@@ -52,20 +48,20 @@ export async function getCompletionTrend(params: {
   mode: 'all' | 'A' | 'B' | 'C' | 'D';
   region: string;
 }) {
-  const user = await requireUser();
-  return getCompletionTrendData(user.id, params);
+  const userId = await requireUserId();
+  return getCompletionTrendData(userId, params);
 }
 
 // 3. getWeaknessRanking
 export async function getWeaknessRanking() {
-  const user = await requireUser();
-  return getWeaknessRankingData(user.id);
+  const userId = await requireUserId();
+  return getWeaknessRankingData(userId);
 }
 
 // 4. getStreak
 export async function getStreak() {
-  const user = await requireUser();
-  return getStreakData(user.id);
+  const userId = await requireUserId();
+  return getStreakData(userId);
 }
 
 // 5. getDifficultyProgress
@@ -73,8 +69,8 @@ export async function getDifficultyProgress(params: {
   mode: 'all' | 'A' | 'B' | 'C' | 'D';
   region: string;
 }) {
-  const user = await requireUser();
-  return getDifficultyProgressData(user.id, params);
+  const userId = await requireUserId();
+  return getDifficultyProgressData(userId, params);
 }
 
 // 5b. getCompletionByMode
@@ -82,20 +78,20 @@ export async function getCompletionByMode(params: {
   mode: 'all' | 'A' | 'B' | 'C' | 'D';
   region: string;
 }) {
-  const user = await requireUser();
-  return getCompletionByModeData(user.id, params);
+  const userId = await requireUserId();
+  return getCompletionByModeData(userId, params);
 }
 
 // 7. getDueReviewSummary — 今日の復習サマリ（SRS 期日駆動）
 export async function getDueReviewSummary() {
-  const user = await requireUser();
-  return getDueReviewSummaryData(user.id);
+  const userId = await requireUserId();
+  return getDueReviewSummaryData(userId);
 }
 
 // 8. getUpcomingReviewSchedule — 今後 N 日の日別復習予定件数
 export async function getUpcomingReviewSchedule(days = 7) {
-  const user = await requireUser();
-  return getUpcomingReviewScheduleData(user.id, days);
+  const userId = await requireUserId();
+  return getUpcomingReviewScheduleData(userId, days);
 }
 
 // ──────────────────────────────────────────────────────
@@ -111,12 +107,12 @@ export async function getReviewItemList(opts?: {
   items: Array<{ municipalityName: string; mode: string; dueDate: string; repetition: number; interval: number }>;
   total: number;
 }> {
-  const user = await requireUser();
+  const userId = await requireUserId();
   const limit = opts?.limit ?? 25;
   const offset = opts?.offset ?? 0;
 
   const where = and(
-    eq(srsRecords.userId, user.id),
+    eq(srsRecords.userId, userId),
     eq(srsRecords.status, 'reviewing'),
     opts?.mode ? eq(srsRecords.mode, opts.mode) : undefined,
   );
@@ -157,7 +153,7 @@ export async function getReviewItemList(opts?: {
 export async function getReviewModeBreakdown(): Promise<
   Array<{ mode: 'A' | 'B' | 'C' | 'D'; reviewing: number; graduated: number }>
 > {
-  const user = await requireUser();
+  const userId = await requireUserId();
 
   const rows = await db
     .select({
@@ -166,7 +162,7 @@ export async function getReviewModeBreakdown(): Promise<
       value: count(),
     })
     .from(srsRecords)
-    .where(eq(srsRecords.userId, user.id))
+    .where(eq(srsRecords.userId, userId))
     .groupBy(srsRecords.mode, srsRecords.status);
 
   const map = new Map<string, { reviewing: number; graduated: number }>();

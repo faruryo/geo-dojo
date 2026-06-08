@@ -103,10 +103,10 @@ description: "Task list for ダッシュボード表示速度の改善"
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] リクエスト単位の認証ヘルパ `lib/auth/current-user.ts` を新規作成。`supabase.auth.getClaims()` 優先＋未対応時 `getUser()` フォールバックで `userId` を返す（セキュリティ＝署名検証は維持）
-- [ ] T020 [US3] `lib/dashboard/prefetch.ts` と各 `actions.ts` ラッパの `requireUser()` を `current-user.ts` 経由に置換し、初回プリフェッチの認証を1回に統一
-- [ ] T021 [US3] 残存する初回フェッチ部品がハイドレート済みキャッシュのみ読む状態か点検し、取りこぼし read を `prefetch.ts` に追加（`components/dashboard/*`・`components/recommend/recommend-hero-card.tsx`）
-- [ ] T022 [US3] research.md「未解決事項」: 本番 Supabase の非対称 JWT 署名鍵（`getClaims` ローカル検証）有効性を確認し結果を `specs/006-dashboard-perf/research.md` に追記（無効なら `getUser` 維持で本体効果は不変）
+- [X] T019 [US3] 認証ヘルパ `lib/auth/current-user.ts`（`getCurrentUserId`）を新設。`getClaims()` 優先＋claims 不在時 `getUser()` フォールバックで `userId` を返す。`server-only`。ソース確認で getClaims は非対称鍵ならローカル検証/未対応時は内部 getUser フォールバックのためセキュリティ不変
+- [X] T020 [US3] `prefetch.ts` と `actions.ts` 全ラッパの認証を `getCurrentUserId` 経由に統一。さらに `app/(app)/layout.tsx` の `getUser()` も置換し初回ロードの認証往復を削減
+- [X] T021 [US3] 初回描画フックを点検: prefetch 済み9クエリ以外で初回フェッチするのは `useRecommendation`（client localStorage 依存・意図的に client 単発）のみ。`reviewItemList`/`reviewModeBreakdown` は初回描画に非搭載。取りこぼしなし
+- [X] T022 [US3] `research.md` に Phase C 実装結果を追記（getClaims の安全性をソースで確認、本番の非対称署名鍵有効化をデプロイ前チェックリスト化。無効でもプリフェッチ収束効果は不変）
 
 **Checkpoint**: 全 AC を満たす。認証往復削減が上積みされる
 
@@ -116,10 +116,10 @@ description: "Task list for ダッシュボード表示速度の改善"
 
 **Purpose**: 最終検証と整合確認
 
-- [ ] T023 改修前後 HAR を `quickstart.md` の手順で比較し、(a)直列/並列の重なり (b)総ウォール時間 (c)リクエスト本数 を `specs/006-dashboard-perf/baseline-metrics.md` にまとめ AC1/AC5 達成を確認
-- [ ] T024 主要指標（totalQuestions / coverageRate / streak / weakness / 復習件数 / 推薦提示内容）の改修前後一致を Vitest 全緑＋目視で最終確認（AC4）
-- [ ] T025 [P] フィルタ変更・手動更新のオンデマンド取得が既存挙動のまま走ることを手動確認（非ゴール: フィルタ挙動不変・既定 all/全国 で開始）
-- [ ] T026 `pnpm lint` / `pnpm test` 最終実行とコミット整理（Conventional Commits）
+- [ ] T023 改修前後 HAR を `quickstart.md` の手順で比較し、(a)直列/並列の重なり (b)総ウォール時間 (c)リクエスト本数 を `specs/006-dashboard-perf/baseline-metrics.md` にまとめ AC1/AC5 達成を確認 → **要ログイン済みデプロイ/dev 環境（未実施）**
+- [ ] T024 主要指標の改修前後一致を最終確認（AC4）。**Vitest は DBあり 50 passed で緑**。推薦提示内容と画面目視はログイン環境で最終確認（残）
+- [ ] T025 [P] フィルタ変更・手動更新のオンデマンド取得が既存挙動のまま走ることを手動確認（非ゴール: フィルタ挙動不変・既定 all/全国 で開始）→ **要ログイン環境での目視（未実施）**
+- [X] T026 `pnpm lint`(clean) / `tsc`(clean) / `pnpm test`(DBあり50/DBなし40+skip) / `pnpm build`(成功) を実行。US1/US2/US3 を Conventional Commits でコミット
 
 ---
 

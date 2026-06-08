@@ -1,6 +1,6 @@
 import 'server-only';
 import { dehydrate, type DehydratedState } from '@tanstack/react-query';
-import { createServerClient } from '@/lib/supabase/server';
+import { getCurrentUserId } from '@/lib/auth/current-user';
 import { getQueryClient } from '@/lib/get-query-client';
 import {
   getDashboardSummaryData,
@@ -24,12 +24,8 @@ import {
  * クライアント側の単発取得（staleTime 付き）に委ねる。
  */
 export async function getDashboardDehydratedState(): Promise<DehydratedState | null> {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  const userId = user.id;
+  const userId = await getCurrentUserId();
+  if (!userId) return null;
 
   const queryClient = getQueryClient();
 
