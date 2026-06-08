@@ -2,25 +2,19 @@ import 'server-only';
 import { createServerClient } from '@/lib/supabase/server';
 
 /**
- * リクエスト単位の認証ヘルパ。
+ * リクエスト単位の認証ヘルパ。`userId` を1回の認証で解決する。
  *
- * `getClaims()` は非対称署名鍵（JWKS）が有効ならローカルで JWT を検証し、
- * GoTrue へのネットワーク往復をゼロにする。鍵未対応（対称鍵）時は内部で
- * `getUser()` にフォールバックするため、いずれの場合もセキュリティ（署名検証）は
- * 維持される。サーバ側プリフェッチと組み合わせ、初回表示の認証往復を削減する。
+ * NOTE: 以前 `getClaims()`（非対称鍵ならローカル検証）を試したが、本番/preview の
+ * 現行構成（対称 HS256・JWT 署名鍵未設定）では `getClaims` が内部で `getSession()` +
+ * `getUser()` を入れ子に呼び、GoTrue ロックの取り合いで認証後の SSR が 300s ハングした
+ * （preview ランタイムログで確認）。実効メリットが無い上に危険なため、実績のある
+ * `getUser()` 直呼びに戻す。非対称署名鍵を本番で有効化したら getClaims 化を再検討する
+ * （research.md のデプロイ前チェックリスト参照）。
  *
  * @returns userId（未認証なら null）
  */
 export async function getCurrentUserId(): Promise<string | null> {
   const supabase = await createServerClient();
-
-  const { data, error } = await supabase.auth.getClaims();
-  const sub = data?.claims?.sub;
-  if (!error && typeof sub === 'string' && sub) {
-    return sub;
-  }
-
-  // 念のためのフォールバック（getClaims が claims を返せなかった場合）
   const {
     data: { user },
   } = await supabase.auth.getUser();

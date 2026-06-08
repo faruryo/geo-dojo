@@ -70,13 +70,15 @@ Next.js App Router では、クライアントから呼び出された Server Ac
 
 ### Phase C 実装結果（2026-06-08）
 
-- 認証ヘルパ `lib/auth/current-user.ts`（`getCurrentUserId`）を新設。`@supabase/auth-js` の
-  `getClaims()` は **非対称署名鍵（JWKS）が有効ならローカル検証**（往復ゼロ）、未対応（対称鍵）時は
-  内部で `getUser()` にフォールバックする実装であることをソースで確認（`GoTrueClient.js`:
-  「getUser succeeds so the claims in the JWT can be trusted」）。**よって本番の鍵設定の有無に関わらず
-  セキュリティ低下なし**で導入可能。
-- 適用箇所: `lib/dashboard/prefetch.ts`（初回プリフェッチの認証1回）、`app/(app)/dashboard/actions.ts`
-  の全ラッパ、`app/(app)/layout.tsx`。
-- **デプロイ前チェックリスト（本番での往復ゼロ化を実効にするため）**: 本番 Supabase プロジェクトで
-  非対称 JWT 署名鍵（JWT Signing Keys）を有効化しているか確認する。未設定の場合は `getClaims` が
-  `getUser` 相当の往復を行うため AC3 の往復削減効果は限定的（ただし案3本体＝プリフェッチ収束の効果は不変）。
+- 認証ヘルパ `lib/auth/current-user.ts`（`getCurrentUserId`）を新設し、`prefetch.ts` /
+  `app/(app)/dashboard/actions.ts` の全ラッパ / `app/(app)/layout.tsx` の認証を一元化（往復削減）。
+- **getClaims は不採用（preview で重大障害）**: 当初 `getClaims()`（非対称鍵ならローカル検証）を
+  採用したが、preview デプロイで **認証済みユーザーの `GET /` が 300s ハング**（Vercel Runtime
+  Timeout）した。原因は現行構成が対称 HS256（JWT 署名鍵未設定）のため、`getClaims` が内部で
+  `getSession()` + `getUser()` を入れ子に呼び、GoTrue の `_acquireLock` の取り合いで SSR が
+  デッドロックすること（未認証は getSession が即 null を返すため 307 redirect で正常＝症状が
+  認証時のみに一致）。**実績のある `getUser()` 直呼びに戻して解消。**
+- **将来の最適化（要前提）**: 本番 Supabase で非対称 JWT 署名鍵（JWT Signing Keys）を有効化した上で
+  なら getClaims のローカル検証が往復削減に効く。鍵有効化を確認できてから再検討する。
+- **堅牢化**: `prefetch.ts` に 8s タイムアウト＋ try/catch を追加。サーバ側 read が万一詰まっても
+  `null` を返して初回描画をクライアントフェッチにフォールバックさせ、ページが 300s ハングしない。
