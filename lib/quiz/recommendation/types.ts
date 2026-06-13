@@ -57,6 +57,10 @@ export type LearnerState = {
   lastSessionAccuracy: number | null;
   recentQuestionCounts: (10 | 20 | 30)[];
   recentlyPlayedCodes: Set<string>;
+  // Modes the learner has ever answered (raw answer rows, including mixed-mode
+  // review sessions). Decoupled from inferSessions so review-only exposure still
+  // counts a mode as "tried". Used for the completely-untried-mode rationale.
+  playedModes: Set<GameMode>;
   crowdAccuracyByDifficulty: Record<Difficulty, number>;
 };
 
