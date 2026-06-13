@@ -1,5 +1,5 @@
 import type { LearnerState, Recommendation, GameMode, Difficulty } from './types';
-import { cellKey, REGION_VALUES } from './types';
+import { cellKey, REGION_VALUES, DIFFICULTY_ORDER } from './types';
 import { evaluateProgression } from './axes/progression';
 import { selectExplorationPool } from './axes/exploration';
 import { selectCoverageCodes } from './axes/coverage';
@@ -87,11 +87,10 @@ export function generateRecommendation(
   // "Under-explored" = mode not yet in the Fit Zone (not at 60-80% stable accuracy).
   // Using Fit Zone membership (not raw sessionCount > 0) so that modes tried only
   // once or twice — not yet established — still surface as exploration targets.
-  const playedModes = new Set<GameMode>(
-    [...state.cellAccuracies.values()]
-      .filter((ca) => ca.sessionCount > 0)
-      .map((ca) => ca.cell.mode),
-  );
+  // "Played" = ever answered in any mode, taken from raw answer rows so that
+  // mixed-mode review sessions (which inferSessions drops as non-10/20/30 groups)
+  // still count the mode as tried, preventing a false "completely untried" claim.
+  const playedModes = state.playedModes;
   const fitZoneModes = new Set<GameMode>(state.fitZone.cells.map((ca) => ca.cell.mode));
   const underexploredModes = shuffle(
     (['A', 'B', 'C', 'D'] as GameMode[]).filter((m) => !fitZoneModes.has(m)),
@@ -125,6 +124,18 @@ export function generateRecommendation(
     targetMode = underexploredModes[0];
     isNovelMode = true;
     isCompletelyUntriedMode = !playedModes.has(targetMode);
+    // Don't inherit the Fit Zone difficulty from other modes — each mode has its
+    // own difficulty curve. Start the novel mode at its own established level,
+    // i.e. the hardest difficulty where it has self play data, defaulting to easy.
+    const selfDifficulties = [...state.cellAccuracies.values()]
+      .filter((ca) => ca.cell.mode === targetMode && ca.sessionCount > 0)
+      .map((ca) => ca.cell.difficulty);
+    const novelModeDifficulty = selfDifficulties.reduce<Difficulty>(
+      (max, d) =>
+        DIFFICULTY_ORDER.indexOf(d) > DIFFICULTY_ORDER.indexOf(max) ? d : max,
+      'easy',
+    );
+    targetDifficulties = [novelModeDifficulty];
   }
 
   // Target regions from Fit Zone

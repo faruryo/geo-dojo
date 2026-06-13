@@ -9,7 +9,7 @@ import type { SrsStatus } from '@/lib/quiz/srs/types';
 import { inferSessions, computeCellAccuracies, computeCellCoverages } from '@/lib/quiz/recommendation/cell-stats';
 import { extractFitZone } from '@/lib/quiz/recommendation/fit-zone';
 import { generateRecommendation } from '@/lib/quiz/recommendation/engine';
-import type { LearnerState, Recommendation } from '@/lib/quiz/recommendation/types';
+import type { LearnerState, Recommendation, GameMode } from '@/lib/quiz/recommendation/types';
 
 // Lazy-loaded municipality validation set (loaded once, reused across warm invocations).
 // NOTE: 以前は public/municipalities.json を fs で読んでいたが、Vercel の serverless
@@ -283,6 +283,12 @@ async function buildLearnerState(userId: string): Promise<{
     }
   }
 
+  // Modes ever answered, from raw rows (not inferSessions) so mixed-mode review
+  // answers still mark a mode as tried.
+  const playedModes = new Set<GameMode>(
+    allResults.map((r) => r.mode as GameMode),
+  );
+
   const state: LearnerState = {
     userId,
     totalSessions: sessions.length,
@@ -294,6 +300,7 @@ async function buildLearnerState(userId: string): Promise<{
     lastSessionAccuracy,
     recentQuestionCounts,
     recentlyPlayedCodes,
+    playedModes,
     crowdAccuracyByDifficulty: crowdAccuracyByDifficulty as Record<'easy' | 'medium' | 'hard' | 'expert', number>,
   };
 
