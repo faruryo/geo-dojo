@@ -94,17 +94,20 @@ export function ReviewCard() {
               {schedule && schedule.length > 0 && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">今後7日間の予定</p>
-                  <div className="flex gap-1 items-end h-10">
+                  <div className="flex gap-1 items-end">
                     {schedule.map((day) => {
                       const max = Math.max(...schedule.map((d) => d.count), 1);
                       const height = Math.round((day.count / max) * 100);
                       const label = day.date.slice(5); // MM-DD
                       return (
                         <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
-                          <div
-                            className="w-full rounded-sm bg-primary/60"
-                            style={{ height: `${height}%`, minHeight: day.count > 0 ? '4px' : '0' }}
-                          />
+                          {/* h-10 の確定高トラックに対して棒の % が解決される（親が未確定だと潰れる） */}
+                          <div className="flex w-full h-10 items-end" title={`${day.count}件`}>
+                            <div
+                              className="w-full rounded-sm bg-primary/60"
+                              style={{ height: `${height}%`, minHeight: day.count > 0 ? '4px' : '0' }}
+                            />
+                          </div>
                           <span className="text-[9px] text-muted-foreground leading-none">{label}</span>
                         </div>
                       );
