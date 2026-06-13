@@ -3,7 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
 import { srsRecords } from '@/lib/db/schema';
-import { eq, and, lte, asc } from 'drizzle-orm';
+import { eq, and, lte, sql } from 'drizzle-orm';
 
 export type DueReviewItem = {
   municipalityCode: string;
@@ -40,7 +40,9 @@ export async function getDueReviewItems(opts?: { limit?: number }): Promise<DueR
         lte(srsRecords.dueDate, now),
       ),
     )
-    .orderBy(asc(srsRecords.dueDate), asc(srsRecords.interval))
+    // due 集合から均等ランダムに選定し、出題順もランダム化する（spec 007）。
+    // 復習頻度の調整は SM-2 が dueDate で担うため、due 集合内の優先度付けは行わない。
+    .orderBy(sql`random()`)
     .limit(limit);
 
   return rows.map((r) => ({
