@@ -101,6 +101,9 @@ export function ReviewCard() {
                       const label = day.date.slice(5); // MM-DD
                       return (
                         <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                          <span className="text-[9px] font-medium text-foreground leading-none tabular-nums">
+                            {day.count}
+                          </span>
                           {/* h-10 の確定高トラックに対して棒の % が解決される（親が未確定だと潰れる） */}
                           <div className="flex w-full h-10 items-end" title={`${day.count}件`}>
                             <div
