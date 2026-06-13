@@ -127,14 +127,15 @@ export function generateRecommendation(
     // Don't inherit the Fit Zone difficulty from other modes — each mode has its
     // own difficulty curve. Start the novel mode at its own established level,
     // i.e. the hardest difficulty where it has self play data, defaulting to easy.
-    const selfDifficulties = [...state.cellAccuracies.values()]
-      .filter((ca) => ca.cell.mode === targetMode && ca.sessionCount > 0)
-      .map((ca) => ca.cell.difficulty);
-    const novelModeDifficulty = selfDifficulties.reduce<Difficulty>(
-      (max, d) =>
-        DIFFICULTY_ORDER.indexOf(d) > DIFFICULTY_ORDER.indexOf(max) ? d : max,
-      'easy',
-    );
+    let novelModeDifficulty: Difficulty = 'easy';
+    for (const ca of state.cellAccuracies.values()) {
+      if (ca.cell.mode === targetMode && ca.sessionCount > 0) {
+        const d = ca.cell.difficulty;
+        if (DIFFICULTY_ORDER.indexOf(d) > DIFFICULTY_ORDER.indexOf(novelModeDifficulty)) {
+          novelModeDifficulty = d;
+        }
+      }
+    }
     targetDifficulties = [novelModeDifficulty];
   }
 

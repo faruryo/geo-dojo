@@ -285,9 +285,10 @@ async function buildLearnerState(userId: string): Promise<{
 
   // Modes ever answered, from raw rows (not inferSessions) so mixed-mode review
   // answers still mark a mode as tried.
-  const playedModes = new Set<GameMode>(
-    allResults.map((r) => r.mode as GameMode),
-  );
+  const playedModes = new Set<GameMode>();
+  for (const r of allResults) {
+    playedModes.add(r.mode as GameMode);
+  }
 
   const state: LearnerState = {
     userId,
