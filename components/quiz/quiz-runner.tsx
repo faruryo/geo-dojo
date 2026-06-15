@@ -6,7 +6,7 @@ import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { saveMunicipalityQuizResult } from '@/app/(app)/quiz/municipality/actions';
-import { dedupeInstancesByPrefecture, type GameMode, type Municipality } from '@/lib/quiz/municipality-data';
+import { DIFFICULTY_LABEL, dedupeInstancesByPrefecture, representativeDifficulty, type GameMode, type Municipality } from '@/lib/quiz/municipality-data';
 import { toQuestionResult } from '@/lib/quiz/quiz-results';
 
 const JapanMap = dynamic(
@@ -240,6 +240,15 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
   const progressText = `${qIdx + 1} / ${questions.length}`;
   const correctCount = results.filter((r) => r.correct).length;
 
+  const currentDifficulty =
+    currentQuestion.kind === 'A'
+      ? representativeDifficulty(currentQuestion.instances)
+      : representativeDifficulty([currentQuestion.municipality]);
+
+  const difficultyBadge = currentDifficulty ? (
+    <Badge variant="secondary" className="mb-1">{DIFFICULTY_LABEL[currentDifficulty]}</Badge>
+  ) : null;
+
   const countdownBar = (
     <div className="shrink-0 space-y-0.5">
       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -281,6 +290,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
 
         <div className="rounded-xl bg-card p-3 text-center shrink-0">
           <p className="text-xs text-muted-foreground mb-1">この市区町村がある都道府県を地図でタップ</p>
+          {difficultyBadge}
           <p className="text-2xl font-bold">{name}</p>
           {correctPrefectures.size > 1 && (
             <p className="text-xs text-muted-foreground mt-1">{correctPrefectures.size} か所あります</p>
@@ -338,17 +348,20 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
         {mode === 'B' ? (
           <>
             <p className="text-xs text-muted-foreground mb-1">この市区町村はどの都道府県？</p>
+            {difficultyBadge}
             <p className="text-2xl font-bold">{municipality.name}</p>
           </>
         ) : effectiveMode === 'D' ? (
           <>
             <p className="text-xs text-muted-foreground mb-1">この市区町村を地図でタップ</p>
+            {difficultyBadge}
             <p className="text-2xl font-bold">{municipality.name}</p>
             <p className="text-xs text-muted-foreground mt-1">（{municipality.prefecture}）</p>
           </>
         ) : (
           <>
             <p className="text-xs text-muted-foreground mb-1">{municipality.prefecture}の市区町村はどれ？</p>
+            {difficultyBadge}
             <p className="text-xl font-bold">{municipality.prefecture}</p>
           </>
         )}

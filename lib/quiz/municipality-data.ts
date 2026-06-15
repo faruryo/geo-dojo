@@ -87,6 +87,24 @@ export function filterByDifficulty(
 }
 
 /**
+ * 出題対象の市区町村群から代表となる難易度を返す。
+ * 複数の難易度が混在する場合は最も難しい（DIFFICULTIES のインデックスが最大の）ものを返す。
+ * 難易度を持つ要素が一つもない、または空配列なら undefined（モードAで同名複数県のケース等、FR-007 / FR-005）。
+ */
+export function representativeDifficulty(
+  municipalities: Municipality[],
+): Difficulty | undefined {
+  let best: Difficulty | undefined;
+  for (const m of municipalities) {
+    if (m.difficulty === undefined) continue;
+    if (best === undefined || DIFFICULTIES.indexOf(m.difficulty) > DIFFICULTIES.indexOf(best)) {
+      best = m.difficulty;
+    }
+  }
+  return best;
+}
+
+/**
  * Mode A の採点対象を「都道府県ごとに代表1件」へ畳む。
  * 政令市は同名の区が複数コードで存在するため（例: 札幌市=10区）、
  * instances をそのまま記録すると区数ぶん多重カウントされる（B007）。
