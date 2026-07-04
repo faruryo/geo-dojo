@@ -38,7 +38,10 @@
   - 該当: `components/quiz/quiz-runner.tsx`（計測）、`lib/db/schema.ts` + `supabase/migrations/`（カラム追加）、`lib/quiz/srs/sm2.ts` / `update.ts` / `types.ts`（quality 拡張・卒業条件）、`app/actions`（保存 Server Action）
   - 関連: 005-spaced-review（SM-2 本体）、[[B005]]（正答率ベース難易度とも思想が近い）
 
-- [ ] B011 【バグ】サインアップ確認メール（confirm your mail）のリンクが localhost に向く
+- [ ] B011 【バグ・コード側修正済】サインアップ確認メール（confirm your mail）のリンクが localhost に向く
+  - 修正（①コード側）: `signUp` に `options: { emailRedirectTo: \`${window.location.origin}/auth/callback\` }` を追加済み
+  - **残作業（②設定側・手動）**: 本番 Supabase ダッシュボード（Authentication → URL Configuration）で Site URL を本番 Vercel URL に変更し、Preview URL を Redirect URLs に追加。redirect URL は allowlist 制なので②を直すまで①だけでは Site URL に丸められる
+  - ↓ 当初の調査メモ
   - 症状: 本番でサインアップすると、届く確認メールのリンクが `http://localhost:3000` を指しアクセスできない
   - 原因（確認済・2要因）:
     - ① `app/(auth)/signup/page.tsx:27` の `auth.signUp({ email, password })` が **`emailRedirectTo` を渡していない** → リンク先が Supabase プロジェクトの Site URL 設定にフォールバック。`forgot-password/page.tsx:26` は `${window.location.origin}/auth/callback?next=...` を渡しており正しい実装の手本
