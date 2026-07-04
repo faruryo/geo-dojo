@@ -19,7 +19,10 @@
   - 時間制限モード追加（タイムを記録・競える）
   - 前提: 地図タップの操作性改善（現状のUIのイマイチな点を洗い出して改修）
 
-- [ ] B009 【バグ/UX】Mode A の全国地図がタッチ端末でピンチズームできない（iPhone Chrome で報告）
+- [x] B009 【バグ/UX・修正済】Mode A の全国地図がタッチ端末でピンチズームできない（iPhone Chrome で報告）
+  - 修正: `components/map/JapanMap.tsx` で PointerEvent を pointerId ごとに Map で追跡し、2ポインタ時は距離比で `scale` を更新＋指の中点を不動点に保つよう `translate` を補正（2本指ドラッグのパンも同時に成立）。ピンチ→片指に戻ったらドラッグパンへシームレスに移行。ピンチ中は click 抑止（誤選択防止）
+  - `MunicipalityMap.tsx`（Mode D 側）は Google Maps の `gestureHandling: 'greedy'` がピンチを処理するため対象外と確認
+  - ↓ 当初の調査メモ
   - 症状: 市区町村クイズ Mode A（逆引き地図）で、iPhone Chrome にてピンチイン/アウトの拡大縮小が効かない
   - 原因（確認済）: `components/map/JapanMap.tsx` が `touch-none` でブラウザ標準のピンチズームを無効化した上で、独自ズームは wheel イベント（PC のみ）と +/− ボタンのみ。Pointer イベントは単一ポインタのドラッグパンだけでマルチタッチ（2本指ピンチ）未処理 → iPhone に限らずタッチ端末全般で再現するはず
   - 案: PointerEvent を pointerId で複数追跡し、2ポインタ間距離の変化で `scale` を更新（中点を transformOrigin 側で考慮できると理想）。2本指ドラッグでのパンも同時に対応すると自然

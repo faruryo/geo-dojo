@@ -29,19 +29,71 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, 
 
   const containerRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ startX: number; startY: number; tx: number; ty: number } | null>(null);
+  // タッチ端末の2本指ピンチ用。touch-none でブラウザ標準ズームを殺しているので
+  // PointerEvent を pointerId ごとに追跡して自前でピンチズーム/パンする（B009）
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinchState = useRef<{
+    startDist: number;
+    startScale: number;
+    startMid: { x: number; y: number };
+    startTranslate: { x: number; y: number };
+  } | null>(null);
   const didDrag = useRef(false);
 
   useEffect(() => {
     fetch('/japan.topojson').then((r) => r.json()).then(setTopology).catch(console.error);
   }, []);
 
+  function midpointOf(points: { x: number; y: number }[]) {
+    const [p1, p2] = points;
+    return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+  }
+
   function handlePointerDown(e: React.PointerEvent) {
-    if (e.button !== 0) return;
-    dragState.current = { startX: e.clientX, startY: e.clientY, tx: translate.x, ty: translate.y };
-    didDrag.current = false;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      const pts = [...pointers.current.values()];
+      pinchState.current = {
+        startDist: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y),
+        startScale: scale,
+        startMid: midpointOf(pts),
+        startTranslate: translate,
+      };
+      dragState.current = null;
+      didDrag.current = true; // ピンチ中〜直後の click で誤選択させない
+    } else if (pointers.current.size === 1) {
+      dragState.current = { startX: e.clientX, startY: e.clientY, tx: translate.x, ty: translate.y };
+      didDrag.current = false;
+    }
   }
 
   function handlePointerMove(e: React.PointerEvent) {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pinchState.current && pointers.current.size >= 2) {
+      const ps = pinchState.current;
+      const pts = [...pointers.current.values()];
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (dist === 0 || ps.startDist === 0 || !rect) return;
+
+      const newScale = Math.min(8, Math.max(1, ps.startScale * (dist / ps.startDist)));
+      // transformOrigin が中央固定なので、指の中点を不動点に保つよう translate を補正する。
+      // 画面座標: screen = center + translate + scale * (content - center) より
+      //   t1 = (mid1 - c) - (s1 / s0) * ((mid0 - c) - t0)
+      const ratio = newScale / ps.startScale;
+      const c = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      const mid = midpointOf(pts);
+      setScale(newScale);
+      setTranslate({
+        x: mid.x - c.x - ratio * (ps.startMid.x - c.x - ps.startTranslate.x),
+        y: mid.y - c.y - ratio * (ps.startMid.y - c.y - ps.startTranslate.y),
+      });
+      return;
+    }
+
     if (!dragState.current) return;
     const dx = e.clientX - dragState.current.startX;
     const dy = e.clientY - dragState.current.startY;
@@ -51,10 +103,18 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, 
     }
   }
 
-  function handlePointerUp() {
-    dragState.current = null;
-    // click イベントが先に発火するよう1フレーム後にリセット
-    setTimeout(() => { didDrag.current = false; }, 10);
+  function handlePointerUp(e: React.PointerEvent) {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinchState.current = null;
+    if (pointers.current.size === 1) {
+      // ピンチから片指に戻ったらドラッグパンとして継続（基準を再設定して飛びを防ぐ）
+      const [p] = [...pointers.current.values()];
+      dragState.current = { startX: p.x, startY: p.y, tx: translate.x, ty: translate.y };
+    } else if (pointers.current.size === 0) {
+      dragState.current = null;
+      // click イベントが先に発火するよう1フレーム後にリセット
+      setTimeout(() => { didDrag.current = false; }, 10);
+    }
   }
 
   // Native wheel listener with { passive: false } — React's onWheel is passive
@@ -86,13 +146,15 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, 
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPointerLeave={handlePointerUp}
       >
         <div
           className="w-full h-full"
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
             transformOrigin: 'center center',
-            transition: dragState.current ? 'none' : 'transform 0.15s ease',
+            transition: dragState.current || pinchState.current ? 'none' : 'transform 0.15s ease',
           }}
         >
           <ComposableMap
