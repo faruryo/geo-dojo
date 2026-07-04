@@ -49,20 +49,26 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, 
     return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
   }
 
+  // 現在のポインタ位置と表示状態を基準にピンチ追跡を開始/再開する。
+  // 指の本数が増減したら毎回呼び直し、基準ズレによる表示ジャンプを防ぐ
+  function startPinch() {
+    const pts = [...pointers.current.values()];
+    pinchState.current = {
+      startDist: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y),
+      startScale: scale,
+      startMid: midpointOf(pts),
+      startTranslate: translate,
+    };
+  }
+
   function handlePointerDown(e: React.PointerEvent) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.current.size === 2) {
-      const pts = [...pointers.current.values()];
-      pinchState.current = {
-        startDist: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y),
-        startScale: scale,
-        startMid: midpointOf(pts),
-        startTranslate: translate,
-      };
+    if (pointers.current.size >= 2) {
+      startPinch();
       dragState.current = null;
       didDrag.current = true; // ピンチ中〜直後の click で誤選択させない
-    } else if (pointers.current.size === 1) {
+    } else {
       dragState.current = { startX: e.clientX, startY: e.clientY, tx: translate.x, ty: translate.y };
       didDrag.current = false;
     }
@@ -104,17 +110,28 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, 
   }
 
   function handlePointerUp(e: React.PointerEvent) {
-    pointers.current.delete(e.pointerId);
-    if (pointers.current.size < 2) pinchState.current = null;
-    if (pointers.current.size === 1) {
+    // タッチは up の後に leave も届くため、未追跡ポインタの重複処理を弾く
+    if (!pointers.current.delete(e.pointerId)) return;
+    if (pointers.current.size >= 2) {
+      // 3本→2本などに減ってもピンチ継続（基準を再設定して飛びを防ぐ）
+      startPinch();
+    } else if (pointers.current.size === 1) {
+      pinchState.current = null;
       // ピンチから片指に戻ったらドラッグパンとして継続（基準を再設定して飛びを防ぐ）
       const [p] = [...pointers.current.values()];
       dragState.current = { startX: p.x, startY: p.y, tx: translate.x, ty: translate.y };
-    } else if (pointers.current.size === 0) {
+    } else {
+      pinchState.current = null;
       dragState.current = null;
       // click イベントが先に発火するよう1フレーム後にリセット
       setTimeout(() => { didDrag.current = false; }, 10);
     }
+  }
+
+  // タッチは pointerdown 時の暗黙キャプチャで領域外でも up/cancel が届くが、
+  // マウスはキャプチャなし（click の retarget を避けるため）なので leave で後始末する
+  function handlePointerLeave(e: React.PointerEvent) {
+    if (e.pointerType === 'mouse') handlePointerUp(e);
   }
 
   // Native wheel listener with { passive: false } — React's onWheel is passive
@@ -147,7 +164,7 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, 
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onPointerLeave={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
       >
         <div
           className="w-full h-full"
