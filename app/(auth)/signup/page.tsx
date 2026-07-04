@@ -24,7 +24,13 @@ export default function SignupPage() {
     setLoading(true);
     setError('');
 
-    const { error } = await getSupabase().auth.signUp({ email, password });
+    // emailRedirectTo を渡さないと確認メールのリンクが Supabase の Site URL
+    // （デフォルト localhost:3000）にフォールバックする（B011）
+    const { error } = await getSupabase().auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
 
     if (error) {
       setError(error.message);
