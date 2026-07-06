@@ -30,14 +30,19 @@ const DEFAULT_STATE = { easeFactor: 2.5, repetition: 0, interval: 0, status: 're
  * 1回の回答に対する srs_records の更新内容を決める純粋関数（副作用なし）。
  *
  * - 不正解: 常にリセット/復帰（同日ガードの対象外）。graduated でも reviewing に戻す。
+ *           everWrong の値には影響されない。
  * - 正解  : JST 同日に既に前進済みなら skip（1日1回まで前進 / FR-005a）。
  *           未前進なら SM-2 で前進し、閾値到達で graduated。
+ *           さらに `everWrong=false`（誤答履歴なし）かつ新 repetition >= 2 なら、
+ *           SM-2 の通常卒業条件（interval>=30 && rep>=4）を待たず早期卒業させる
+ *           （easeFactor/interval/dueDate は SM-2 の計算値のまま、status のみ上書き）。
  * - 新規(existing=null): 既定状態から開始。
  */
 export function computeSrsUpdate(
   existing: ExistingSrs | null,
   isCorrect: boolean,
   now: Date,
+  everWrong: boolean,
 ): SrsUpdateAction {
   // 正解の同日ガード（既存レコードのみ）
   if (isCorrect && existing && alreadyAdvancedToday(existing.lastReviewedAt, now)) {
@@ -56,13 +61,15 @@ export function computeSrsUpdate(
   const quality = isCorrect ? (4 as const) : (2 as const);
   const result = applySm2(state, quality);
   const dueDate = new Date(now.getTime() + result.dueInDays * DAY_MS);
+  const status: SrsStatus =
+    isCorrect && !everWrong && result.repetition >= 2 ? 'graduated' : result.status;
 
   return {
     kind: 'upsert',
     easeFactor: result.easeFactor,
     repetition: result.repetition,
     interval: result.interval,
-    status: result.status,
+    status,
     dueDate,
     lastReviewedAt: now,
   };
