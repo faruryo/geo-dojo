@@ -35,7 +35,7 @@
 **Independent Test**: ローカル Supabase に対して実行し、対象件数の減少と再実行時の冪等性を確認。
 
 - [x] T005 [US2] `scripts/backfill-early-graduation.ts` を新規作成: `DATABASE_URL` で接続し、`status='reviewing' AND repetition>=2` かつ `municipality_quiz_results` に誤答行のない `srs_records` を `status='graduated'` に UPDATE。対象件数・更新件数を stdout 出力。DELETE/INSERT なし・冪等（既存 `scripts/` の drizzle/postgres-js 接続パターンに合わせる）
-- [ ] T006 [US2] ローカル Supabase でバックフィルを2回実行し、1回目で該当件数が更新され2回目は更新0件（冪等）であることを確認（`supabase start` → quickstart.md の手順）※未実施: Docker Desktop がセッションから起動できず。Docker 起動後に手動実行
+- [x] T006 [US2] ローカル Supabase でバックフィルを2回実行し、1回目で該当件数が更新され2回目は更新0件（冪等）であることを確認（`supabase start` → quickstart.md の手順）※実施済: 1回目 candidates=6/updated=6、2回目 0/0。誤卒業0件をスポットチェック済み
 
 **Checkpoint**: 本番実行の準備完了（実行自体はデプロイ後の運用作業）。
 
