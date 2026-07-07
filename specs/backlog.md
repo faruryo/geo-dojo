@@ -19,7 +19,44 @@
   - 時間制限モード追加（タイムを記録・競える）
   - 前提: 地図タップの操作性改善（現状のUIのイマイチな点を洗い出して改修）
 
-- [ ] B009 【バグ】復習の due 判定における時分秒の考慮漏れとダッシュボードの表示矛盾
+- [x] B009 【バグ/UX・修正済】Mode A の全国地図がタッチ端末でピンチズームできない（iPhone Chrome で報告）
+  - 修正: `components/map/JapanMap.tsx` で PointerEvent を pointerId ごとに Map で追跡し、2ポインタ時は距離比で `scale` を更新＋指の中点を不動点に保つよう `translate` を補正（2本指ドラッグのパンも同時に成立）。ピンチ→片指に戻ったらドラッグパンへシームレスに移行。ピンチ中は click 抑止（誤選択防止）
+  - `MunicipalityMap.tsx`（Mode D 側）は Google Maps の `gestureHandling: 'greedy'` がピンチを処理するため対象外と確認
+  - ↓ 当初の調査メモ
+  - 症状: 市区町村クイズ Mode A（逆引き地図）で、iPhone Chrome にてピンチイン/アウトの拡大縮小が効かない
+  - 原因（確認済）: `components/map/JapanMap.tsx` が `touch-none` でブラウザ標準のピンチズームを無効化した上で、独自ズームは wheel イベント（PC のみ）と +/− ボタンのみ。Pointer イベントは単一ポインタのドラッグパンだけでマルチタッチ（2本指ピンチ）未処理 → iPhone に限らずタッチ端末全般で再現するはず
+  - 案: PointerEvent を pointerId で複数追跡し、2ポインタ間距離の変化で `scale` を更新（中点を transformOrigin 側で考慮できると理想）。2本指ドラッグでのパンも同時に対応すると自然
+  - 関連: [[B006]]（Mode A のズーム可能化が前提と記載）、[[B003]]（地図タップの操作性改善）。`MunicipalityMap.tsx`（Mode D 側）も同様の構造なら合わせて確認
+
+- [ ] B010 解答時間の記録と、時間・ミス履歴に基づく習熟（卒業）判定の高速化
+  - 動機（ユーザー報告）: ①Mode D で何秒で解答できたか保存したい ②制限30秒は判定基準として長すぎ、10秒以内で答えられたら「覚えた」扱いにしたい ③いつまで経っても復習リストから覚えた場所が消えない。一度もミスしていない簡単な問題は早めに卒業させたい
+  - 現状（確認済）:
+    - 解答時間は未計測・未保存。`municipality_quiz_results` に時間カラムなし、`quiz-runner.tsx` には制限タイマー（`TIME_LIMIT_SEC=30`）があるだけ
+    - SM-2 の quality は正解=4 / 不正解=2 の固定2値（`lib/quiz/srs/types.ts` の `ReviewQuality`、`update.ts:56`）で「余裕で正解（q=5）」の道がない
+    - 卒業条件は `interval>=30日 && repetition>=4`（`sm2.ts` の `GRADUATION_*`）+ 正解は JST 1日1回しか前進しない同日ガード → **毎日完璧に復習しても卒業まで最短22日**（1d→6d→15d→38d）。しかも1回の不正解で repetition=0 / interval=1日 に完全リセット＋EF低下 → 「復習から消えない」体感は仕様通り
+  - 案（段階実装）:
+    - Phase 1（計測・保存）: 出題表示時刻から解答確定までの経過時間を計測し、`municipality_quiz_results` に `answer_time_ms` カラムを追加して保存（マイグレーション + RLS 留意）。Mode D が主目的だが計測コストは同じなので全モード保存でよい
+    - Phase 2（判定への反映）: 解答時間で quality を段階化（例: 正解かつ10秒以内 → q=5、正解 → q=4、不正解 → q=2）。q=5 は EF が上がり interval の伸びが加速 → 卒業が早まる
+    - Phase 3（卒業の高速化）: ミス0回（lapse なし）かつ常に速答の項目はさらに前倒し（例: repetition>=3 かつ全て q=5 なら卒業、あるいは `GRADUATION_INTERVAL`/`GRADUATION_REPETITIONS` の緩和、easy bonus 係数）。閾値（10秒等）はモードにより適正が違う可能性あり（Mode D 地図タップ vs B/C 選択式）ので spec 時に検討
+  - 該当: `components/quiz/quiz-runner.tsx`（計測）、`lib/db/schema.ts` + `supabase/migrations/`（カラム追加）、`lib/quiz/srs/sm2.ts` / `update.ts` / `types.ts`（quality 拡張・卒業条件）、`app/actions`（保存 Server Action）
+  - 関連: 005-spaced-review（SM-2 本体）、[[B005]]（正答率ベース難易度とも思想が近い）
+
+- [x] B011 【バグ・修正済】サインアップ確認メール（confirm your mail）のリンクが localhost に向く
+  - 修正（①コード側）: `signUp` に ``options: { emailRedirectTo: `${window.location.origin}/auth/callback` }`` を追加済み
+  - 修正（②設定側・2026-07-04 実施済み）: 本番 Supabase ダッシュボード（Authentication → URL Configuration）で Site URL を `https://geo-dojo.faru.jp` に変更し、Redirect URLs に `https://geo-dojo.faru.jp/**`・`https://geo-dojo.vercel.app/**`・`http://localhost:3000-3002/**` を登録（allowlist はパスまで照合されるため `/**` 必須）
+  - 残: 本番で実際にサインアップし、メールのリンクが `https://geo-dojo.faru.jp/auth/callback` に向き、踏んだ後にログイン状態になることを end-to-end で確認
+  - ↓ 当初の調査メモ
+  - 症状: 本番でサインアップすると、届く確認メールのリンクが `http://localhost:3000` を指しアクセスできない
+  - 原因（確認済・2要因）:
+    - ① `app/(auth)/signup/page.tsx:27` の `auth.signUp({ email, password })` が **`emailRedirectTo` を渡していない** → リンク先が Supabase プロジェクトの Site URL 設定にフォールバック。`forgot-password/page.tsx:26` は `${window.location.origin}/auth/callback?next=...` を渡しており正しい実装の手本
+    - ② 本番共有 Supabase プロジェクト（ダッシュボード側）の **Site URL がデフォルト `http://localhost:3000` のまま**の可能性大。ローカル `supabase/config.toml` は `enable_confirmations = false` で確認メール自体が出ないため、本番でのみ顕在化（ローカルで再現しない罠）
+  - 修正案:
+    - コード: `signUp` に ``options: { emailRedirectTo: `${window.location.origin}/auth/callback` }`` を追加（Preview/本番それぞれ自分の origin に戻れる）
+    - 設定: 本番 Supabase ダッシュボード（Authentication → URL Configuration）で Site URL を本番 Vercel URL に変更し、Preview URL（ワイルドカード `https://*-<team>.vercel.app` 等）を Redirect URLs に追加。**redirect URL は allowlist 制なので②を直さないと①だけでは Site URL に丸められる**
+  - 検証: Preview デプロイでサインアップ → Mailpit ではなく実メールで確認リンクの向き先を確認（本番 Supabase は Preview と共有なので end-to-end 検証可能）
+  - 関連: AGENTS.md「環境分離」（Preview/本番が Supabase 共有）
+
+- [ ] B013 【バグ】復習の due 判定における時分秒の考慮漏れとダッシュボードの表示矛盾
   - 症状: 「今日の復習はありません」と表示されているのに、「今後7日間の予定」の今日の日付（例: 07-05）に件数（例: 13件）が表示される。また、「次の復習: 明日」と表示されているのに、実際は数分後〜数時間後に due になるアイテムがある。
   - 原因:
     1. `formatNextDue` の日数計算が `Math.ceil(diff / DAY_MS)` になっており、1ミリ秒でも未来なら一律で「明日」と判定される。
@@ -69,17 +106,15 @@
   - 補足: 同名複数区（政令市）や複数県（Mode A の同名グルーピング）は正解が複数 → 全体を含む領域にフィット。Mode A は全国地図が既に全体表示なので、ズーム可能化が前提（不可ならハイライト強調のみで可）
   - 関連: [[B004]]、B006（ズームパン）
 
-- [ ] B010 いい感じのSE（効果音）の追加
-  - 案: クイズの正解・不正解時やクイズ完了（全問正解など）の際に、ユーザー体験を高める効果音を再生する。
-  - 考慮事項: 設定画面やクイズ画面での音量調節・ミュート機能。軽量な Web Audio API でのシンセサイズ音生成、またはライセンス的に安全な音声アセットの選定。
-
-- [ ] B011 都道府県・市区町村の読み仮名（ふりがな）対応
-  - 案: 難読な市区町村の学習効果を高めるため、出題時や結果画面、苦手リスト等で読み仮名（ひらがな）を表示できるようにする。特に、クイズ回答直後の正解・不正解フィードバック（結果表示）のタイミングで読み仮名を表示しておくと、その場で正しい読み方を確認できて学習効果が高い。
-  - 対応: DBの `municipality_master` に `kana` カラムを追加し、`municipalities.json` に読み仮名データを同梱。`sync-municipality-master.ts` の同期ロジックも修正。
-
-
 - [ ] B012 都道府県名と同一の市区町村を出題から除外するフィルタ
   - 案: 「青森市（青森県）」や「秋田市（秋田県）」などのように、都道府県名と市区町村名（接尾辞を除く）が一致するものは、答えが自明（簡単すぎる）なため、テキストベースのクイズ（Mode Aなど）で出題から除外できるようにする。
   - 考慮事項: 地図で位置を当てる問題（地図タップ系モードなど）は、名前が一致していても位置当て自体の難易度は下がらないため、除外対象外（出題してよい）とする。
   - 対応: 出題選択ロジック（`lib/quiz/` や `buildQuestions`）において、モードに応じて `municipality.name` と `municipality.prefecture` の共通部分（例：「青森」）が一致するものを除外するフィルタを追加（設定でオンオフできるとより良い）。
 
+- [ ] B014 いい感じのSE（効果音）の追加
+  - 案: クイズの正解・不正解時やクイズ完了（全問正解など）の際に、ユーザー体験を高める効果音を再生する。
+  - 考慮事項: 設定画面やクイズ画面での音量調節・ミュート機能。軽量な Web Audio API でのシンセサイズ音生成、またはライセンス的に安全な音声アセットの選定。
+
+- [ ] B015 都道府県・市区町村の読み仮名（ふりがな）対応
+  - 案: 難読な市区町村の学習効果を高めるため、出題時や結果画面、苦手リスト等で読み仮名（ひらがな）を表示できるようにする。特に、クイズ回答直後の正解・不正解フィードバック（結果表示）のタイミングで読み仮名を表示しておくと、その場で正しい読み方を確認できて学習効果が高い。
+  - 対応: DBの `municipality_master` に `kana` カラムを追加し、`municipalities.json` に読み仮名データを同梱。`sync-municipality-master.ts` の同期ロジックも修正。
