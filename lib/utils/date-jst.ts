@@ -36,6 +36,21 @@ export function getJSTStartOfToday(): Date {
   return new Date(jstMidnight.getTime() - JST_OFFSET_MS);
 }
 
+export function getJSTStartOfTomorrow(): Date {
+  return new Date(getJSTStartOfToday().getTime() + 24 * 60 * 60 * 1000);
+}
+
+// JST の暦日単位での日数差（ミリ秒差の切り上げだと「数分後」が「明日」判定になるため）。
+// target が base と同じ JST 暦日なら 0、翌日なら 1。
+export function diffJSTCalendarDays(target: Date, base: Date = new Date()): number {
+  const targetDate = formatJSTDate(target);
+  const baseDate = formatJSTDate(base);
+  return Math.round(
+    (new Date(`${targetDate}T00:00:00Z`).getTime() - new Date(`${baseDate}T00:00:00Z`).getTime()) /
+      (24 * 60 * 60 * 1000),
+  );
+}
+
 export function getISOWeek(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00Z');
   const dayNum = d.getUTCDay() || 7;

@@ -56,7 +56,14 @@
   - 検証: Preview デプロイでサインアップ → Mailpit ではなく実メールで確認リンクの向き先を確認（本番 Supabase は Preview と共有なので end-to-end 検証可能）
   - 関連: AGENTS.md「環境分離」（Preview/本番が Supabase 共有）
 
-- [ ] B013 【バグ】復習の due 判定における時分秒の考慮漏れとダッシュボードの表示矛盾
+- [x] B013 【バグ・修正済】復習の due 判定における時分秒の考慮漏れとダッシュボードの表示矛盾
+  - 修正: `lib/utils/date-jst.ts` に `getJSTStartOfTomorrow()`（境界）と `diffJSTCalendarDays()`（JST暦日単位の日数差）を追加し、以下を全て同じ境界に統一
+    - `getDueReviewSummaryData`（`app/(app)/dashboard/queries.ts`）: `dueCount` を `lt(dueDate, jstStartOfTomorrow)`、`nextDueAt` を `gte(dueDate, jstStartOfTomorrow)` に変更（今日中に due になるものは dueCount 側に寄せ、nextDueAt は明日以降のみ）
+    - `getUpcomingReviewScheduleData`: 開始基準を `now` から `jstStartOfTomorrow` に変更（今日分の二重表示を防止）
+    - `getDueReviewItems`（`app/(app)/quiz/review/actions.ts`）: 同じ境界に統一（プレイ可能な due と dueCount の不一致を防止）
+    - `formatNextDue`（`components/dashboard/review-card.tsx`）: `Math.ceil(ms差)` を `diffJSTCalendarDays` による JST暦日ベースの差分に変更
+  - テスト: `__tests__/lib/utils/date-jst.test.ts` で境界値（JST 23:59、翌日またぎ等）を検証
+  - ↓ 当初の調査メモ
   - 症状: 「今日の復習はありません」と表示されているのに、「今後7日間の予定」の今日の日付（例: 07-05）に件数（例: 13件）が表示される。また、「次の復習: 明日」と表示されているのに、実際は数分後〜数時間後に due になるアイテムがある。
   - 原因:
     1. `formatNextDue` の日数計算が `Math.ceil(diff / DAY_MS)` になっており、1ミリ秒でも未来なら一律で「明日」と判定される。

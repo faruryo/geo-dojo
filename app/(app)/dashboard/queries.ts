@@ -11,11 +11,12 @@ import {
   municipalityMaster,
   srsRecords,
 } from '@/lib/db/schema';
-import { eq, sql, and, lt, count, lte, gt, asc, min } from 'drizzle-orm';
+import { eq, sql, and, lt, count, gte, asc, min } from 'drizzle-orm';
 import {
   getJSTToday,
   getJSTDateRange,
   getJSTStartOfToday,
+  getJSTStartOfTomorrow,
 } from '@/lib/utils/date-jst';
 
 function stripDates(obj: unknown): unknown {
@@ -702,13 +703,21 @@ export async function getDueReviewSummaryData(userId: string): Promise<{
   graduatedCount: number;
   nextDueAt: string | null;
 }> {
-  const now = new Date();
+  // due 判定は「今この瞬間」ではなく JST の暦日単位で行う（B013）。
+  // 今日中に due になる項目も dueCount に含め、nextDueAt は明日以降の最速 due のみを指す。
+  const jstStartOfTomorrow = getJSTStartOfTomorrow();
 
   const [dueRow, reviewingRow, graduatedRow, nextDueRow] = await Promise.all([
     db
       .select({ value: count() })
       .from(srsRecords)
-      .where(and(eq(srsRecords.userId, userId), eq(srsRecords.status, 'reviewing'), lte(srsRecords.dueDate, now))),
+      .where(
+        and(
+          eq(srsRecords.userId, userId),
+          eq(srsRecords.status, 'reviewing'),
+          lt(srsRecords.dueDate, jstStartOfTomorrow),
+        ),
+      ),
     db
       .select({ value: count() })
       .from(srsRecords)
@@ -720,7 +729,13 @@ export async function getDueReviewSummaryData(userId: string): Promise<{
     db
       .select({ value: min(srsRecords.dueDate) })
       .from(srsRecords)
-      .where(and(eq(srsRecords.userId, userId), eq(srsRecords.status, 'reviewing'), gt(srsRecords.dueDate, now))),
+      .where(
+        and(
+          eq(srsRecords.userId, userId),
+          eq(srsRecords.status, 'reviewing'),
+          gte(srsRecords.dueDate, jstStartOfTomorrow),
+        ),
+      ),
   ]);
 
   const nextDue = nextDueRow[0]?.value;
@@ -739,8 +754,10 @@ export async function getUpcomingReviewScheduleData(
   userId: string,
   days = 7,
 ): Promise<Array<{ date: string; count: number }>> {
-  const now = new Date();
-  const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+  // 今日中に due になる項目は getDueReviewSummaryData の dueCount 側に属するため、
+  // ここでは明日（JST）以降のみを対象にする（B013: 今日分の二重表示を防ぐ）。
+  const jstStartOfTomorrow = getJSTStartOfTomorrow();
+  const future = new Date(jstStartOfTomorrow.getTime() + days * 24 * 60 * 60 * 1000);
 
   const rows = await db
     .select({
@@ -752,8 +769,8 @@ export async function getUpcomingReviewScheduleData(
       and(
         eq(srsRecords.userId, userId),
         eq(srsRecords.status, 'reviewing'),
-        gt(srsRecords.dueDate, now),
-        lte(srsRecords.dueDate, future),
+        gte(srsRecords.dueDate, jstStartOfTomorrow),
+        lt(srsRecords.dueDate, future),
       ),
     )
     .groupBy(sql`DATE(${srsRecords.dueDate} AT TIME ZONE 'Asia/Tokyo')`)

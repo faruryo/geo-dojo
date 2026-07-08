@@ -7,10 +7,10 @@ import { useUpcomingReviewSchedule } from '@/lib/hooks/useUpcomingReviewSchedule
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { diffJSTCalendarDays } from '@/lib/utils/date-jst';
 
 function formatNextDue(isoDate: string): string {
-  const diff = new Date(isoDate).getTime() - Date.now();
-  const days = Math.ceil(diff / (24 * 60 * 60 * 1000));
+  const days = diffJSTCalendarDays(new Date(isoDate));
   if (days <= 0) return '今日';
   if (days === 1) return '明日';
   return `${days}日後`;
