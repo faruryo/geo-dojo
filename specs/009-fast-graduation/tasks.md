@@ -41,7 +41,7 @@
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T007 quickstart.md の動作確認手順を実施（ローカルで別日2回正解 → 一覧から消える、SC-001）し、`pnpm lint` / `pnpm test` の最終確認
+- [x] T007 quickstart.md の動作確認手順を実施（ローカルで別日2回正解 → 一覧から消える、SC-001）し、`pnpm lint` / `pnpm test` の最終確認
 
 ## Dependencies & Execution Order
 
