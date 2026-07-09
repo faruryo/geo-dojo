@@ -4,7 +4,7 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, MapPin, List } from 'lucide-react';
+import { ChevronLeft, MapPin, List, HelpCircle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RecommendHeroCard } from '@/components/recommend/recommend-hero-card';
 
@@ -220,6 +220,46 @@ export default function MunicipalityModeSelectPage() {
             </p>
           </div>
           <ModePreview mode={selected} />
+
+          <div className="mt-2">
+            <details className="group border border-border rounded-xl p-3 bg-muted/10 transition-all [&_summary::-webkit-details-marker]:hidden">
+              <summary className="flex items-center justify-between font-medium text-xs cursor-pointer list-none select-none">
+                <span className="flex items-center gap-1.5 text-muted-foreground group-hover:text-foreground transition-colors">
+                  <HelpCircle size={14} />
+                  出題ルールと除外について（同名市区町村など）
+                </span>
+                <ChevronDown size={14} className="text-muted-foreground transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="mt-2.5 text-[11px] text-muted-foreground leading-relaxed border-t border-border/50 pt-2.5 flex flex-col gap-3">
+                <div>
+                  <p className="font-semibold text-foreground mb-0.5">都道府県名と同一の市区町村（同名除外）</p>
+                  <p>
+                    「青森市（青森県）」や「秋田市（秋田県）」などのように、名前から都道府県が自明な市区町村は、テキスト形式のクイズ（<b>モードA・B・C</b>）では難易度調整のため<b>出題から自動的に除外</b>されます。<br />
+                    地図上の位置当てが本質である<b>モードD（順引き地図）</b>では除外されずに出題されます。
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground mb-0.5">同じ名前の市区町村（政令市の区など）</p>
+                  <p>
+                    「中央区」などの同名市区町村は、テキスト形式の<b>モードA・B・C</b>では<b>1問に集約</b>されます。
+                  </p>
+                  <ul className="list-disc pl-4 mt-1 space-y-1">
+                    <li><b>モードA（逆引き地図）</b>: 「中央区」が出題された場合、地図上で該当するすべての都道府県（東京都、大阪府、福岡県、新潟県など）をすべてタップすると正解になります。</li>
+                    <li><b>モードB・C（4択）</b>: 重複が排除され、1つの代表問題として出題されます。</li>
+                  </ul>
+                  <p className="mt-1">
+                    なお、<b>モードD（順引き地図）</b>では、各区（例：札幌市中央区）が個別に独立して出題されます。
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground mb-0.5">複数県にまたがる同名市</p>
+                  <p>
+                    「府中市（東京都／広島県）」などの同名市も、<b>モードAでは1問に集約</b>され、地図上で該当するすべての都道府県（東京都と広島県）をタップすると正解になります。
+                  </p>
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
 
