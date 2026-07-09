@@ -155,3 +155,13 @@ export function weightedSample(
   }
   return result;
 }
+
+export function isSameNameMunicipality(name: string, prefecture: string): boolean {
+  const mName = name.replace(/[市区町村]$/, '');
+  const pName = prefecture.replace(/[都道府県]$/, '');
+  return mName === pName;
+}
+
+export function filterSameName(municipalities: Municipality[]): Municipality[] {
+  return municipalities.filter((m) => !isSameNameMunicipality(m.name, m.prefecture));
+}

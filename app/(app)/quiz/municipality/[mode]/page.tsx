@@ -23,6 +23,7 @@ import {
   ALL_PREFECTURES,
   filterByDifficulty,
   filterByRegions,
+  filterSameName,
   getRegionsPrefectures,
   isModeAvailable,
   shuffle,
@@ -54,7 +55,9 @@ function buildQuestions(
   settings: Settings,
   weaknessMap: Map<string, number>,
 ): Question[] {
-  const byRegion = filterByRegions(all, settings.regions);
+  const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
+  const source = isTextMode ? filterSameName(all) : all;
+  const byRegion = filterByRegions(source, settings.regions);
   const filtered = filterByDifficulty(byRegion, settings.difficulties);
   const pool = settings.weaknessFirst
     ? weightedSample(filtered, weaknessMap, settings.count * 3)
@@ -212,8 +215,10 @@ export default function MunicipalityQuizPage() {
 
   const effectivePoolSize = useMemo(() => {
     if (allMunicipalities.length === 0) return 0;
+    const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
+    const source = isTextMode ? filterSameName(allMunicipalities) : allMunicipalities;
     const filtered = filterByDifficulty(
-      filterByRegions(allMunicipalities, settings.regions),
+      filterByRegions(source, settings.regions),
       settings.difficulties,
     );
     if (settings.mode === 'A') return new Set(filtered.map((m) => m.name)).size;

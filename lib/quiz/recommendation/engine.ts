@@ -4,7 +4,7 @@ import { evaluateProgression } from './axes/progression';
 import { selectExplorationPool } from './axes/exploration';
 import { selectCoverageCodes } from './axes/coverage';
 import { selectRationale } from './rationale';
-import { weightedSample, shuffle } from '@/lib/quiz/municipality-data';
+import { weightedSample, shuffle, isSameNameMunicipality } from '@/lib/quiz/municipality-data';
 import type { Municipality } from '@/lib/quiz/municipality-data';
 
 type MasterEntry = { code: string; region: string; difficulty: string; name: string; prefecture: string };
@@ -159,10 +159,16 @@ export function generateRecommendation(
   // Build pools
   const fitZoneCellKeys = new Set(state.fitZone.cells.map((ca) => cellKey(ca.cell)));
 
+  // If targetMode is A, B, or C, exclude same-name municipalities from recommendation pools
+  const isTextMode = ['A', 'B', 'C'].includes(targetMode);
+  const filteredMaster = isTextMode
+    ? allMaster.filter((m) => !isSameNameMunicipality(m.name, m.prefecture))
+    : allMaster;
+
   // 1. Fit Zone weakness pool (50%)
   // When injecting novelty, fitZoneCellKeys only covers the old mode/region so we
   // fall back to filtering by difficulty + all targetRegions directly.
-  const fitZoneCodes = allMaster
+  const fitZoneCodes = filteredMaster
     .filter((m) => {
       const diffMatch = targetDifficulties.includes(m.difficulty as Difficulty);
       if (isNovelMode || isNovelRegion) {
@@ -185,7 +191,7 @@ export function generateRecommendation(
 
   const coverageCodes = selectCoverageCodes(
     state.fitZone,
-    allMaster,
+    filteredMaster,
     playedCodes,
     recentPlayedCodes,
     coverageCount,
@@ -194,7 +200,7 @@ export function generateRecommendation(
 
   // 3. Exploration pool (30%) — shuffle before slicing to avoid always picking same codes
   const explorationCount = Math.round(count * 0.3);
-  const explorationPool = selectExplorationPool(allMaster, state.cellAccuracies, state.cellCoverages, state.fitZone);
+  const explorationPool = selectExplorationPool(filteredMaster, state.cellAccuracies, state.cellCoverages, state.fitZone);
   const explorationSampled = shuffle(explorationPool.filter((c) => !excludeSet.has(c))).slice(0, explorationCount);
 
   // Combine and deduplicate
@@ -207,7 +213,7 @@ export function generateRecommendation(
   // Random fallback if not enough
   let randomFallback = 0;
   if (codes.length < count) {
-    const remaining = allMaster
+    const remaining = filteredMaster
       .map((m) => m.code)
       .filter((c) => !selectedSet.has(c))
       .filter((c) => !excludeSet.has(c));
