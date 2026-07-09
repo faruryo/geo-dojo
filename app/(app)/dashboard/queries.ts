@@ -19,6 +19,8 @@ import {
   getJSTStartOfTomorrow,
 } from '@/lib/utils/date-jst';
 
+const notSameNameSql = sql`NOT (REGEXP_REPLACE(${municipalityMaster.name}, '[市区町村]$', '') = REGEXP_REPLACE(${municipalityMaster.prefecture}, '[都道府県]$', ''))`;
+
 function stripDates(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
   if (obj instanceof Date) return obj.toISOString();
@@ -52,28 +54,52 @@ export async function getMasterPoolSize(
         value: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
       })
       .from(municipalityMaster)
-      .where(regionCond);
+      .where(and(regionCond, notSameNameSql));
     return Number(row.value);
   }
 
-  const [row] = await db
-    .select({ value: count() })
-    .from(municipalityMaster)
-    .where(regionCond);
-  const total = row.value;
+  if (mode === 'A') {
+    const [row] = await db
+      .select({
+        value: sql<number>`COUNT(DISTINCT ${municipalityMaster.name})`,
+      })
+      .from(municipalityMaster)
+      .where(and(regionCond, notSameNameSql));
+    return Number(row.value);
+  }
+
+  if (mode === 'D') {
+    const [row] = await db
+      .select({ value: count() })
+      .from(municipalityMaster)
+      .where(regionCond);
+    return row.value;
+  }
 
   if (mode === 'all') {
-    const [dedupRow] = await db
+    const [rowA] = await db
+      .select({
+        value: sql<number>`COUNT(DISTINCT ${municipalityMaster.name})`,
+      })
+      .from(municipalityMaster)
+      .where(and(regionCond, notSameNameSql));
+    
+    const [rowBC] = await db
       .select({
         value: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
       })
       .from(municipalityMaster)
+      .where(and(regionCond, notSameNameSql));
+    
+    const [rowD] = await db
+      .select({ value: count() })
+      .from(municipalityMaster)
       .where(regionCond);
-    const deduped = Number(dedupRow.value);
-    return total * 2 + deduped * 2;
+
+    return Number(rowA.value) + Number(rowBC.value) * 2 + Number(rowD.value);
   }
 
-  return total;
+  return 0;
 }
 
 /**
@@ -123,9 +149,14 @@ export async function getDashboardSummaryData(userId: string) {
     // モード×市区町村のユニーク組み合わせで正解済みカウント
     db
       .select({
-        value: sql<number>`COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode}))`,
+        value: sql<number>`
+          COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A' AND ${notSameNameSql}), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql}), 0)
+        `,
       })
       .from(municipalityQuizResults)
+      .innerJoin(municipalityMaster, eq(municipalityMaster.code, municipalityQuizResults.municipalityCode))
       .where(
         and(
           eq(municipalityQuizResults.userId, userId),
@@ -150,9 +181,14 @@ export async function getDashboardSummaryData(userId: string) {
       .where(prevCondition),
     db
       .select({
-        value: sql<number>`COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode}))`,
+        value: sql<number>`
+          COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A' AND ${notSameNameSql}), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql}), 0)
+        `,
       })
       .from(municipalityQuizResults)
+      .innerJoin(municipalityMaster, eq(municipalityMaster.code, municipalityQuizResults.municipalityCode))
       .where(and(prevCondition, eq(municipalityQuizResults.isCorrect, true))),
   ]);
 
@@ -320,36 +356,48 @@ export async function getCompletionTrendData(
     .select({
       difficulty: municipalityMaster.difficulty,
       cnt: sql<number>`COUNT(*)`,
+      cntExcluded: sql<number>`COUNT(*) FILTER (WHERE ${notSameNameSql})`,
+      cntDistinctExcluded: sql<number>`COUNT(DISTINCT ${municipalityMaster.name}) FILTER (WHERE ${notSameNameSql})`,
     })
     .from(municipalityMaster)
     .where(and(...masterWhere))
     .groupBy(municipalityMaster.difficulty);
   const fullMap = new Map(
-    [...fullRows].map((r) => [r.difficulty, Number(r.cnt)]),
+    [...fullRows].map((r) => [
+      r.difficulty,
+      {
+        cnt: Number(r.cnt),
+        cntExcluded: Number(r.cntExcluded),
+        cntDistinctExcluded: Number(r.cntDistinctExcluded),
+      },
+    ]),
   );
 
   const dedupRows = await db
     .select({
       difficulty: municipalityMaster.difficulty,
       cnt: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
+      cntExcluded: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture})) FILTER (WHERE ${notSameNameSql})`,
     })
     .from(municipalityMaster)
     .where(and(...masterWhere))
     .groupBy(municipalityMaster.difficulty);
   const dedupMap = new Map(
-    [...dedupRows].map((r) => [r.difficulty, Number(r.cnt)]),
+    [...dedupRows].map((r) => [r.difficulty, { cnt: Number(r.cnt), cntExcluded: Number(r.cntExcluded) }]),
   );
 
   const diffTotals: Record<string, number> = {};
   for (const diff of diffs) {
-    const full = fullMap.get(diff) ?? 0;
-    const dedup = dedupMap.get(diff) ?? 0;
+    const full = fullMap.get(diff) ?? { cnt: 0, cntExcluded: 0, cntDistinctExcluded: 0 };
+    const dedup = dedupMap.get(diff) ?? { cnt: 0, cntExcluded: 0 };
     if (mode === 'all') {
-      diffTotals[diff] = full * 2 + dedup * 2;
+      diffTotals[diff] = full.cntDistinctExcluded + dedup.cntExcluded * 2 + full.cnt;
     } else if (mode === 'B' || mode === 'C') {
-      diffTotals[diff] = dedup;
+      diffTotals[diff] = dedup.cntExcluded;
+    } else if (mode === 'A') {
+      diffTotals[diff] = full.cntDistinctExcluded;
     } else {
-      diffTotals[diff] = full;
+      diffTotals[diff] = full.cnt;
     }
   }
   const totalAllSlots = Object.values(diffTotals).reduce((a, b) => a + b, 0);
@@ -366,11 +414,19 @@ export async function getCompletionTrendData(
     conditions.push(eq(municipalityMaster.region, region));
   }
 
+  const filterCond = mode === 'all'
+    ? sql`(${municipalityQuizResults.mode} = 'D' OR ${notSameNameSql})`
+    : ['A', 'B', 'C'].includes(mode)
+      ? notSameNameSql
+      : undefined;
+
   const rows = await db
     .select({
       date: sql<string>`DATE(${municipalityQuizResults.answeredAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')`,
       difficulty: municipalityMaster.difficulty,
       municipalityCode: municipalityQuizResults.municipalityCode,
+      municipalityName: municipalityQuizResults.municipalityName,
+      prefecture: municipalityQuizResults.prefecture,
       mode: municipalityQuizResults.mode,
     })
     .from(municipalityQuizResults)
@@ -378,13 +434,13 @@ export async function getCompletionTrendData(
       municipalityMaster,
       eq(municipalityMaster.code, municipalityQuizResults.municipalityCode),
     )
-    .where(and(...conditions))
+    .where(and(...conditions, filterCond))
     .orderBy(
       sql`DATE(${municipalityQuizResults.answeredAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')`,
     );
 
   // ── Build cumulative distinct counts per difficulty per date ──
-  const dateMap = new Map<string, Map<string, Array<{ mode: string; code: string }>>>();
+  const dateMap = new Map<string, Map<string, Array<{ mode: string; code: string; name: string; prefecture: string }>>>();
   for (const r of [...rows]) {
     const d = r.date as unknown;
     const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
@@ -392,7 +448,12 @@ export async function getCompletionTrendData(
     if (!dateMap.has(dateStr)) dateMap.set(dateStr, new Map());
     const diffMap = dateMap.get(dateStr)!;
     if (!diffMap.has(diff)) diffMap.set(diff, []);
-    diffMap.get(diff)!.push({ mode: r.mode, code: r.municipalityCode });
+    diffMap.get(diff)!.push({
+      mode: r.mode,
+      code: r.municipalityCode,
+      name: r.municipalityName || '',
+      prefecture: r.prefecture || '',
+    });
   }
 
   const cumSets: Record<string, Set<string>> = {};
@@ -408,7 +469,24 @@ export async function getCompletionTrendData(
       const entries = diffMap.get(diff);
       if (!entries) continue;
       for (const entry of entries) {
-        const key = mode === 'all' ? `${entry.mode}:${entry.code}` : entry.code;
+        let key = '';
+        if (mode === 'all') {
+          if (entry.mode === 'A') {
+            key = `A:${entry.name}`;
+          } else if (entry.mode === 'B' || entry.mode === 'C') {
+            key = `${entry.mode}:${entry.name}::${entry.prefecture}`;
+          } else {
+            key = `D:${entry.code}`;
+          }
+        } else {
+          if (mode === 'A') {
+            key = entry.name;
+          } else if (mode === 'B' || mode === 'C') {
+            key = `${entry.name}::${entry.prefecture}`;
+          } else {
+            key = entry.code;
+          }
+        }
         cumSets[diff].add(key);
       }
     }
@@ -568,42 +646,62 @@ export async function getDifficultyProgressData(
     .select({
       difficulty: municipalityMaster.difficulty,
       cnt: sql<number>`COUNT(*)`,
+      cntExcluded: sql<number>`COUNT(*) FILTER (WHERE ${notSameNameSql})`,
+      cntDistinctExcluded: sql<number>`COUNT(DISTINCT ${municipalityMaster.name}) FILTER (WHERE ${notSameNameSql})`,
     })
     .from(municipalityMaster)
     .where(and(...whereConditions))
     .groupBy(municipalityMaster.difficulty);
   const fullMap = new Map(
-    [...fullRows].map((r) => [r.difficulty, Number(r.cnt)]),
+    [...fullRows].map((r) => [
+      r.difficulty,
+      {
+        cnt: Number(r.cnt),
+        cntExcluded: Number(r.cntExcluded),
+        cntDistinctExcluded: Number(r.cntDistinctExcluded),
+      },
+    ]),
   );
 
   const dedupRows = await db
     .select({
       difficulty: municipalityMaster.difficulty,
       cnt: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
+      cntExcluded: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture})) FILTER (WHERE ${notSameNameSql})`,
     })
     .from(municipalityMaster)
     .where(and(...whereConditions))
     .groupBy(municipalityMaster.difficulty);
   const dedupMap = new Map(
-    [...dedupRows].map((r) => [r.difficulty, Number(r.cnt)]),
+    [...dedupRows].map((r) => [r.difficulty, { cnt: Number(r.cnt), cntExcluded: Number(r.cntExcluded) }]),
   );
 
   const totalMap = new Map<string, number>();
   for (const diff of difficulties) {
-    const full = fullMap.get(diff) ?? 0;
-    const dedup = dedupMap.get(diff) ?? 0;
+    const full = fullMap.get(diff) ?? { cnt: 0, cntExcluded: 0, cntDistinctExcluded: 0 };
+    const dedup = dedupMap.get(diff) ?? { cnt: 0, cntExcluded: 0 };
     if (mode === 'all') {
-      totalMap.set(diff, full * 2 + dedup * 2);
+      totalMap.set(diff, full.cntDistinctExcluded + dedup.cntExcluded * 2 + full.cnt);
     } else if (mode === 'B' || mode === 'C') {
-      totalMap.set(diff, dedup);
+      totalMap.set(diff, dedup.cntExcluded);
+    } else if (mode === 'A') {
+      totalMap.set(diff, full.cntDistinctExcluded);
     } else {
-      totalMap.set(diff, full);
+      totalMap.set(diff, full.cnt);
     }
   }
 
   const clearedDistinct = mode === 'all'
-    ? sql<number>`COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode}))`
-    : sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})`;
+    ? sql<number>`
+        COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
+        + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A'), 0)
+        + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE ${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C'), 0)
+      `
+    : mode === 'A'
+      ? sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityName})`
+      : mode === 'B' || mode === 'C'
+        ? sql<number>`COUNT(DISTINCT (${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture}))`
+        : sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})`;
 
   const clearedConditions = [
     eq(municipalityQuizResults.userId, userId),
@@ -612,6 +710,12 @@ export async function getDifficultyProgressData(
   if (mode !== 'all') {
     clearedConditions.push(eq(municipalityQuizResults.mode, mode));
   }
+
+  const filterCond = mode === 'all'
+    ? sql`(${municipalityQuizResults.mode} = 'D' OR ${notSameNameSql})`
+    : ['A', 'B', 'C'].includes(mode)
+      ? notSameNameSql
+      : undefined;
 
   const clearedRows = await db
     .select({
@@ -623,7 +727,7 @@ export async function getDifficultyProgressData(
       municipalityMaster,
       eq(municipalityMaster.code, municipalityQuizResults.municipalityCode),
     )
-    .where(and(...clearedConditions, ...whereConditions))
+    .where(and(...clearedConditions, ...whereConditions, filterCond))
     .groupBy(municipalityMaster.difficulty);
 
   const clearedMap = new Map(
@@ -657,8 +761,6 @@ export async function getCompletionByModeData(
 ) {
   const useRegion = region && region !== '全国';
 
-  const joinCond = eq(municipalityMaster.code, municipalityQuizResults.municipalityCode);
-
   const conditions: ReturnType<typeof eq>[] = [
     eq(municipalityQuizResults.userId, userId),
     eq(municipalityQuizResults.isCorrect, true),
@@ -668,22 +770,31 @@ export async function getCompletionByModeData(
   }
 
   const distinctExpr = mode === 'all'
-    ? sql<number>`COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode}))`
-    : sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})`;
+    ? sql<number>`
+        COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
+        + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A'), 0)
+        + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE ${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C'), 0)
+      `
+    : mode === 'A'
+      ? sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityName})`
+      : mode === 'B' || mode === 'C'
+        ? sql<number>`COUNT(DISTINCT (${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture}))`
+        : sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})`;
 
   const query = db
     .select({ value: distinctExpr })
-    .from(municipalityQuizResults);
+    .from(municipalityQuizResults)
+    .innerJoin(municipalityMaster, eq(municipalityMaster.code, municipalityQuizResults.municipalityCode));
 
-  let whereClause;
-  if (useRegion) {
-    query.innerJoin(municipalityMaster, joinCond);
-    whereClause = and(...conditions, eq(municipalityMaster.region, region));
-  } else {
-    whereClause = and(...conditions);
-  }
+  const filterCond = mode === 'all'
+    ? sql`(${municipalityQuizResults.mode} = 'D' OR ${notSameNameSql})`
+    : ['A', 'B', 'C'].includes(mode)
+      ? notSameNameSql
+      : undefined;
 
-  const [clearedRow] = await query.where(whereClause);
+  const regionCond = useRegion ? eq(municipalityMaster.region, region) : undefined;
+
+  const [clearedRow] = await query.where(and(...conditions, filterCond, regionCond));
   const clearedCount = Number(clearedRow.value);
   const totalSlots = await getMasterPoolSize(mode, region);
 
