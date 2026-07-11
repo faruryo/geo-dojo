@@ -75,6 +75,18 @@
     - `getUpcomingReviewScheduleData` の開始基準を `dueDate > jstEndOfToday`（明日以降の予定）に変更する。
     - `formatNextDue` を JST 日付ベースの差分計算に修正する（差分0日なら「今日」、1日なら「明日」など）。
 
+- [ ] B017 【バグ】市区町村モードCで「入門」難易度なのに「村」がダミー選択肢に出てしまう
+  - 症状: 市区町村クイズのモードC（順引き4択）で難易度「入門」を選択している際、問題の答え（正解）は入門対象の「市」などだが、不正解のダミー選択肢に「村」などの高難易度の市区町村が混入してしまう。
+  - 原因: `app/(app)/quiz/municipality/[mode]/page.tsx` の `buildQuestions` 内で、ダミー選択肢（distractors）を抽出する `distractorPool` の収集ループ（`for (const c of all)`）において、難易度（difficulty）によるフィルタリングを一切行っていないため。
+  - 対策案: `distractorPool` を構築する際、`settings.difficulties` に含まれる難易度の市区町村のみを対象にするように修正する。
+  - 該当: [page.tsx](file:///Users/faru/geo-dojo/app/%28app%29/quiz/municipality/%5Bmode%5D/page.tsx) の `buildQuestions`
+
+- [ ] B018 【UX改善】モード選択画面に戻った際に直前に選択・プレイしていたモードを保持する
+  - 症状: クイズプレイ後や戻るボタンなどで市区町村クイズ of モード選択画面 (`/quiz/municipality`) に戻った際、直前にプレイしたモードが保持されず、常にデフォルト（モードB）が選択された状態になってしまう。
+  - 期待値: ユーザーが最後に選択・プレイしたモードを保持し、次回アクセス時に初期選択状態とする。
+  - 対策案: `localStorage`（キー：`geo-dojo:last-selected-mode` 等）を利用して最後に選択されたモードをクライアントサイドで記憶し、画面初期化時にその値を `selected` ステートの初期値として採用する。サーバーサイドレンダリング時のハイドレーションミスマッチを防ぐため、マウント後の `useEffect` 等で復元するか、あるいはクイズ結果画面等からの戻り遷移時に URL クエリパラメータ（`?mode=X`）を引き回すようにする。
+  - 該当: [page.tsx](file:///Users/faru/geo-dojo/app/%28app%29/quiz/municipality/page.tsx)（記憶・選択状態の復元）
+
 ## アイデアストック
 
 - [ ] B004 政令指定都市の区レベル詳細化（高難易度モード）
