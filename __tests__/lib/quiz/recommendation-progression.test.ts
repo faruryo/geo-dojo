@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateProgression } from '@/lib/quiz/recommendation/axes/progression';
-import type { FitZone, CellCoverage, Cell, CellAccuracy } from '@/lib/quiz/recommendation/types';
+import type { FitZone, CellCoverage, Cell, CellAccuracy, Region } from '@/lib/quiz/recommendation/types';
 import { cellKey } from '@/lib/quiz/recommendation/types';
 
 function buildCellAccuracy(
   mode: 'A' | 'B' | 'C' | 'D',
   difficulty: 'easy' | 'medium' | 'hard' | 'expert',
-  region: string,
+  region: Exclude<Region, '全国'>,
   movingAverage: number
 ): CellAccuracy {
-  const cell: Cell = { mode, difficulty, region: region as any };
+  const cell: Cell = { mode, difficulty, region };
   return {
     cell,
     movingAverage,

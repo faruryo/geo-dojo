@@ -38,7 +38,7 @@ export function RecommendOverride({ initial, onChange }: Props) {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object' && Array.isArray(parsed.targetRegions)) {
-          loadedRegions = parsed.targetRegions.filter((r: string) => REGION_VALUES.includes(r));
+          loadedRegions = parsed.targetRegions.filter((r: string) => (REGION_VALUES as readonly string[]).includes(r));
         }
       }
     } catch (e) {
@@ -47,7 +47,7 @@ export function RecommendOverride({ initial, onChange }: Props) {
 
     const finalRegions = loadedRegions !== null
       ? loadedRegions
-      : ((initial.regions as string[]) || []).filter((r) => r !== '全国' && REGION_VALUES.includes(r));
+      : ((initial.regions as string[]) || []).filter((r) => r !== '全国' && (REGION_VALUES as readonly string[]).includes(r));
 
     setTargetRegions(finalRegions);
     onChange({
