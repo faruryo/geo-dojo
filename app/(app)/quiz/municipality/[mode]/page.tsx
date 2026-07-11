@@ -203,6 +203,7 @@ export default function MunicipalityQuizPage() {
   const autoStarted = useRef(false);
   useEffect(() => {
     if (!isRecommendSource || autoStarted.current || masterLoading || allMunicipalities.length === 0 || phase !== 'setup') return;
+    if (!isModeAvailable(modeFromUrl, settings.regions)) return;
     const weaknessMap = new Map<string, number>(weaknessData.map((w) => [w.municipalityCode, w.errorRate]));
     const qs = buildQuestions(allMunicipalities, settings, weaknessMap);
     if (qs.length === 0) return;

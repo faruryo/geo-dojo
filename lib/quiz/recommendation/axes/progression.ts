@@ -1,5 +1,5 @@
-import type { FitZone, GameMode } from '../types';
-import { DIFFICULTY_ORDER, REGION_VALUES } from '../types';
+import type { FitZone, GameMode, CellCoverage } from '../types';
+import { cellKey, DIFFICULTY_ORDER, REGION_VALUES } from '../types';
 
 type ProgressionResult = {
   isProgressionFired: boolean;
@@ -15,6 +15,7 @@ const MODE_ORDER: GameMode[] = ['A', 'B', 'C', 'D'];
 export function evaluateProgression(
   fitZone: FitZone,
   lastSessionAccuracy: number | null,
+  cellCoverages?: Map<string, CellCoverage>,
 ): ProgressionResult {
   const isRegressionGuarded = lastSessionAccuracy !== null && lastSessionAccuracy < 0.3;
 
@@ -45,14 +46,45 @@ export function evaluateProgression(
   // Progression fired: try to move to next difficulty
   const currentIdx = DIFFICULTY_ORDER.indexOf(maxDifficulty);
   if (currentIdx < DIFFICULTY_ORDER.length - 1) {
-    return {
-      isProgressionFired: true,
-      isRegressionGuarded: false,
-      nextDifficulty: DIFFICULTY_ORDER[currentIdx + 1],
-      nextMode: null,
-      nextRegion: null,
-      alternativeStrategy: 'none',
-    };
+    let isCoverageSatisfied = true;
+    if (cellCoverages) {
+      const atMaxCells = fitZone.cells.filter((ca) => ca.cell.difficulty === maxDifficulty);
+      if (atMaxCells.length > 0) {
+        let totalTotal = 0;
+        let totalConquered = 0;
+        for (const ca of atMaxCells) {
+          const cov = cellCoverages.get(cellKey(ca.cell));
+          if (cov) {
+            totalTotal += cov.totalMunicipalities;
+            totalConquered += cov.conqueredCount;
+          }
+        }
+        const coverageRate = totalTotal > 0 ? totalConquered / totalTotal : 0;
+        if (coverageRate < 0.9) {
+          isCoverageSatisfied = false;
+        }
+      }
+    }
+
+    if (isCoverageSatisfied) {
+      return {
+        isProgressionFired: true,
+        isRegressionGuarded: false,
+        nextDifficulty: DIFFICULTY_ORDER[currentIdx + 1],
+        nextMode: null,
+        nextRegion: null,
+        alternativeStrategy: 'none',
+      };
+    } else {
+      return {
+        isProgressionFired: false,
+        isRegressionGuarded: false,
+        nextDifficulty: null,
+        nextMode: null,
+        nextRegion: null,
+        alternativeStrategy: 'none',
+      };
+    }
   }
 
   // At expert (達人) ceiling — try region expansion first
