@@ -81,7 +81,7 @@ export function generateRecommendation(
   }
 
   // Regression guard
-  const progression = evaluateProgression(state.fitZone, state.lastSessionAccuracy);
+  const progression = evaluateProgression(state.fitZone, state.lastSessionAccuracy, state.cellCoverages);
 
   // ── Under-explored mode / region detection ─────────────────────────────────
   // "Under-explored" = mode not yet in the Fit Zone (not at 60-80% stable accuracy).

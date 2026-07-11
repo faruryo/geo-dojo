@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useRecommendation } from '@/lib/hooks/useRecommendation';
 import { writeRecommendationHistory } from '@/lib/quiz/recommendation/history-cache';
-import { DIFFICULTY_LABEL } from '@/lib/quiz/municipality-data';
+import { DIFFICULTY_LABEL, isModeAvailable, type Region } from '@/lib/quiz/municipality-data';
 import { RecommendRationale } from './recommend-rationale';
 import { RecommendOverride, type Overrides } from './recommend-override';
 
@@ -46,12 +46,11 @@ export function RecommendContent({ onClose }: Props) {
 
   const effectiveMode = overrides?.mode ?? data.mode;
   const effectiveCount = overrides?.count ?? data.count;
-  const effectiveRegions = overrides
-    ? data.regions.filter((r) => !overrides.excludedRegions.includes(r))
-    : data.regions;
+  const effectiveRegions = overrides ? overrides.targetRegions : data.regions;
   const effectiveDifficulties = data.difficulties;
 
   const hasPoolShortage = data.notes.length > 0;
+  const modeAvailable = isModeAvailable(effectiveMode, effectiveRegions as Region[]);
 
   function handleStart() {
     writeRecommendationHistory(data!.codes);
@@ -88,7 +87,7 @@ export function RecommendContent({ onClose }: Props) {
           </span>
         </div>
 
-        {effectiveRegions.length > 0 && effectiveRegions.length < 8 && (
+        {effectiveRegions.length > 0 && effectiveRegions.length < 9 && (
           <p className="text-xs text-muted-foreground">
             地方: {effectiveRegions.join(' · ')}
           </p>
@@ -113,8 +112,8 @@ export function RecommendContent({ onClose }: Props) {
 
       {/* CTAs — sticky bottom */}
       <div className="flex flex-col gap-2 pt-2">
-        <Button onClick={handleStart} className="w-full">
-          そのまま開始
+        <Button onClick={handleStart} className="w-full" disabled={!modeAvailable}>
+          {modeAvailable ? 'そのまま開始' : '対象地方を2つ以上選んでください'}
         </Button>
         <Button variant="ghost" onClick={onClose} className="w-full">
           キャンセル

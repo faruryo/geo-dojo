@@ -60,10 +60,13 @@ export function filterByRegions(municipalities: Municipality[], regions: Region[
   return municipalities.filter((m) => regionSet.has(m.region));
 }
 
-// Mode B requires ≥2 prefectures across all selected regions.
+// Mode A and B require ≥2 prefectures across all selected regions.
 // Only fails when regions=['北海道'] alone (1 prefecture).
 export function isModeAvailable(mode: GameMode, regions: Region[]): boolean {
-  if (mode === 'B') return getRegionsPrefectures(regions).length >= 2;
+  if (mode === 'A' || mode === 'B') {
+    if (regions.length === 0 || regions.includes('全国')) return true;
+    return getRegionsPrefectures(regions).length >= 2;
+  }
   return true;
 }
 

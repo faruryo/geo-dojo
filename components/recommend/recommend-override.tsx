@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { GameMode } from '@/lib/quiz/recommendation/types';
 import { REGION_VALUES } from '@/lib/quiz/recommendation/types';
@@ -11,11 +11,12 @@ const MODE_LABELS: Record<GameMode, string> = {
   A: 'モードA', B: 'モードB', C: 'モードC', D: 'モードD',
 };
 const COUNTS = [10, 20, 30] as const;
+const LOCAL_STORAGE_KEY = 'geodojo-recommend-region-filters';
 
 export type Overrides = {
   mode: GameMode;
   count: 10 | 20 | 30;
-  excludedRegions: string[];
+  targetRegions: string[];
 };
 
 interface Props {
@@ -27,19 +28,78 @@ export function RecommendOverride({ initial, onChange }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [mode, setMode] = useState<GameMode>(initial.mode);
   const [count, setCount] = useState<10 | 20 | 30>(initial.count);
-  const [excludedRegions, setExcludedRegions] = useState<string[]>([]);
+  const [targetRegions, setTargetRegions] = useState<string[]>([]);
+
+  // Load initial filters from LocalStorage on mount
+  useEffect(() => {
+    let loadedRegions: string[] | null = null;
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.targetRegions)) {
+          loadedRegions = parsed.targetRegions.filter((r: string) => (REGION_VALUES as readonly string[]).includes(r));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load region filters from localStorage', e);
+    }
+
+    const finalRegions = loadedRegions !== null
+      ? loadedRegions
+      : ((initial.regions as string[]) || []).filter((r) => r !== '全国' && (REGION_VALUES as readonly string[]).includes(r));
+
+    setTargetRegions(finalRegions);
+    onChange({
+      mode,
+      count,
+      targetRegions: finalRegions,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function update(next: Partial<Overrides>) {
-    const newOverrides: Overrides = {
-      mode: next.mode ?? mode,
-      count: next.count ?? count,
-      excludedRegions: next.excludedRegions ?? excludedRegions,
-    };
+    const nextMode = next.mode ?? mode;
+    const nextCount = next.count ?? count;
+    const nextRegions = next.targetRegions ?? targetRegions;
+
     if (next.mode !== undefined) setMode(next.mode);
     if (next.count !== undefined) setCount(next.count);
-    if (next.excludedRegions !== undefined) setExcludedRegions(next.excludedRegions);
-    onChange(newOverrides);
+    if (next.targetRegions !== undefined) setTargetRegions(next.targetRegions);
+
+    onChange({
+      mode: nextMode,
+      count: nextCount,
+      targetRegions: nextRegions,
+    });
+
+    try {
+      localStorage.setItem(
+        LOCAL_STORAGE_KEY,
+        JSON.stringify({
+          targetRegions: nextRegions,
+        })
+      );
+    } catch (e) {
+      console.error('Failed to save region filters to localStorage', e);
+    }
   }
+
+  function handleRegionToggle(region: string) {
+    if (region === '全国') {
+      update({ targetRegions: [] });
+      return;
+    }
+
+    const isSelected = targetRegions.includes(region);
+    const nextRegions = isSelected
+      ? targetRegions.filter((r) => r !== region)
+      : [...targetRegions, region];
+
+    update({ targetRegions: nextRegions });
+  }
+
+  const isAllSelected = targetRegions.length === 0;
 
   return (
     <div className="rounded-xl border border-border overflow-hidden">
@@ -93,41 +153,41 @@ export function RecommendOverride({ initial, onChange }: Props) {
             </div>
           </div>
 
-          {/* Excluded Regions */}
+          {/* Target Regions */}
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">除外する地方</p>
+            <p className="text-xs font-medium text-muted-foreground mb-2">対象地域（地方）</p>
             <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => handleRegionToggle('全国')}
+                className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                  isAllSelected
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                全国
+              </button>
               {REGION_VALUES.map((r) => {
-                const excluded = excludedRegions.includes(r);
+                const isSelected = targetRegions.includes(r);
                 return (
                   <button
                     key={r}
-                    onClick={() =>
-                      update({
-                        excludedRegions: excluded
-                          ? excludedRegions.filter((x) => x !== r)
-                          : [...excludedRegions, r],
-                      })
-                    }
+                    onClick={() => handleRegionToggle(r)}
                     className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                      excluded
-                        ? 'border-destructive bg-destructive/10 text-destructive'
+                      isSelected
+                        ? 'border-primary bg-primary/10 text-primary font-medium'
                         : 'border-border hover:border-primary/50'
                     }`}
                   >
-                    {excluded ? '✕ ' : ''}{r}
+                    {r}
                   </button>
                 );
               })}
             </div>
-            {excludedRegions.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {excludedRegions.length}地方を除外中
-              </p>
-            )}
           </div>
         </div>
       )}
     </div>
   );
 }
+
