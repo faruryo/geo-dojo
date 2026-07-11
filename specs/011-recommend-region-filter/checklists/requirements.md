@@ -1,34 +1,34 @@
-# Specification Quality Checklist: 今日のおすすめクイズにおける地域選択（絞り込み）機能の改善
+# 仕様品質チェックリスト: 今日のおすすめクイズにおける地域選択（絞り込み）機能の改善
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-07-10
-**Feature**: [spec.md](../spec.md)
+**目的**: 計画に進む前に仕様の完全性と品質を検証する  
+**作成日**: 2026-07-10  
+**対象仕様**: [spec.md](../spec.md)  
 
-## Content Quality
+## 記述の品質
 
-- [x] No implementation details (languages, frameworks, APIs)
-- [x] Focused on user value and business needs
-- [x] Written for non-technical stakeholders
-- [x] All mandatory sections completed
+- [x] 実装の詳細（特定の言語、フレームワーク、APIなど）が仕様書に紛れ込んでいないこと
+- [x] ユーザーの価値と学習上のニーズに焦点を当てていること
+- [x] 非技術的なステークホルダーにも理解できる簡潔な記述になっていること
+- [x] すべての必須セクションが記述されていること
 
-## Requirement Completeness
+## 要件の完全性
 
-- [x] No [NEEDS CLARIFICATION] markers remain
-- [x] Requirements are testable and unambiguous
-- [x] Success criteria are measurable
-- [x] Success criteria are technology-agnostic (no implementation details)
-- [x] All acceptance scenarios are defined
-- [x] Edge cases are identified
-- [x] Scope is clearly bounded
-- [x] Dependencies and assumptions identified
+- [x] 未確認や要検討のマーカー（`[NEEDS CLARIFICATION]`）が残っていないこと
+- [x] 要件がテスト可能であり、曖昧さがないこと
+- [x] 成功基準が測定可能であること
+- [x] 成功基準が特定の技術実装に依存していないこと
+- [x] すべての受入シナリオが定義されていること
+- [x] モードA/Bの1県ガードなどのエッジケースが特定されていること
+- [x] スコープ（都道府県フィルタの廃止など）が明確に区切られていること
+- [x] 依存関係と前提条件が特定されていること
 
-## Feature Readiness
+## 機能の準備状況
 
-- [x] All functional requirements have clear acceptance criteria
-- [x] User scenarios cover primary flows
-- [x] Feature meets measurable outcomes defined in Success Criteria
-- [x] No implementation details leak into specification
+- [x] すべての機能要件に明確な受入基準があること
+- [x] 主要なユーザーフローをシナリオが網羅していること
+- [x] 機能が成功基準で定義された測定可能な成果を満たしていること
+- [x] 実装の詳細が仕様に漏れ出していないこと
 
-## Notes
+## 備考
 
-- Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
+- 未完了（チェックがオフ）の項目がある場合、プランを作成する前に仕様を更新してチェックリストを満たす必要があります。
