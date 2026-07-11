@@ -32,32 +32,29 @@ export function RecommendOverride({ initial, onChange }: Props) {
 
   // Load initial filters from LocalStorage on mount
   useEffect(() => {
+    let loadedRegions: string[] | null = null;
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (saved) {
-        const { targetRegions: savedRegions } = JSON.parse(saved);
-        if (Array.isArray(savedRegions)) {
-          setTargetRegions(savedRegions);
-          onChange({
-            mode,
-            count,
-            targetRegions: savedRegions,
-          });
-          return;
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.targetRegions)) {
+          loadedRegions = parsed.targetRegions.filter((r: string) => REGION_VALUES.includes(r));
         }
       }
-
-      // Default to recommendation's regions if no cache
-      const initialRegions = (initial.regions as string[]) || [];
-      setTargetRegions(initialRegions);
-      onChange({
-        mode,
-        count,
-        targetRegions: initialRegions,
-      });
     } catch (e) {
       console.error('Failed to load region filters from localStorage', e);
     }
+
+    const finalRegions = loadedRegions !== null
+      ? loadedRegions
+      : ((initial.regions as string[]) || []).filter((r) => r !== '全国' && REGION_VALUES.includes(r));
+
+    setTargetRegions(finalRegions);
+    onChange({
+      mode,
+      count,
+      targetRegions: finalRegions,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
