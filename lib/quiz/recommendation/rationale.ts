@@ -19,6 +19,13 @@ type RationaleFlags = {
   novelRegion?: string | null;
 };
 
+const ALL_REGIONS_COUNT = 8;
+
+function formatRegionLabel(regions: string[]): string | null {
+  if (regions.length === 0 || regions.length >= ALL_REGIONS_COUNT) return null;
+  return regions.join('・');
+}
+
 export function selectRationale(
   recommendation: Pick<Recommendation, 'mode' | 'difficulties' | 'regions' | 'count'>,
   flags: RationaleFlags,
@@ -78,11 +85,14 @@ export function selectRationale(
 
   if (flags.isNovelMode) {
     const mode = recommendation.mode;
+    const regionLabel = formatRegionLabel(recommendation.regions);
     return {
       category: 'new-exploration',
       text: flags.isCompletelyUntriedMode
         ? `モード${mode}は未挑戦！新しい問題形式に挑戦しましょう`
-        : `モード${mode}をもっと練習して得意にしましょう`,
+        : regionLabel
+          ? `${regionLabel}のモード${mode}をもっと練習して得意にしましょう`
+          : `モード${mode}をもっと練習して得意にしましょう`,
     };
   }
 

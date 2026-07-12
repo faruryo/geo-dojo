@@ -78,6 +78,14 @@ describe('generateRecommendation: novel mode injection', () => {
     expect(rec.rationaleText).toContain('モードDをもっと練習');
   });
 
+  it('もっと練習しましょうの文言に対象地域（Fit Zoneの地方）が含まれる', () => {
+    // buildState の Fit Zone は「関東」のみで構成されているため、
+    // 全国（8地方）未満に絞られ、地域名が文言に含まれる。
+    const state = buildState({ playedModes: ['A', 'B', 'C', 'D'] });
+    const rec = generateRecommendation(state, [], allMaster);
+    expect(rec.rationaleText).toBe('関東のモードDをもっと練習して得意にしましょう');
+  });
+
   it('novel モードの難易度は他モードの Fit Zone を流用せず easy から始める', () => {
     const state = buildState({ playedModes: ['A', 'B', 'C'] });
     const rec = generateRecommendation(state, [], allMaster);
