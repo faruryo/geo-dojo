@@ -64,12 +64,12 @@ Next.js 単一プロジェクト（App Router）。復習フローは `app/(app)
 
 **Goal**: ユーザーは結果画面上で、期日を迎えている残りの項目数を確認したうえで、続けるかどうかを判断できる。
 
-**Independent Test**: バッチ終了時点で期日を迎えている残りの項目が既知の件数（例: 13件）のとき、結果画面の続行アクションにその残数が表示されることを確認する（quickstart.md 手順3）。残数の取得に失敗した場合は続行アクション自体が表示されないことを確認する（quickstart.md 手順5）。
+**Independent Test**: バッチ終了時点で期日を迎えている残りの項目が既知の件数（例: 13件）のとき、結果画面の続行アクションにその残数が表示されることを確認する（quickstart.md 手順3）。残数の取得に失敗した場合は、件数表示のない「続けて復習する」ボタンが引き続き表示されることを確認する（quickstart.md 手順5）。
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] `app/(app)/quiz/review/page.tsx` で `useDueReviewSummary()`（既存フック）を呼び出し、`phase === 'result'` 時に取得した `dueCount` が `number` かつ `> 0` の場合、続行ボタンのラベルへ「続けて復習する（残り{dueCount}件）」として反映する（FR-009）。バッチ完了時に既存の `queryClient.invalidateQueries({ queryKey: ['dashboard', 'srs-summary'] })` が呼ばれていることを前提とする。（依存: T009）
-- [ ] T013 [US2] `dueCount === 0`（取得成功かつ確実に0件）の場合のみ続行ボタン自体を非表示にする（FR-006）。`data === undefined`（未取得・取得失敗）の場合はボタンを隠さず、件数表示のみを省略した「続けて復習する」ボタンを表示する（FR-007; quickstart.md 手順4・5）。（依存: T012）
+- [ ] T012 [US2] `app/(app)/quiz/review/page.tsx` で `useDueReviewSummary()`（既存フック）を呼び出し、`phase === 'result'` 時に取得した `dueCount` が `number` かつ `> 0` の場合、続行ボタンのラベルへ「続けて復習する（残り{dueCount}件）」として反映する（FR-009）。あわせて、`QuizRunner` の `onComplete` 内 `queryClient.invalidateQueries({ queryKey: ['dashboard', 'srs-summary'] })` を `await` してから `setPhase('result')` を呼ぶよう変更する（古い `dueCount` が一瞬表示されるガタつきを防ぐ。contracts/review-continuation.md #3）。（依存: T009）
+- [ ] T013 [US2] `useDueReviewSummary()` の `isLoading` が `true` の間は表示を確定させない。`isLoading === false` になった時点で、`dueCount === 0`（取得成功かつ確実に0件）の場合のみ続行ボタン自体を非表示にする（FR-006）。`data === undefined`（取得失敗）の場合はボタンを隠さず、件数表示のみを省略した「続けて復習する」ボタンを表示する（FR-007; quickstart.md 手順4・5）。（依存: T012）
 
 **Checkpoint**: US1 + US2 完了。結果画面から残数を見て連続プレイを判断できる。
 

@@ -45,7 +45,9 @@ result --(続ける押下)--> loading --(items>0)--> playing --(onComplete)--> r
 result --(続ける押下)--> loading --(items=0)--> empty   ※FR-008
 ```
 
-`result` フェーズでは `useDueReviewSummary()` の `dueCount` を参照して「続けて復習する」ボタンの表示要否と件数表示を決める（DB 側の状態を直接持ち回らない）。表示要否は「`dueCount === 0`（確実に0件と判明）」の場合のみ非表示とし、取得失敗（`data === undefined`）の場合はボタン自体は表示したまま件数表示のみ省略する（FR-007）。
+`result` フェーズでは `useDueReviewSummary()` の `dueCount` を参照して「続けて復習する」ボタンの表示要否と件数表示を決める（DB 側の状態を直接持ち回らない）。表示要否は「`dueCount === 0`（確実に0件と判明）」の場合のみ非表示とし、取得失敗（`data === undefined`）の場合はボタン自体は表示したまま件数表示のみ省略する（FR-007）。ただし `isLoading`（初回フェッチ中で `data` がまだない状態）の間はこの判定を確定させず、「表示してから消える」チラつきを避ける（contracts/review-continuation.md #3）。
+
+`onComplete` での `queryClient.invalidateQueries(...)` は `await` してから `setPhase('result')` を呼ぶ。await しないと、結果画面表示直後に古い（バッチ開始前の）`dueCount` が一瞬見えたあと新しい値に切り替わるガタつきが生じる。
 
 ---
 
