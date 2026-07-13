@@ -14,6 +14,7 @@ import {
   getCompletionByModeData,
   getDueReviewSummaryData,
   getUpcomingReviewScheduleData,
+  getItemAccuracyData,
 } from './queries';
 
 async function requireUserId(): Promise<string> {
@@ -104,7 +105,15 @@ export async function getReviewItemList(opts?: {
   limit?: number;
   offset?: number;
 }): Promise<{
-  items: Array<{ municipalityName: string; mode: string; dueDate: string; repetition: number; interval: number }>;
+  items: Array<{
+    municipalityCode: string;
+    municipalityName: string;
+    mode: string;
+    dueDate: string;
+    repetition: number;
+    interval: number;
+    accuracy?: { correct: number; total: number };
+  }>;
   total: number;
 }> {
   const userId = await requireUserId();
@@ -120,6 +129,7 @@ export async function getReviewItemList(opts?: {
   const [rows, totalRow] = await Promise.all([
     db
       .select({
+        municipalityCode: srsRecords.municipalityCode,
         municipalityName: srsRecords.municipalityName,
         mode: srsRecords.mode,
         dueDate: srsRecords.dueDate,
@@ -134,13 +144,24 @@ export async function getReviewItemList(opts?: {
     db.select({ value: count() }).from(srsRecords).where(where),
   ]);
 
+  // 正答率集計は一覧本体の取得とは独立して行う。失敗しても一覧表示をブロックしない（FR-006）。
+  let accuracyMap = new Map<string, { correct: number; total: number }>();
+  try {
+    const pairs = rows.map((r) => ({ municipalityCode: r.municipalityCode, mode: r.mode }));
+    accuracyMap = await getItemAccuracyData(userId, pairs);
+  } catch (error) {
+    console.error('getReviewItemList: failed to fetch item accuracy data', error);
+  }
+
   return {
     items: rows.map((r) => ({
+      municipalityCode: r.municipalityCode,
       municipalityName: r.municipalityName,
       mode: r.mode,
       dueDate: r.dueDate instanceof Date ? r.dueDate.toISOString() : String(r.dueDate),
       repetition: r.repetition,
       interval: r.interval,
+      accuracy: accuracyMap.get(`${r.municipalityCode}|${r.mode}`),
     })),
     total: totalRow[0]?.value ?? 0,
   };

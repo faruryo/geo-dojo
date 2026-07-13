@@ -11,7 +11,7 @@ import {
   municipalityMaster,
   srsRecords,
 } from '@/lib/db/schema';
-import { eq, sql, and, lt, count, gte, asc, min } from 'drizzle-orm';
+import { eq, sql, and, lt, count, gte, asc, min, inArray } from 'drizzle-orm';
 import {
   getJSTToday,
   getJSTDateRange,
@@ -557,6 +557,49 @@ export async function getWeaknessRankingData(userId: string) {
     errorCount: Number(r.errorCount),
     errorRate: Number(r.errorRate),
   })));
+}
+
+// ──────────────────────────────────────────────────────
+// getItemAccuracyData
+// ──────────────────────────────────────────────────────
+/**
+ * 「覚えている途中の市区町村」一覧（getReviewItemList）の各行（市区町村×モード）
+ * について、これまでの全解答試行に対する正答率集計を返す（013-review-item-accuracy）。
+ * getWeaknessRankingData と同じ集計パターン（SUM(CASE WHEN is_correct ...)/COUNT(*)）。
+ * キーは `${municipalityCode}|${mode}`。解答履歴が1件もない組はキーとして含まれない。
+ */
+export async function getItemAccuracyData(
+  userId: string,
+  pairs: { municipalityCode: string; mode: string }[],
+): Promise<Map<string, { correct: number; total: number }>> {
+  if (pairs.length === 0) return new Map();
+
+  const codes = [...new Set(pairs.map((p) => p.municipalityCode))];
+
+  const rows = await db
+    .select({
+      municipalityCode: municipalityQuizResults.municipalityCode,
+      mode: municipalityQuizResults.mode,
+      correct: sql<number>`SUM(CASE WHEN ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END)`,
+      total: sql<number>`COUNT(*)`,
+    })
+    .from(municipalityQuizResults)
+    .where(
+      and(
+        eq(municipalityQuizResults.userId, userId),
+        inArray(municipalityQuizResults.municipalityCode, codes),
+      ),
+    )
+    .groupBy(municipalityQuizResults.municipalityCode, municipalityQuizResults.mode);
+
+  const map = new Map<string, { correct: number; total: number }>();
+  for (const r of rows) {
+    map.set(`${r.municipalityCode}|${r.mode}`, {
+      correct: Number(r.correct),
+      total: Number(r.total),
+    });
+  }
+  return map;
 }
 
 // ──────────────────────────────────────────────────────
