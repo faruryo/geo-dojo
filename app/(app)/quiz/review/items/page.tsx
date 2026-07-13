@@ -149,7 +149,20 @@ export default function ReviewItemsPage() {
                   </Badge>
                   <span className="truncate text-sm">{item.municipalityName}</span>
                 </div>
-                <span className="shrink-0 text-xs text-muted-foreground">{nextDueLabel(item.dueDate)}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {item.accuracy && item.accuracy.total > 0 && (
+                    <span
+                      className={`text-xs tabular-nums ${
+                        item.accuracy.correct / item.accuracy.total < 0.5
+                          ? 'text-destructive'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {Math.round((item.accuracy.correct / item.accuracy.total) * 100)}%
+                    </span>
+                  )}
+                  <span className="text-xs text-muted-foreground">{nextDueLabel(item.dueDate)}</span>
+                </div>
               </li>
             ))}
           </ul>

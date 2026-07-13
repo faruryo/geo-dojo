@@ -74,4 +74,28 @@ describe.skipIf(!hasDb)('queries.ts purified reads (parity)', () => {
   it('getUpcomingReviewScheduleData(7): srs なし → 空', async () => {
     expect(await q.getUpcomingReviewScheduleData(userId, 7)).toEqual([]);
   });
+
+  // 013-review-item-accuracy: getItemAccuracyData
+  it('getItemAccuracyData: 複数 (code, mode) ペアの正解数/総数が実データと一致する', async () => {
+    const map = await q.getItemAccuracyData(userId, [
+      { municipalityCode: 'T01', mode: 'A' },
+      { municipalityCode: 'T02', mode: 'B' },
+      { municipalityCode: 'T03', mode: 'A' },
+    ]);
+    expect(map.get('T01|A')).toEqual({ correct: 1, total: 2 });
+    expect(map.get('T02|B')).toEqual({ correct: 1, total: 1 });
+    expect(map.get('T03|A')).toEqual({ correct: 2, total: 2 });
+  });
+
+  it('getItemAccuracyData: 解答履歴がない (code, mode) はキーとして返らない', async () => {
+    const map = await q.getItemAccuracyData(userId, [
+      { municipalityCode: 'T01', mode: 'C' }, // T01 の解答履歴は A/B のみ
+    ]);
+    expect(map.has('T01|C')).toBe(false);
+  });
+
+  it('getItemAccuracyData: pairs=[] → 空の Map（クエリ発行なし）', async () => {
+    const map = await q.getItemAccuracyData(userId, []);
+    expect(map.size).toBe(0);
+  });
 });
