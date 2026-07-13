@@ -150,7 +150,7 @@ export default function ReviewItemsPage() {
                   <span className="truncate text-sm">{item.municipalityName}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {item.accuracy && (
+                  {item.accuracy && item.accuracy.total > 0 && (
                     <span
                       className={`text-xs tabular-nums ${
                         item.accuracy.correct / item.accuracy.total < 0.5
