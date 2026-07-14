@@ -64,9 +64,9 @@ export default function ReviewPage() {
   }, [allMunicipalities]);
 
   useEffect(() => {
-    if (masterLoading || allMunicipalities.length === 0) return;
+    if (masterLoading || allMunicipalities.length === 0 || phase !== 'loading') return;
     loadBatch();
-  }, [masterLoading, allMunicipalities, loadBatch]);
+  }, [masterLoading, allMunicipalities, phase, loadBatch]);
 
   // ─── Loading ──────────────────────────────────────────────────────
 
@@ -153,7 +153,6 @@ export default function ReviewPage() {
             className="w-full"
             onClick={() => {
               setPhase('loading');
-              loadBatch();
             }}
           >
             {continueLabel}
