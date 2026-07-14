@@ -18,6 +18,7 @@ import {
   getJSTStartOfToday,
   getJSTStartOfTomorrow,
 } from '@/lib/utils/date-jst';
+import { dueReviewCondition } from '@/lib/db/srs-due';
 
 const notSameNameSql = sql`NOT (REGEXP_REPLACE(${municipalityMaster.name}, '[市区町村]$', '') = REGEXP_REPLACE(${municipalityMaster.prefecture}, '[都道府県]$', ''))`;
 
@@ -865,13 +866,7 @@ export async function getDueReviewSummaryData(userId: string): Promise<{
     db
       .select({ value: count() })
       .from(srsRecords)
-      .where(
-        and(
-          eq(srsRecords.userId, userId),
-          eq(srsRecords.status, 'reviewing'),
-          lt(srsRecords.dueDate, jstStartOfTomorrow),
-        ),
-      ),
+      .where(dueReviewCondition(userId)),
     db
       .select({ value: count() })
       .from(srsRecords)

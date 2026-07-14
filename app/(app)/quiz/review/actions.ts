@@ -3,8 +3,8 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
 import { srsRecords } from '@/lib/db/schema';
-import { eq, and, lt, sql } from 'drizzle-orm';
-import { getJSTStartOfTomorrow } from '@/lib/utils/date-jst';
+import { sql } from 'drizzle-orm';
+import { dueReviewCondition } from '@/lib/db/srs-due';
 
 export type DueReviewItem = {
   municipalityCode: string;
@@ -22,10 +22,6 @@ export async function getDueReviewItems(opts?: { limit?: number }): Promise<DueR
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error('Unauthorized');
 
-  // due 判定は JST の暦日単位（B013）。ダッシュボードの dueCount と揃えるため、
-  // getDueReviewSummaryData（app/(app)/dashboard/queries.ts）と同じ境界を使う。
-  const jstStartOfTomorrow = getJSTStartOfTomorrow();
-
   const rows = await db
     .select({
       municipalityCode: srsRecords.municipalityCode,
@@ -36,13 +32,9 @@ export async function getDueReviewItems(opts?: { limit?: number }): Promise<DueR
       dueDate: srsRecords.dueDate,
     })
     .from(srsRecords)
-    .where(
-      and(
-        eq(srsRecords.userId, user.id),
-        eq(srsRecords.status, 'reviewing'),
-        lt(srsRecords.dueDate, jstStartOfTomorrow),
-      ),
-    )
+    // due 判定は JST の暦日単位（B013）。ダッシュボードの dueCount と揃えるため、
+    // getDueReviewSummaryData（app/(app)/dashboard/queries.ts）と同じ境界を共通関数で使う。
+    .where(dueReviewCondition(user.id))
     // due 集合から均等ランダムに選定し、出題順もランダム化する（spec 007）。
     // 復習頻度の調整は SM-2 が dueDate で担うため、due 集合内の優先度付けは行わない。
     .orderBy(sql`random()`)
