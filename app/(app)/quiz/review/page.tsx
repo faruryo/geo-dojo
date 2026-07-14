@@ -1,21 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
+import { useDueReviewSummary } from '@/lib/hooks/useDueReviewSummary';
 import { getDueReviewItems } from './actions';
+import { buildReviewQuestions } from '@/lib/quiz/review-questions';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
 import type { Question } from '@/components/quiz/quiz-runner';
-import {
-  type Difficulty,
-  type Municipality,
-  ALL_PREFECTURES,
-  getRegionsPrefectures,
-  shuffle,
-} from '@/lib/quiz/municipality-data';
+import { type Difficulty, type Municipality } from '@/lib/quiz/municipality-data';
 
 interface ResultEntry {
   name: string;
@@ -32,6 +28,7 @@ export default function ReviewPage() {
   const queryClient = useQueryClient();
 
   const { data: masterData, isLoading: masterLoading } = useMunicipalityMaster();
+  const { data: dueSummaryData, isLoading: dueSummaryLoading } = useDueReviewSummary();
 
   const allMunicipalities: Municipality[] = useMemo(
     () =>
@@ -45,91 +42,31 @@ export default function ReviewPage() {
     [masterData],
   );
 
+  const loadBatch = useCallback(async () => {
+    try {
+      const items = await getDueReviewItems({ limit: 20 });
+      if (items.length === 0) {
+        setPhase('empty');
+        return;
+      }
+
+      const qs = buildReviewQuestions(items, allMunicipalities);
+      if (qs.length === 0) {
+        setPhase('empty');
+        return;
+      }
+
+      setQuestions(qs);
+      setPhase('playing');
+    } catch {
+      setPhase('empty');
+    }
+  }, [allMunicipalities]);
+
   useEffect(() => {
     if (masterLoading || allMunicipalities.length === 0) return;
-
-    getDueReviewItems({ limit: 20 })
-      .then((items) => {
-        if (items.length === 0) {
-          setPhase('empty');
-          return;
-        }
-
-        // モード混在 Question[] を組み立てる（出題順は期日優先順のまま）
-        const seenInSession = new Set<string>();
-        const qs: Question[] = [];
-
-        // Mode A: 同じ name を持つ due コードをグルーピング
-        const modeAItems = items.filter((it) => it.mode === 'A');
-        const modeAByName = new Map<string, typeof modeAItems>();
-        for (const it of modeAItems) {
-          const instances = allMunicipalities.filter((m) => m.code === it.municipalityCode);
-          const name = instances[0]?.name ?? it.municipalityName;
-          if (!modeAByName.has(name)) modeAByName.set(name, []);
-          modeAByName.get(name)!.push(it);
-        }
-        const modeANames = new Set<string>();
-
-        for (const it of items) {
-          const sessionKey = `${it.municipalityCode}::${it.mode}`;
-          if (seenInSession.has(sessionKey)) continue;
-          seenInSession.add(sessionKey);
-
-          if (it.mode === 'A') {
-            const instances = allMunicipalities.filter((m) => m.code === it.municipalityCode);
-            const name = instances[0]?.name ?? it.municipalityName;
-            if (modeANames.has(name)) continue;
-            modeANames.add(name);
-            const allInstances = allMunicipalities.filter((m) => m.name === name);
-            qs.push({
-              kind: 'A',
-              name,
-              instances: allInstances,
-              correctPrefectures: new Set(allInstances.map((m) => m.prefecture)),
-            });
-          } else {
-            const municipality = allMunicipalities.find((m) => m.code === it.municipalityCode);
-            if (!municipality) continue;
-
-            const mode = it.mode as 'B' | 'C' | 'D';
-            if (mode === 'B') {
-              const prefPool = ALL_PREFECTURES;
-              const distractors = shuffle(prefPool.filter((p) => p !== municipality.prefecture)).slice(0, 3);
-              const choices = shuffle([municipality.prefecture, ...distractors]);
-              qs.push({ kind: 'BCD', mode: 'B', municipality, choices });
-            } else {
-              // Mode C/D
-              const regionPrefs = getRegionsPrefectures([municipality.region as import('@/lib/quiz/municipality-data').Region]);
-              const useRegion = regionPrefs.length >= 4;
-              const namesInTargetPref = new Set(
-                allMunicipalities.filter((a) => a.prefecture === municipality.prefecture).map((a) => a.name),
-              );
-              const regionPrefSet = new Set(regionPrefs);
-              const distractorPool = new Map<string, Municipality>();
-              for (const c of allMunicipalities) {
-                if (c.prefecture === municipality.prefecture) continue;
-                if (useRegion && !regionPrefSet.has(c.prefecture)) continue;
-                if (namesInTargetPref.has(c.name)) continue;
-                if (distractorPool.has(c.name)) continue;
-                distractorPool.set(c.name, c);
-              }
-              const distractors = shuffle([...distractorPool.values()]).slice(0, 3).map((d) => d.name);
-              const choices = shuffle([municipality.name, ...distractors]);
-              qs.push({ kind: 'BCD', mode, municipality, choices });
-            }
-          }
-        }
-
-        if (qs.length === 0) {
-          setPhase('empty');
-          return;
-        }
-
-        setQuestions(qs);
-        setPhase('playing');
-      })
-      .catch(() => setPhase('empty'));
-  }, [masterLoading, allMunicipalities]);
+    loadBatch();
+  }, [masterLoading, allMunicipalities, loadBatch]);
 
   // ─── Loading ──────────────────────────────────────────────────────
 
@@ -175,6 +112,11 @@ export default function ReviewPage() {
     const wrong = results.filter((r) => !r.correct);
     const accuracy = results.length > 0 ? Math.round((correct / results.length) * 100) : 0;
 
+    const dueCount = dueSummaryData?.dueCount;
+    const showContinueButton = !dueSummaryLoading && (dueSummaryData === undefined || (typeof dueCount === 'number' && dueCount > 0));
+    const continueLabel =
+      typeof dueCount === 'number' && dueCount > 0 ? `続けて復習する（残り${dueCount}件）` : '続けて復習する';
+
     return (
       <div className="flex flex-col gap-4 p-4 max-w-md mx-auto">
         <Link
@@ -206,6 +148,17 @@ export default function ReviewPage() {
           </div>
         )}
 
+        {showContinueButton && (
+          <Button
+            className="w-full"
+            onClick={() => {
+              setPhase('loading');
+              loadBatch();
+            }}
+          >
+            {continueLabel}
+          </Button>
+        )}
         <Link href="/?recommend=open">
           <Button className="w-full">✨ 今日のおすすめクイズを試す</Button>
         </Link>
@@ -223,10 +176,10 @@ export default function ReviewPage() {
       questions={questions}
       allMunicipalities={allMunicipalities}
       onAbort={() => setPhase('empty')}
-      onComplete={(completedResults) => {
+      onComplete={async (completedResults) => {
         setResults(completedResults);
+        await queryClient.invalidateQueries({ queryKey: ['dashboard', 'srs-summary'] });
         setPhase('result');
-        queryClient.invalidateQueries({ queryKey: ['dashboard', 'srs-summary'] });
       }}
     />
   );
