@@ -15,16 +15,9 @@ export function buildReviewQuestions(
   // モード混在 Question[] を組み立てる（出題順は期日優先順のまま）
   const seenInSession = new Set<string>();
   const qs: Question[] = [];
+  const namesByPrefecture = new Map<string, Set<string>>();
 
   // Mode A: 同じ name を持つ due コードをグルーピング
-  const modeAItems = items.filter((it) => it.mode === 'A');
-  const modeAByName = new Map<string, typeof modeAItems>();
-  for (const it of modeAItems) {
-    const instances = allMunicipalities.filter((m) => m.code === it.municipalityCode);
-    const name = instances[0]?.name ?? it.municipalityName;
-    if (!modeAByName.has(name)) modeAByName.set(name, []);
-    modeAByName.get(name)!.push(it);
-  }
   const modeANames = new Set<string>();
 
   for (const it of items) {
@@ -33,8 +26,8 @@ export function buildReviewQuestions(
     seenInSession.add(sessionKey);
 
     if (it.mode === 'A') {
-      const instances = allMunicipalities.filter((m) => m.code === it.municipalityCode);
-      const name = instances[0]?.name ?? it.municipalityName;
+      const municipality = allMunicipalities.find((m) => m.code === it.municipalityCode);
+      const name = municipality?.name ?? it.municipalityName;
       if (modeANames.has(name)) continue;
       modeANames.add(name);
       const allInstances = allMunicipalities.filter((m) => m.name === name);
@@ -58,9 +51,13 @@ export function buildReviewQuestions(
         // Mode C/D
         const regionPrefs = getRegionsPrefectures([municipality.region as Region]);
         const useRegion = regionPrefs.length >= 4;
-        const namesInTargetPref = new Set(
-          allMunicipalities.filter((a) => a.prefecture === municipality.prefecture).map((a) => a.name),
-        );
+        let namesInTargetPref = namesByPrefecture.get(municipality.prefecture);
+        if (!namesInTargetPref) {
+          namesInTargetPref = new Set(
+            allMunicipalities.filter((a) => a.prefecture === municipality.prefecture).map((a) => a.name),
+          );
+          namesByPrefecture.set(municipality.prefecture, namesInTargetPref);
+        }
         const regionPrefSet = new Set(regionPrefs);
         const distractorPool = new Map<string, Municipality>();
         for (const c of allMunicipalities) {
