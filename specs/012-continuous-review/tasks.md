@@ -22,7 +22,7 @@ Next.js 単一プロジェクト（App Router）。復習フローは `app/(app)
 
 **Purpose**: 既存の再利用資産の確認（新規パッケージ追加なし）
 
-- [ ] T001 `getDueReviewItems`（`app/(app)/quiz/review/actions.ts`）、`getDueReviewSummary`/`useDueReviewSummary`（`app/(app)/dashboard/actions.ts` / `lib/hooks/useDueReviewSummary.ts`）、`saveMunicipalityQuizResult` の SRS 更新（`app/(app)/quiz/municipality/actions.ts`）が現状のまま import・利用可能であることを確認する。新規依存パッケージ追加が不要であることを確認する。
+- [x] T001 `getDueReviewItems`（`app/(app)/quiz/review/actions.ts`）、`getDueReviewSummary`/`useDueReviewSummary`（`app/(app)/dashboard/actions.ts` / `lib/hooks/useDueReviewSummary.ts`）、`saveMunicipalityQuizResult` の SRS 更新（`app/(app)/quiz/municipality/actions.ts`）が現状のまま import・利用可能であることを確認する。新規依存パッケージ追加が不要であることを確認する。
 
 ---
 
@@ -32,13 +32,13 @@ Next.js 単一プロジェクト（App Router）。復習フローは `app/(app)
 
 **⚠️ CRITICAL**: このフェーズが完了するまで US1/US2 のUI実装には着手しない
 
-- [ ] T002 `lib/db/srs-due.ts` を新規作成し、`dueReviewCondition(userId: string)` を実装する（`and(eq(srsRecords.userId, userId), eq(srsRecords.status, 'reviewing'), lt(srsRecords.dueDate, getJSTStartOfTomorrow()))` を返す）。data-model.md の契約を参照。
-- [ ] T003 `app/(app)/quiz/review/actions.ts` の `getDueReviewItems` を `dueReviewCondition(userId)` を使うようリファクタする（インラインの `and(...)` を置き換えるのみ。戻り値・limit・orderByは変更しない）。（依存: T002）
-- [ ] T004 `app/(app)/dashboard/queries.ts` の `getDueReviewSummaryData` 内 `dueRow` クエリを `dueReviewCondition(userId)` を使うようリファクタする（`nextDueRow`・`getUpcomingReviewScheduleData` は対象外のまま変更しない）。（依存: T002）
-- [ ] T005 [P] `DATABASE_URL=... pnpm test __tests__/lib/dashboard/queries-parity.test.ts` を実行し、T004リファクタ後も `getDueReviewSummaryData` の既存アサーション（`dueCount: 0` 等）が green であることを確認する。（依存: T004）
-- [ ] T006 [P] `lib/quiz/review-questions.ts` を新規作成し、`app/(app)/quiz/review/page.tsx` の `useEffect` 内にある出題構築ロジック（Mode A の同名グルーピング、Mode B/C/D の選択肢生成、`seenInSession` による de-dupe）を `buildReviewQuestions(items: DueReviewItem[], allMunicipalities: Municipality[]): Question[]` として移設する。ロジック自体（フィルタ条件・shuffle等）は変更しない。contracts/review-continuation.md の契約を参照。
-- [ ] T007 [P] `__tests__/lib/quiz/review-questions.test.ts` を新規作成し、`buildReviewQuestions` の単体テストを追加する: ①Mode A の同名複数県グルーピング ②Mode B/C/D の選択肢生成（正解を含む・重複なし） ③同一 `(municipalityCode, mode)` の de-dupe ④`items=[]` → `[]`。（依存: T006）
-- [ ] T008 `app/(app)/quiz/review/page.tsx` を書き換え、`buildReviewQuestions`（T006）を呼び出す `loadBatch()` 非同期関数に一本化する。既存の `useEffect`（マウント時の初回ロード）は `loadBatch()` を1回呼ぶだけにする。この時点では続行ボタンはまだ追加せず、既存の初回ロード〜結果表示の挙動を変更しない（回帰確認: 既存の復習フローを1バッチプレイし、従来通り結果画面が表示されることを目視確認）。（依存: T006）
+- [x] T002 `lib/db/srs-due.ts` を新規作成し、`dueReviewCondition(userId: string)` を実装する（`and(eq(srsRecords.userId, userId), eq(srsRecords.status, 'reviewing'), lt(srsRecords.dueDate, getJSTStartOfTomorrow()))` を返す）。data-model.md の契約を参照。
+- [x] T003 `app/(app)/quiz/review/actions.ts` の `getDueReviewItems` を `dueReviewCondition(userId)` を使うようリファクタする（インラインの `and(...)` を置き換えるのみ。戻り値・limit・orderByは変更しない）。（依存: T002）
+- [x] T004 `app/(app)/dashboard/queries.ts` の `getDueReviewSummaryData` 内 `dueRow` クエリを `dueReviewCondition(userId)` を使うようリファクタする（`nextDueRow`・`getUpcomingReviewScheduleData` は対象外のまま変更しない）。（依存: T002）
+- [x] T005 [P] `DATABASE_URL=... pnpm test __tests__/lib/dashboard/queries-parity.test.ts` を実行し、T004リファクタ後も `getDueReviewSummaryData` の既存アサーション（`dueCount: 0` 等）が green であることを確認する。（依存: T004）
+- [x] T006 [P] `lib/quiz/review-questions.ts` を新規作成し、`app/(app)/quiz/review/page.tsx` の `useEffect` 内にある出題構築ロジック（Mode A の同名グルーピング、Mode B/C/D の選択肢生成、`seenInSession` による de-dupe）を `buildReviewQuestions(items: DueReviewItem[], allMunicipalities: Municipality[]): Question[]` として移設する。ロジック自体（フィルタ条件・shuffle等）は変更しない。contracts/review-continuation.md の契約を参照。
+- [x] T007 [P] `__tests__/lib/quiz/review-questions.test.ts` を新規作成し、`buildReviewQuestions` の単体テストを追加する: ①Mode A の同名複数県グルーピング ②Mode B/C/D の選択肢生成（正解を含む・重複なし） ③同一 `(municipalityCode, mode)` の de-dupe ④`items=[]` → `[]`。（依存: T006）
+- [x] T008 `app/(app)/quiz/review/page.tsx` を書き換え、`buildReviewQuestions`（T006）を呼び出す `loadBatch()` 非同期関数に一本化する。既存の `useEffect`（マウント時の初回ロード）は `loadBatch()` を1回呼ぶだけにする。この時点では続行ボタンはまだ追加せず、既存の初回ロード〜結果表示の挙動を変更しない（回帰確認: 既存の復習フローを1バッチプレイし、従来通り結果画面が表示されることを目視確認）。（依存: T006）
 
 **Checkpoint**: due判定・出題構築のリファクタが完了し、既存の復習フローが従来通り動作する。ここから先はUI変更（続行ボタン）のみで両ストーリーを実装できる。
 
@@ -52,9 +52,9 @@ Next.js 単一プロジェクト（App Router）。復習フローは `app/(app)
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] `app/(app)/quiz/review/page.tsx` の `phase === 'result'` 描画部分に「続けて復習する」ボタンを追加し、押下時に `loadBatch()`（T008）を呼び出して画面遷移なしに次のバッチを開始する（FR-002, FR-003, FR-004）。（依存: T008）
-- [ ] T010 [US1] `loadBatch()` の結果、`getDueReviewItems` が空、または `buildReviewQuestions` の結果が実質0件だった場合に `phase='empty'` へ正しくフォールバックすることを確認する（FR-006, FR-008; quickstart.md 手順1・4）。（依存: T009）
-- [ ] T011 [US1] 複数バッチを連続プレイし、各バッチの結果画面（正答率・苦手一覧）が直近バッチ単体のものであり、前バッチと合算されないことを手動確認する（FR-005; quickstart.md 手順2）。（依存: T009）
+- [x] T009 [US1] `app/(app)/quiz/review/page.tsx` の `phase === 'result'` 描画部分に「続けて復習する」ボタンを追加し、押下時に `loadBatch()`（T008）を呼び出して画面遷移なしに次のバッチを開始する（FR-002, FR-003, FR-004）。（依存: T008）
+- [x] T010 [US1] `loadBatch()` の結果、`getDueReviewItems` が空、または `buildReviewQuestions` の結果が実質0件だった場合に `phase='empty'` へ正しくフォールバックすることを確認する（FR-006, FR-008; quickstart.md 手順1・4）。（依存: T009）
+- [x] T011 [US1] 複数バッチを連続プレイし、各バッチの結果画面（正答率・苦手一覧）が直近バッチ単体のものであり、前バッチと合算されないことを手動確認する（FR-005; quickstart.md 手順2）。（依存: T009）
 
 **Checkpoint**: US1 完了。MVP としてリリース可能（残数表示なしでも「続ける」自体は機能する）。
 
@@ -68,8 +68,8 @@ Next.js 単一プロジェクト（App Router）。復習フローは `app/(app)
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] `app/(app)/quiz/review/page.tsx` で `useDueReviewSummary()`（既存フック）を呼び出し、`phase === 'result'` 時に取得した `dueCount` が `number` かつ `> 0` の場合、続行ボタンのラベルへ「続けて復習する（残り{dueCount}件）」として反映する（FR-009）。あわせて、`QuizRunner` の `onComplete` 内 `queryClient.invalidateQueries({ queryKey: ['dashboard', 'srs-summary'] })` を `await` してから `setPhase('result')` を呼ぶよう変更する（古い `dueCount` が一瞬表示されるガタつきを防ぐ。contracts/review-continuation.md #3）。（依存: T009）
-- [ ] T013 [US2] `useDueReviewSummary()` の `isLoading` が `true` の間は表示を確定させない。`isLoading === false` になった時点で、`dueCount === 0`（取得成功かつ確実に0件）の場合のみ続行ボタン自体を非表示にする（FR-006）。`data === undefined`（取得失敗）の場合はボタンを隠さず、件数表示のみを省略した「続けて復習する」ボタンを表示する（FR-007; quickstart.md 手順4・5）。（依存: T012）
+- [x] T012 [US2] `app/(app)/quiz/review/page.tsx` で `useDueReviewSummary()`（既存フック）を呼び出し、`phase === 'result'` 時に取得した `dueCount` が `number` かつ `> 0` の場合、続行ボタンのラベルへ「続けて復習する（残り{dueCount}件）」として反映する（FR-009）。あわせて、`QuizRunner` の `onComplete` 内 `queryClient.invalidateQueries({ queryKey: ['dashboard', 'srs-summary'] })` を `await` してから `setPhase('result')` を呼ぶよう変更する（古い `dueCount` が一瞬表示されるガタつきを防ぐ。contracts/review-continuation.md #3）。（依存: T009）
+- [x] T013 [US2] `useDueReviewSummary()` の `isLoading` が `true` の間は表示を確定させない。`isLoading === false` になった時点で、`dueCount === 0`（取得成功かつ確実に0件）の場合のみ続行ボタン自体を非表示にする（FR-006）。`data === undefined`（取得失敗）の場合はボタンを隠さず、件数表示のみを省略した「続けて復習する」ボタンを表示する（FR-007; quickstart.md 手順4・5）。（依存: T012）
 
 **Checkpoint**: US1 + US2 完了。結果画面から残数を見て連続プレイを判断できる。
 
@@ -79,9 +79,9 @@ Next.js 単一プロジェクト（App Router）。復習フローは `app/(app)
 
 **Purpose**: コード品質の担保と最終検証
 
-- [ ] T014 [P] `pnpm lint` を実行し、型チェックと ESLint をパスさせる。
-- [ ] T015 [P] `DATABASE_URL=... pnpm test` を実行し、新規テスト（T007）と既存テスト（T005 で確認した `queries-parity.test.ts` を含む）が全てパスすることを確認する。
-- [ ] T016 `quickstart.md` の手動確認手順（1〜6）をすべて実行し、続行・非合算・残数表示・0件フォールバック・取得失敗フォールバック・due境界整合を最終確認する。
+- [x] T014 [P] `pnpm lint` を実行し、型チェックと ESLint をパスさせる。
+- [x] T015 [P] `DATABASE_URL=... pnpm test` を実行し、新規テスト（T007）と既存テスト（T005 で確認した `queries-parity.test.ts` を含む）が全てパスすることを確認する。
+- [x] T016 `quickstart.md` の手動確認手順（1〜6）をすべて実行し、続行・非合算・残数表示・0件フォールバック・取得失敗フォールバック・due境界整合を最終確認する。
 
 ---
 
