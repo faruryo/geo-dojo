@@ -2,7 +2,7 @@
 
 **Feature Branch**: `007-random-review-order`
 **Created**: 2026-06-13
-**Status**: Draft
+**Status**: Draft (retroactive — 実装済み変更の事後ドキュメント。実装: PR #15)
 **Input**: 「復習クイズの順番が毎回同じで暗記で答えてしまう。ランダムにしてほしい」「上限20件でどの問題が選ばれるかも固定なので、そこもランダムにしてほしい（均等ランダムで良い）」
 
 ## 背景・課題
