@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { saveMunicipalityQuizResult } from '@/app/(app)/quiz/municipality/actions';
 import { DIFFICULTY_LABEL, dedupeInstancesByPrefecture, representativeDifficulty, type GameMode, type Municipality } from '@/lib/quiz/municipality-data';
 import { toQuestionResult } from '@/lib/quiz/quiz-results';
+import { completionSeEvent, playSe } from '@/lib/quiz/sound-effects';
+import { MuteToggle } from '@/components/quiz/mute-toggle';
 
 const JapanMap = dynamic(
   () => import('@/components/map/JapanMap').then((m) => m.JapanMap),
@@ -79,6 +81,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
     if (nextIdx >= questions.length) {
       if (!completedRef.current) {
         completedRef.current = true;
+        playSe(completionSeEvent(updatedResults));
         onComplete(updatedResults);
       }
     } else {
@@ -142,6 +145,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
       selectedPrefectures.size === correctPrefectures.size &&
       [...correctPrefectures].every((p) => selectedPrefectures.has(p));
     setFeedback(correct ? 'correct' : 'incorrect');
+    playSe(correct ? 'correct' : 'incorrect');
     // B007: 政令市は同名の区が複数コードで存在するため、都道府県ごとに代表1件へ畳んで
     // 記録する（区数ぶんの多重カウントを防ぐ）。採点は correctPrefectures（県の Set）で実施済み。
     const reps = dedupeInstancesByPrefecture(instances);
@@ -159,6 +163,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
       const correct = choice === municipality.prefecture;
       setSelectedChoice(choice);
       setFeedback(correct ? 'correct' : 'incorrect');
+      playSe(correct ? 'correct' : 'incorrect');
       await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'B' }], 1200);
     },
     [feedback, currentQuestion, recordAndAdvance],
@@ -172,6 +177,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
       const correct = choice === municipality.name;
       setSelectedChoice(choice);
       setFeedback(correct ? 'correct' : 'incorrect');
+      playSe(correct ? 'correct' : 'incorrect');
       await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'C' }], 1200);
     },
     [feedback, currentQuestion, recordAndAdvance],
@@ -193,6 +199,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
         setCorrectCodes(allCorrectCodes);
       }
       setFeedback(correct ? 'correct' : 'incorrect');
+      playSe(correct ? 'correct' : 'incorrect');
       await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'D' }], 1500);
     },
     [feedback, currentQuestion, allMunicipalities, recordAndAdvance],
@@ -210,6 +217,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
         .map((m) => m.code);
       setCorrectCodes(allCorrectCodes);
       setFeedback('incorrect');
+      playSe('incorrect');
       await recordAndAdvance([{ municipality, isCorrect: false, mode: 'D' }], 1500);
     }
   }, [feedback, currentQuestion, modeDFailed, allMunicipalities, recordAndAdvance]);
@@ -285,7 +293,10 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
         <div className="flex items-center justify-between text-xs text-muted-foreground shrink-0">
           {abortButton}
           <span>{progressText}</span>
-          <span>{correctCount} 正解</span>
+          <span className="inline-flex items-center gap-2">
+            <span>{correctCount} 正解</span>
+            <MuteToggle />
+          </span>
         </div>
 
         <div className="rounded-xl bg-card p-3 text-center shrink-0">
@@ -339,7 +350,10 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
       <div className="flex items-center justify-between text-xs text-muted-foreground shrink-0">
         {abortButton}
         <span>{progressText}</span>
-        <span>{correctCount} 正解</span>
+        <span className="inline-flex items-center gap-2">
+          <span>{correctCount} 正解</span>
+          <MuteToggle />
+        </span>
       </div>
 
       {effectiveMode === 'D' && countdownBar}
