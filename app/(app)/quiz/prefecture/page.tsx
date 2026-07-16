@@ -5,6 +5,8 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
+import { completionSeEvent, playSe } from '@/lib/quiz/sound-effects';
+import { MuteToggle } from '@/components/quiz/mute-toggle';
 
 const JapanMap = dynamic(
   () => import('@/components/map/JapanMap').then((m) => m.JapanMap),
@@ -62,12 +64,15 @@ export default function PrefectureQuizPage() {
     (name: string) => {
       if (state !== 'question') return;
       const isCorrect = name === target;
+      const updatedResults = [...results, { prefecture: target, correct: isCorrect }];
       setSelected(name);
       setState(isCorrect ? 'correct' : 'wrong');
-      setResults((prev) => [...prev, { prefecture: target, correct: isCorrect }]);
+      playSe(isCorrect ? 'correct' : 'incorrect');
+      setResults(updatedResults);
 
       setTimeout(() => {
         if (round >= TOTAL_ROUNDS) {
+          playSe(completionSeEvent(updatedResults));
           setState('result');
         } else {
           setTarget(queue[0]);
@@ -78,7 +83,7 @@ export default function PrefectureQuizPage() {
         }
       }, 1200);
     },
-    [state, target, round, queue],
+    [state, target, round, queue, results],
   );
 
   function restart() {
@@ -135,7 +140,10 @@ export default function PrefectureQuizPage() {
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{round} / {TOTAL_ROUNDS}</span>
-        <span>{results.filter((r) => r.correct).length} 正解</span>
+        <span className="inline-flex items-center gap-2">
+          <span>{results.filter((r) => r.correct).length} 正解</span>
+          <MuteToggle />
+        </span>
       </div>
 
       <div className="rounded-xl bg-card p-4 text-center">
