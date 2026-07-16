@@ -34,23 +34,23 @@ interface Tone {
 
 const SE_TONES: Record<SeEvent, Tone[]> = {
   correct: [
-    { frequency: 659.25, startAt: 0, duration: 0.09, type: 'sine', peakGain: 0.18 },
-    { frequency: 880, startAt: 0.09, duration: 0.14, type: 'sine', peakGain: 0.18 },
+    { frequency: 659.25, startAt: 0, duration: 0.09, type: 'sine', peakGain: 0.27 },
+    { frequency: 880, startAt: 0.09, duration: 0.14, type: 'sine', peakGain: 0.27 },
   ],
   incorrect: [
-    { frequency: 196, startAt: 0, duration: 0.18, type: 'triangle', peakGain: 0.16 },
+    { frequency: 196, startAt: 0, duration: 0.18, type: 'triangle', peakGain: 0.24 },
   ],
   complete: [
-    { frequency: 523.25, startAt: 0, duration: 0.11, type: 'sine', peakGain: 0.16 },
-    { frequency: 659.25, startAt: 0.11, duration: 0.11, type: 'sine', peakGain: 0.16 },
-    { frequency: 783.99, startAt: 0.22, duration: 0.22, type: 'sine', peakGain: 0.16 },
+    { frequency: 523.25, startAt: 0, duration: 0.11, type: 'sine', peakGain: 0.24 },
+    { frequency: 659.25, startAt: 0.11, duration: 0.11, type: 'sine', peakGain: 0.24 },
+    { frequency: 783.99, startAt: 0.22, duration: 0.22, type: 'sine', peakGain: 0.24 },
   ],
   perfect: [
-    { frequency: 523.25, startAt: 0, duration: 0.1, type: 'triangle', peakGain: 0.18 },
-    { frequency: 659.25, startAt: 0.1, duration: 0.1, type: 'triangle', peakGain: 0.18 },
-    { frequency: 783.99, startAt: 0.2, duration: 0.1, type: 'triangle', peakGain: 0.18 },
-    { frequency: 1046.5, startAt: 0.3, duration: 0.35, type: 'triangle', peakGain: 0.2 },
-    { frequency: 783.99, startAt: 0.3, duration: 0.35, type: 'sine', peakGain: 0.1 },
+    { frequency: 523.25, startAt: 0, duration: 0.1, type: 'triangle', peakGain: 0.27 },
+    { frequency: 659.25, startAt: 0.1, duration: 0.1, type: 'triangle', peakGain: 0.27 },
+    { frequency: 783.99, startAt: 0.2, duration: 0.1, type: 'triangle', peakGain: 0.27 },
+    { frequency: 1046.5, startAt: 0.3, duration: 0.35, type: 'triangle', peakGain: 0.3 },
+    { frequency: 783.99, startAt: 0.3, duration: 0.35, type: 'sine', peakGain: 0.15 },
   ],
 };
 
