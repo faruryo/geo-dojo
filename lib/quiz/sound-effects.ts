@@ -78,6 +78,10 @@ export function playSe(event: SeEvent): void {
       gain.gain.exponentialRampToValueAtTime(0.0001, end);
       osc.connect(gain);
       gain.connect(ctx.destination);
+      osc.onended = () => {
+        osc.disconnect();
+        gain.disconnect();
+      };
       osc.start(start);
       osc.stop(end + 0.05);
     }

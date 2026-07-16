@@ -8,6 +8,7 @@ export function MuteToggle() {
 
   return (
     <button
+      type="button"
       onClick={() => setMuted(!muted)}
       aria-label={muted ? 'ミュートを解除' : '効果音をミュート'}
       className="inline-flex items-center hover:text-foreground transition-colors"
