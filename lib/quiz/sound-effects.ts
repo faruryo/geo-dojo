@@ -34,22 +34,22 @@ interface Tone {
 
 const SE_TONES: Record<SeEvent, Tone[]> = {
   correct: [
-    { frequency: 659.25, startAt: 0, duration: 0.09, type: 'sine', peakGain: 0.54 },
-    { frequency: 880, startAt: 0.09, duration: 0.14, type: 'sine', peakGain: 0.54 },
+    { frequency: 659.25, startAt: 0, duration: 0.09, type: 'sine', peakGain: 0.95 },
+    { frequency: 880, startAt: 0.09, duration: 0.14, type: 'sine', peakGain: 0.95 },
   ],
   incorrect: [
-    { frequency: 196, startAt: 0, duration: 0.18, type: 'triangle', peakGain: 0.48 },
+    { frequency: 196, startAt: 0, duration: 0.18, type: 'triangle', peakGain: 0.9 },
   ],
   complete: [
-    { frequency: 523.25, startAt: 0, duration: 0.11, type: 'sine', peakGain: 0.48 },
-    { frequency: 659.25, startAt: 0.11, duration: 0.11, type: 'sine', peakGain: 0.48 },
-    { frequency: 783.99, startAt: 0.22, duration: 0.22, type: 'sine', peakGain: 0.48 },
+    { frequency: 523.25, startAt: 0, duration: 0.11, type: 'sine', peakGain: 0.9 },
+    { frequency: 659.25, startAt: 0.11, duration: 0.11, type: 'sine', peakGain: 0.9 },
+    { frequency: 783.99, startAt: 0.22, duration: 0.22, type: 'sine', peakGain: 0.9 },
   ],
   perfect: [
-    { frequency: 523.25, startAt: 0, duration: 0.1, type: 'triangle', peakGain: 0.54 },
-    { frequency: 659.25, startAt: 0.1, duration: 0.1, type: 'triangle', peakGain: 0.54 },
-    { frequency: 783.99, startAt: 0.2, duration: 0.1, type: 'triangle', peakGain: 0.54 },
-    { frequency: 1046.5, startAt: 0.3, duration: 0.35, type: 'triangle', peakGain: 0.6 },
+    { frequency: 523.25, startAt: 0, duration: 0.1, type: 'triangle', peakGain: 0.95 },
+    { frequency: 659.25, startAt: 0.1, duration: 0.1, type: 'triangle', peakGain: 0.95 },
+    { frequency: 783.99, startAt: 0.2, duration: 0.1, type: 'triangle', peakGain: 0.95 },
+    { frequency: 1046.5, startAt: 0.3, duration: 0.35, type: 'triangle', peakGain: 0.65 },
     { frequency: 783.99, startAt: 0.3, duration: 0.35, type: 'sine', peakGain: 0.3 },
   ],
 };
