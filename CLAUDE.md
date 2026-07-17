@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/014-sound-effects/plan.md
+at specs/015-kana-support/plan.md
 
 Backlog（将来の spec 候補）は specs/backlog.md に管理
 <!-- SPECKIT END -->

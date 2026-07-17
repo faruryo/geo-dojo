@@ -2,8 +2,8 @@
 
 import { createServerClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
-import { srsRecords } from '@/lib/db/schema';
-import { sql } from 'drizzle-orm';
+import { srsRecords, municipalityMaster } from '@/lib/db/schema';
+import { sql, eq } from 'drizzle-orm';
 import { dueReviewCondition } from '@/lib/db/srs-due';
 
 export type DueReviewItem = {
@@ -13,6 +13,7 @@ export type DueReviewItem = {
   mode: 'A' | 'B' | 'C' | 'D';
   interval: number;
   dueDate: string;
+  kana?: string;
 };
 
 export async function getDueReviewItems(opts?: { limit?: number }): Promise<DueReviewItem[]> {
@@ -30,8 +31,12 @@ export async function getDueReviewItems(opts?: { limit?: number }): Promise<DueR
       mode: srsRecords.mode,
       interval: srsRecords.interval,
       dueDate: srsRecords.dueDate,
+      kana: municipalityMaster.kana,
     })
     .from(srsRecords)
+    // left join: srsRecords 行は master に対応が無くても必ず残す（FR-005 グレースフルデグレード）。
+    // code は municipality_master の PK なので、行が増える(1:多)心配はない。
+    .leftJoin(municipalityMaster, eq(srsRecords.municipalityCode, municipalityMaster.code))
     // due 判定は JST の暦日単位（B013）。ダッシュボードの dueCount と揃えるため、
     // getDueReviewSummaryData（app/(app)/dashboard/queries.ts）と同じ境界を共通関数で使う。
     .where(dueReviewCondition(user.id))
@@ -47,5 +52,6 @@ export async function getDueReviewItems(opts?: { limit?: number }): Promise<DueR
     mode: r.mode as 'A' | 'B' | 'C' | 'D',
     interval: r.interval,
     dueDate: r.dueDate instanceof Date ? r.dueDate.toISOString() : String(r.dueDate),
+    kana: r.kana ?? undefined,
   }));
 }

@@ -523,6 +523,7 @@ export async function getWeaknessRankingData(userId: string) {
       mode: municipalityQuizResults.mode,
       region: municipalityMaster.region,
       difficulty: municipalityMaster.difficulty,
+      kana: municipalityMaster.kana,
       totalCount: sql<number>`COUNT(*)`,
       errorCount: sql<number>`SUM(CASE WHEN NOT ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END)`,
       errorRate: sql<number>`SUM(CASE WHEN NOT ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END)::float / COUNT(*)`,
@@ -537,6 +538,7 @@ export async function getWeaknessRankingData(userId: string) {
       municipalityQuizResults.mode,
       municipalityMaster.region,
       municipalityMaster.difficulty,
+      municipalityMaster.kana,
     )
     .having(
       sql`SUM(CASE WHEN NOT ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END) > 0`,
@@ -554,6 +556,7 @@ export async function getWeaknessRankingData(userId: string) {
     mode: r.mode,
     region: r.region,
     difficulty: r.difficulty,
+    kana: r.kana ?? undefined,
     totalCount: Number(r.totalCount),
     errorCount: Number(r.errorCount),
     errorRate: Number(r.errorRate),

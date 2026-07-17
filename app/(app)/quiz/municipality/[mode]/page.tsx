@@ -174,6 +174,7 @@ export default function MunicipalityQuizPage() {
         prefecture: m.prefecture,
         region: m.region,
         difficulty: m.difficulty as Difficulty,
+        kana: m.kana ?? undefined,
       })),
     [masterData],
   );
