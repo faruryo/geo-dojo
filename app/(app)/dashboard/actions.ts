@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { srsRecords } from '@/lib/db/schema';
+import { srsRecords, municipalityMaster } from '@/lib/db/schema';
 import { eq, and, count, asc } from 'drizzle-orm';
 import { getCurrentUserId } from '@/lib/auth/current-user';
 import {
@@ -113,6 +113,7 @@ export async function getReviewItemList(opts?: {
     repetition: number;
     interval: number;
     accuracy?: { correct: number; total: number };
+    kana?: string;
   }>;
   total: number;
 }> {
@@ -135,8 +136,13 @@ export async function getReviewItemList(opts?: {
         dueDate: srsRecords.dueDate,
         repetition: srsRecords.repetition,
         interval: srsRecords.interval,
+        kana: municipalityMaster.kana,
       })
       .from(srsRecords)
+      // left join: srsRecords 行は master に対応が無くても必ず残す（total は srsRecords 単独の
+      // count のため、innerJoin だと items だけ欠けてページングと不整合になる）。
+      // code は municipality_master の PK なので、行が増える(1:多)心配はない。
+      .leftJoin(municipalityMaster, eq(srsRecords.municipalityCode, municipalityMaster.code))
       .where(where)
       .orderBy(asc(srsRecords.dueDate))
       .limit(limit)
@@ -162,6 +168,7 @@ export async function getReviewItemList(opts?: {
       repetition: r.repetition,
       interval: r.interval,
       accuracy: accuracyMap.get(`${r.municipalityCode}|${r.mode}`),
+      kana: r.kana ?? undefined,
     })),
     total: totalRow[0]?.value ?? 0,
   };

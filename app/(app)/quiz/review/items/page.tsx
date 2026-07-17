@@ -148,6 +148,9 @@ export default function ReviewItemsPage() {
                     {item.mode}
                   </Badge>
                   <span className="truncate text-sm">{item.municipalityName}</span>
+                  {item.kana && (
+                    <span className="shrink-0 text-xs text-muted-foreground">（{item.kana}）</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {item.accuracy && item.accuracy.total > 0 && (

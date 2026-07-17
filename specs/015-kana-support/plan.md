@@ -6,7 +6,7 @@
 
 ## 概要
 
-47都道府県・市区町村マスタ全件に読み仮名（ひらがな）を追加し、クイズ回答直後のフィードバック（P1）、苦手リスト・復習項目一覧（P2）、出題中の問題文・選択肢（P3）に併記します。
+47都道府県・市区町村マスタ全件に読み仮名（ひらがな）を追加し、クイズ回答直後のフィードバック（P1）、苦手リスト・復習項目一覧（P2）に併記します。出題中（解答前）の問題文・選択肢には併記しません（ユーザーが読み方を含めて記憶する機会を優先するため、スコープ外）。
 
 ### 技術的アプローチ:
 - **都道府県・市区町村とも**: 読み仮名は総務省が公開する公式データ「全国地方公共団体コード」（団体コード／都道府県名・市区町村名の漢字・カナ）を一次情報源として取り込みます。団体コード（6桁）の先頭5桁が既存 `municipality_master.code`（JISコード5桁）と一致し、政令指定都市の区も個別収録されているため、既存のコード単位データ構造をそのまま踏襲できます。カタカナ→ひらがなは決定的変換（誤読リスクなし）。AI生成は、万一この公式データに欠落するコードがあった場合の補助手段に留め、全件をAI生成に頼ることはしません。
@@ -78,7 +78,7 @@ lib/quiz/
 └── municipality-data.ts             # [変更] PREFECTURE_KANA（47件の静的マップ）追加、Municipality interface に kana?: string 追加
 
 app/(app)/quiz/municipality/[mode]/
-└── page.tsx                         # [変更] masterData → Municipality 変換時に kana を伝播、問題文・選択肢表示に反映（P3）
+└── page.tsx                         # [変更] masterData → Municipality 変換時に kana を伝播（下流の feedback 表示に必要。問題文・選択肢自体には表示しない）
 
 app/(app)/quiz/review/
 ├── page.tsx                         # [変更] masterData → Municipality 変換時に kana を伝播、「まだ苦手な市区町村」バッジに反映（P2）
@@ -92,7 +92,7 @@ app/(app)/dashboard/
 └── queries.ts                       # [変更] getWeaknessRankingData の SELECT に municipalityMaster.kana を追加
 
 components/
-├── quiz/quiz-runner.tsx             # [変更] 正解・不正解フィードバック表示に kana を併記（P1）。選択肢形式モードの問題文・選択肢にも併記（P3）
+├── quiz/quiz-runner.tsx             # [変更] 正解・不正解フィードバック表示に kana を併記（P1）。出題中の問題文・選択肢には併記しない（スコープ外）
 └── dashboard/weakness-ranking.tsx   # [変更] 苦手ランキングの各項目に kana を併記（P2）
 
 __tests__/

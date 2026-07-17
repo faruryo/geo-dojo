@@ -30,14 +30,14 @@ Next.js 単一プロジェクト（App Router）。DB スキーマは `lib/db/sc
 
 **Purpose**: `kana` データの調達・DB格納・型伝播という、全ユーザーストーリーが依存する基盤を整備する
 
-- [ ] T002 `lib/db/schema.ts` の `municipalityMaster` に `kana: text('kana')`（nullable）カラムを追加する。
-- [ ] T003 `pnpm drizzle-kit generate` を実行し、`supabase/migrations/` にマイグレーション SQL と `meta/` スナップショットを生成する（手書きしない。CIのmigrate driftチェック対策）。
-- [ ] T004 [P] `scripts/fetch-municipality-kana.ts` を新規作成する。`https://www.soumu.go.jp/main_content/000925835.xlsx` をダウンロードし解析する（xlsx パーサーが未導入なら `xlsx`/`exceljs` 等を追加するか、zip展開して `xl/sharedStrings.xml` 等から抽出する）。団体コード（6桁）の先頭5桁を `municipality_master.code`（JISコード5桁）として正規化し、**半角カタカナ→全角カタカナ→ひらがな**の順で決定的に変換する。都道府県レベルの読み（47件、団体コード末尾が `000` の行など上位コード）と市区町村レベルの読み（コード単位）を分離して集計し、既存の全 `municipality_master.code` に対応する行が見つかるかを検証・レポートする（欠落があれば警告出力。全件をAI生成に頼らない）。
-- [ ] T005 [P] T004 のスクリプトを実行し、`scripts/data/municipality-kana-seed.json`（市区町村: code → kana のマップ）と、都道府県47件分の読みデータ（`lib/quiz/municipality-data.ts` への転記用）を出力する。
-- [ ] T006 `scripts/import-municipality-kana.ts` を新規作成する。`scripts/data/municipality-kana-seed.json` を読み込み、`municipality_master.kana` を `code` 単位で `UPDATE` する独立スクリプトとする（既存の `sync-municipality-master.ts` は変更・実行しない。政令市名がward名で上書きされる既知の副作用を回避するため）。
-- [ ] T007 `lib/quiz/municipality-data.ts` に `PREFECTURE_KANA: Record<string, string>`（47件、T005 の都道府県読みデータから転記）を追加し、`Municipality` インターフェースに `kana?: string` を追加する。
-- [ ] T008 [P] `__tests__/lib/quiz/municipality-data.test.ts` に、`Object.keys(PREFECTURE_KANA)` が `ALL_PREFECTURES` と完全に一致することを検証するテストを追加する。
-- [ ] T009 ローカル環境で `pnpm drizzle-kit migrate` → `pnpm tsx scripts/import-municipality-kana.ts` を実行し、ローカル Supabase の `municipality_master.kana` にデータが反映されることを確認する。
+- [x] T002 `lib/db/schema.ts` の `municipalityMaster` に `kana: text('kana')`（nullable）カラムを追加する。
+- [x] T003 `pnpm drizzle-kit generate` を実行し、`supabase/migrations/` にマイグレーション SQL と `meta/` スナップショットを生成する（手書きしない。CIのmigrate driftチェック対策）。
+- [x] T004 [P] `scripts/fetch-municipality-kana.ts` を新規作成する。`https://www.soumu.go.jp/main_content/000925835.xlsx` をダウンロードし解析する（xlsx パーサーが未導入なら `xlsx`/`exceljs` 等を追加するか、zip展開して `xl/sharedStrings.xml` 等から抽出する）。団体コード（6桁）の先頭5桁を `municipality_master.code`（JISコード5桁）として正規化し、**半角カタカナ→全角カタカナ→ひらがな**の順で決定的に変換する。都道府県レベルの読み（47件、団体コード末尾が `000` の行など上位コード）と市区町村レベルの読み（コード単位）を分離して集計し、既存の全 `municipality_master.code` に対応する行が見つかるかを検証・レポートする（欠落があれば警告出力。全件をAI生成に頼らない）。
+- [x] T005 [P] T004 のスクリプトを実行し、`scripts/data/municipality-kana-seed.json`（市区町村: code → kana のマップ）と、都道府県47件分の読みデータ（`lib/quiz/municipality-data.ts` への転記用）を出力する。
+- [x] T006 `scripts/import-municipality-kana.ts` を新規作成する。`scripts/data/municipality-kana-seed.json` を読み込み、`municipality_master.kana` を `code` 単位で `UPDATE` する独立スクリプトとする（既存の `sync-municipality-master.ts` は変更・実行しない。政令市名がward名で上書きされる既知の副作用を回避するため）。
+- [x] T007 `lib/quiz/municipality-data.ts` に `PREFECTURE_KANA: Record<string, string>`（47件、T005 の都道府県読みデータから転記）を追加し、`Municipality` インターフェースに `kana?: string` を追加する。
+- [x] T008 [P] `__tests__/lib/quiz/municipality-data.test.ts` に、`Object.keys(PREFECTURE_KANA)` が `ALL_PREFECTURES` と完全に一致することを検証するテストを追加する。
+- [x] T009 ローカル環境で `pnpm drizzle-kit migrate` → `pnpm tsx scripts/import-municipality-kana.ts` を実行し、ローカル Supabase の `municipality_master.kana` にデータが反映されることを確認する。
 
 **Checkpoint**: `municipality_master.kana` と `PREFECTURE_KANA` が整備され、`getMunicipalityMaster()` が自動的に `kana` を返すようになる。以降のユーザーストーリーはここに依存する。
 
@@ -51,10 +51,11 @@ Next.js 単一プロジェクト（App Router）。DB スキーマは `lib/db/sc
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] `app/(app)/quiz/municipality/[mode]/page.tsx` で `masterData` から `Municipality[]` を構築する箇所に `kana: m.kana ?? undefined` を追加し、下流（`buildQuestions`, `QuizRunner`）に伝播させる。
-- [ ] T011 [US1] `app/(app)/quiz/review/page.tsx` で同様に `allMunicipalities` の構築箇所に `kana` を伝播させる。
-- [ ] T012 [US1] `components/quiz/quiz-runner.tsx` のモードA正解・不正解フィードバック部分で、出題対象の市区町村名（`name`）に対応する読み仮名、および正解都道府県リスト（`correctPrefectures`）に `PREFECTURE_KANA` を用いた読み仮名を併記する。読み仮名が存在しない場合は何も表示しない（FR-005）。
-- [ ] T013 [US1] `components/quiz/quiz-runner.tsx` のモードB/C/D正解・不正解フィードバック部分で、対象市区町村の `kana` を読み仮名として併記する。読み仮名が存在しない場合は何も表示しない（FR-005）。
+- [x] T010 [US1] `app/(app)/quiz/municipality/[mode]/page.tsx` で `masterData` から `Municipality[]` を構築する箇所に `kana: m.kana ?? undefined` を追加し、下流（`buildQuestions`, `QuizRunner`）に伝播させる。
+- [x] T011 [US1] `app/(app)/quiz/review/page.tsx` で同様に `allMunicipalities` の構築箇所に `kana` を伝播させる。
+- [x] T012 [US1] `components/quiz/quiz-runner.tsx` のモードA正解・不正解フィードバック部分で、出題対象の市区町村名（`name`）に対応する読み仮名、および正解都道府県リスト（`correctPrefectures`）に `PREFECTURE_KANA` を用いた読み仮名を併記する。読み仮名が存在しない場合は何も表示しない（FR-005）。
+- [x] T013 [US1] `components/quiz/quiz-runner.tsx` のモードB/C/D正解・不正解フィードバック部分で、対象市区町村の `kana` を読み仮名として併記する。読み仮名が存在しない場合は何も表示しない（FR-005）。
+  - **バグ修正（実装レビューで発見）**: 初回実装は「正解」時に読み仮名を一切表示していなかった（不正解メッセージの中にのみ埋め込んでいたため）。また、モードA/Bは出題（お題）が市区町村名で答えが都道府県のため、答え側（都道府県）の読みしか出ておらず、学習対象である市区町村側の読みが解答後も表示されない欠落があった。正解・不正解どちらでも「✓/✗」の下に都道府県側・市区町村側の読みを常に別行で表示するよう修正（ブラウザで実機確認: モードAの「大野市/おおのし」→「福井県（ふくいけん）」、モードBの「下郷町/しもごうまち」→「福島県（ふくしまけん）」で確認）。
 
 **Checkpoint**: 全モードの解答直後フィードバックに読み仮名が併記される（MVP完了）。
 
@@ -68,31 +69,27 @@ Next.js 単一プロジェクト（App Router）。DB スキーマは `lib/db/sc
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] `app/(app)/dashboard/queries.ts` の `getWeaknessRankingData` の SELECT・GROUP BY に `municipalityMaster.kana` を追加し、返却オブジェクトに含める。
-- [ ] T015 [US2] `components/dashboard/weakness-ranking.tsx` で、各項目の `municipalityName` の隣に `kana`（存在する場合のみ）を併記する。
-- [ ] T016 [US2] `app/(app)/quiz/review/actions.ts` の `getDueReviewItems` に `municipalityMaster` との `innerJoin`（`srsRecords.municipalityCode = municipalityMaster.code`）を追加し、`DueReviewItem` 型・返却値に `kana` を含める。
-- [ ] T017 [US2] `app/(app)/dashboard/actions.ts` の `getReviewItemList` に同様の JOIN（またはコード一覧に対する `municipality_master` 参照）を追加し、返却する `items[].kana` を含める。
-- [ ] T018 [US2] `app/(app)/quiz/review/items/page.tsx` で、各行の市区町村名の隣に `kana`（存在する場合のみ）を併記する。
-- [ ] T019 [US2] `components/quiz/quiz-runner.tsx` の `onComplete` コールバックが構築する結果エントリ（`ResultEntry` 相当）に `kana` を含め、`app/(app)/quiz/review/page.tsx` の「まだ苦手な市区町村」バッジ表示に読み仮名を併記する。
-- [ ] T020 [US2] [P] 既存の DB 統合テストパターン（`DATABASE_URL` 切り替え）に倣い、`getWeaknessRankingData`/`getDueReviewItems`/`getReviewItemList` が `kana` を正しく返すことを検証するテストケースを追加する。
+- [x] T014 [US2] `app/(app)/dashboard/queries.ts` の `getWeaknessRankingData` の SELECT・GROUP BY に `municipalityMaster.kana` を追加し、返却オブジェクトに含める。
+- [x] T015 [US2] `components/dashboard/weakness-ranking.tsx` で、各項目の `municipalityName` の隣に `kana`（存在する場合のみ）を併記する。
+- [x] T016 [US2] `app/(app)/quiz/review/actions.ts` の `getDueReviewItems` に `municipalityMaster` との `innerJoin`（`srsRecords.municipalityCode = municipalityMaster.code`）を追加し、`DueReviewItem` 型・返却値に `kana` を含める。
+- [x] T017 [US2] `app/(app)/dashboard/actions.ts` の `getReviewItemList` に同様の JOIN（またはコード一覧に対する `municipality_master` 参照）を追加し、返却する `items[].kana` を含める。
+- [x] T018 [US2] `app/(app)/quiz/review/items/page.tsx` で、各行の市区町村名の隣に `kana`（存在する場合のみ）を併記する。
+- [x] T019 [US2] `components/quiz/quiz-runner.tsx` の `onComplete` コールバックが構築する結果エントリ（`ResultEntry` 相当）に `kana` を含め、`app/(app)/quiz/review/page.tsx` の「まだ苦手な市区町村」バッジ表示に読み仮名を併記する。
+- [x] T020 [US2] [P] 既存の DB 統合テストパターン（`DATABASE_URL` 切り替え）に倣い、`getWeaknessRankingData`/`getDueReviewItems`/`getReviewItemList` が `kana` を正しく返すことを検証するテストケースを追加する。
 
 **Checkpoint**: 苦手リスト・復習項目一覧・復習完了画面のすべてに読み仮名が併記される。
 
 ---
 
-## Phase 5: User Story 3 - 出題中の問題文・選択肢でも読み方がわかる (Priority: P3)
+## Phase 5: 【対象外】出題中の問題文・選択肢への読み仮名併記 (旧 Priority: P3)
 
-**Goal**: クイズ出題中の問題文・選択肢に表示される都道府県名・市区町村名にも読み仮名を併記する。
+**却下理由（ユーザー判断）**: ユーザーは読み方を含めて記憶する必要があるため、解答前に読みを見せると学習効果を損なう。出題中は名称（漢字）のみを表示する方針に変更した。
 
-**Independent Test**: 選択肢形式のモードでクイズを開始し、問題文・全選択肢の地名に等しく読み仮名が併記されることを確認する（特定の選択肢のみの強調がないこと）。
+- [x] ~~T021 [US3]~~ 【取り消し】モードA問題文表示への読み仮名併記 → `components/quiz/quiz-runner.tsx` から削除済み
+- [x] ~~T022 [US3]~~ 【取り消し】モードB/C/D問題文・選択肢表示への読み仮名併記 → `components/quiz/quiz-runner.tsx` から削除済み
+- [x] T023 モードAの地図タップ対象（都道府県）自体には読み仮名を追加しない（地図UI自体は変更対象外であることを確認する）。→ 元々未実装のため対応不要
 
-### Implementation for User Story 3
-
-- [ ] T021 [US3] `components/quiz/quiz-runner.tsx` のモードA問題文表示（出題対象の市区町村名）に読み仮名を併記する。
-- [ ] T022 [US3] `components/quiz/quiz-runner.tsx` のモードB/C/D問題文・選択肢表示に読み仮名を併記する。全選択肢に等しく適用し、特定の選択肢のみを強調しないこと（FR-007）。
-- [ ] T023 [US3] モードAの地図タップ対象（都道府県）自体には読み仮名を追加しない（地図UI自体は変更対象外であることを確認する）。
-
-**Checkpoint**: 出題中の全モードで問題文・選択肢に読み仮名が併記される。
+**Checkpoint**: 出題中（解答前）の問題文・選択肢には読み仮名が一切表示されないことを確認済み。
 
 ---
 
@@ -100,10 +97,10 @@ Next.js 単一プロジェクト（App Router）。DB スキーマは `lib/db/sc
 
 **Purpose**: コード品質の担保、最終検証、バックログ更新
 
-- [ ] T024 `pnpm lint` を実行し、型チェックと ESLint をパスさせる。
-- [ ] T025 `pnpm test` を実行し、既存テストおよび新規作成したテストをすべてパスさせる。
-- [ ] T026 `quickstart.md` の手動確認手順（P1/P2/P3 それぞれ、および既存機能への影響がないことの確認）を実行する。
-- [ ] T027 `specs/backlog.md` の B015 を実装完了としてチェック済みに更新する。
+- [x] T024 `pnpm lint` を実行し、型チェックと ESLint をパスさせる。
+- [x] T025 `pnpm test` を実行し、既存テストおよび新規作成したテストをすべてパスさせる。
+- [x] T026 `quickstart.md` の手動確認手順（P1/P2/P3 それぞれ、および既存機能への影響がないことの確認）を実行する。
+- [x] T027 `specs/backlog.md` の B015 を実装完了としてチェック済みに更新する。
 
 ---
 

@@ -12,6 +12,7 @@ export interface QuestionResult {
   name: string;
   prefecture: string;
   correct: boolean;
+  kana?: string;
 }
 
 /**
@@ -28,5 +29,6 @@ export function toQuestionResult(entries: AnswerEntry[]): QuestionResult {
     name: head.municipality.name,
     prefecture: head.municipality.prefecture,
     correct: head.isCorrect,
+    kana: head.municipality.kana,
   };
 }

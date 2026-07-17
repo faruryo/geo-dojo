@@ -133,9 +133,11 @@
 - [x] B014 いい感じのSE（効果音）の追加 → **014-sound-effects で実装完了**
   - 実装: Web Audio APIによる動的シンセ生成（音声アセットなし）で正解・不正解・完了・全問正解の4種を再生。市区町村クイズ全モード・復習セッション・都道府県クイズに統合。ミュートはlocalStorage永続化（デフォルト音あり）。音量スライダーや専用設定画面は対象外（将来判断）。
 
-- [ ] B015 都道府県・市区町村の読み仮名（ふりがな）対応
-  - 案: 難読な市区町村の学習効果を高めるため、出題時や結果画面、苦手リスト等で読み仮名（ひらがな）を表示できるようにする。特に、クイズ回答直後の正解・不正解フィードバック（結果表示）のタイミングで読み仮名を表示しておくと、その場で正しい読み方を確認できて学習効果が高い。
-  - 対応: DBの `municipality_master` に `kana` カラムを追加し、`municipalities.json` に読み仮名データを同梱。`sync-municipality-master.ts` の同期ロジックも修正。
+- [x] B015 都道府県・市区町村の読み仮名（ふりがな）対応 → **015-kana-support で実装完了**
+  - 実装: 総務省「全国地方公共団体コード」を一次情報源とし、`scripts/fetch-municipality-kana.ts` で取得・決定的変換（半角カナ→全角カナ→ひらがな）、`municipality_master.kana` カラムへ `scripts/import-municipality-kana.ts` で反映（`sync-municipality-master.ts` は未変更、地雷回避）。都道府県47件は `PREFECTURE_KANA` 静的マップ。municipality_master 全1898件で読み仮名マッチ率100%（AI生成なし）。
+  - 反映箇所: 回答直後の正解・不正解フィードバック（P1、モードA/Bは出題側の市区町村名＋答え側の都道府県名、モードC/Dは答え側の市区町村名、いずれも読み仮名を常時併記）、苦手ランキング・復習項目一覧・まだ苦手バッジ（P2）。
+  - スコープ縮小（ユーザー判断）: 出題中（解答前）の問題文・選択肢への読み仮名併記（P3）は対象外。読み方を含めて記憶する必要があるため、解答前に読みを見せない方針。
+  - **本番デプロイ時の注意**: マイグレーションが追加する `kana` カラムは nullable で、値は `scripts/import-municipality-kana.ts` を実行するまで全件 NULL のまま（migrate.yml には組み込まれていない）。本番反映時はマイグレーション適用後に `scripts/import-municipality-kana.ts` を本番DBに対して手動実行する必要がある（さもないと機能が「存在するが読み仮名が一切出ない」状態になる）。
 
 - [x] B016 今日のおすすめクイズにおける地域選択（絞り込み）機能の改善 → **実装済み確認**
   - `components/recommend/recommend-override.tsx` で地方単位のポジティブ選択トグルUI（`targetRegions`）が実装済み。`localStorage`（`geodojo-recommend-region-filters`）に永続化

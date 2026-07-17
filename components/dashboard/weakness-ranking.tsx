@@ -55,6 +55,9 @@ export function WeaknessRanking() {
                 <div className="flex items-baseline justify-between gap-2">
                   <div className="min-w-0">
                     <span className="font-medium">{item.municipalityName}</span>
+                    {item.kana && (
+                      <span className="ml-1 text-xs text-muted-foreground">（{item.kana}）</span>
+                    )}
                     <span className="ml-1.5 text-xs text-muted-foreground">
                       {item.prefecture}
                     </span>

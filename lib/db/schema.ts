@@ -44,6 +44,7 @@ export const municipalityMaster = pgTable(
     population:     integer('population'),
     populationYear: integer('population_year'),
     difficulty:     text('difficulty').notNull(),
+    kana:           text('kana'),
     updatedAt:      timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [

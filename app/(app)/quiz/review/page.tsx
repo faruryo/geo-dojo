@@ -17,6 +17,7 @@ interface ResultEntry {
   name: string;
   prefecture: string;
   correct: boolean;
+  kana?: string;
 }
 
 type Phase = 'loading' | 'empty' | 'playing' | 'result';
@@ -38,6 +39,7 @@ export default function ReviewPage() {
         prefecture: m.prefecture,
         region: m.region,
         difficulty: m.difficulty as Difficulty,
+        kana: m.kana ?? undefined,
       })),
     [masterData],
   );
@@ -141,7 +143,8 @@ export default function ReviewPage() {
                   key={i}
                   className="text-xs px-2 py-0.5 rounded-full bg-destructive/20 text-destructive"
                 >
-                  {r.name}（{r.prefecture}）
+                  {r.name}
+                  {r.kana && `（${r.kana}）`}（{r.prefecture}）
                 </span>
               ))}
             </div>
