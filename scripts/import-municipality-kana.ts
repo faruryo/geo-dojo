@@ -22,13 +22,13 @@ async function main() {
   const sql = postgres(url, { prepare: false });
 
   try {
-    let updated = 0;
-    for (const [code, kana] of entries) {
-      const result = await sql`
+    console.log('[import] updating rows...');
+    const results = await Promise.all(
+      entries.map(([code, kana]) => sql`
         UPDATE municipality_master SET kana = ${kana} WHERE code = ${code}
-      `;
-      updated += result.count;
-    }
+      `)
+    );
+    const updated = results.reduce((acc, r) => acc + r.count, 0);
     console.log(`[import] updated ${updated} / ${entries.length} rows`);
 
     const [{ count: nullCount }] = await sql<{ count: string }[]>`
