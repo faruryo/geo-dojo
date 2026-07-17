@@ -293,7 +293,9 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
     const { name, instances, correctPrefectures } = currentQuestion;
     const remaining = correctPrefectures.size - selectedPrefectures.size;
     const canSubmit = remaining === 0 && feedback === 'idle';
-    const municipalityKana = instances.find((i) => i.kana)?.kana;
+    const municipalityKana = Array.from(
+      new Set(instances.map((i) => i.kana).filter((k): k is string => !!k))
+    ).join(' / ');
 
     return (
       <div className="flex flex-col h-full gap-2 p-3 max-w-4xl mx-auto">
