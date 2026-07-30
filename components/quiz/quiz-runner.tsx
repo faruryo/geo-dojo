@@ -6,7 +6,7 @@ import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { saveMunicipalityQuizResult } from '@/app/(app)/quiz/municipality/actions';
-import { DIFFICULTY_LABEL, PREFECTURE_KANA, dedupeInstancesByPrefecture, representativeDifficulty, type GameMode, type Municipality } from '@/lib/quiz/municipality-data';
+import { DIFFICULTY_LABEL, dedupeInstancesByPrefecture, representativeDifficulty, type GameMode, type Municipality } from '@/lib/quiz/municipality-data';
 import { toQuestionResult } from '@/lib/quiz/quiz-results';
 import { completionSeEvent, playSe } from '@/lib/quiz/sound-effects';
 import { MuteToggle } from '@/components/quiz/mute-toggle';
@@ -324,14 +324,14 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
         </div>
 
         {feedback !== 'idle' && (
-          <div className={`text-center text-base font-semibold shrink-0 ${feedback === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
-            {feedback === 'correct' ? '✓ 正解！' : '✗ 不正解'}
+          <div className="text-center shrink-0">
+            <div className={`text-base font-semibold ${feedback === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
+              {feedback === 'correct' ? '✓ 正解！' : '✗ 不正解'}
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {withKana(name, municipalityKana)} （正解: {[...correctPrefectures].join('・')}）
+            </p>
           </div>
-        )}
-        {feedback !== 'idle' && (
-          <p className="text-center text-xs text-muted-foreground shrink-0">
-            {[...correctPrefectures].map((p) => withKana(p, PREFECTURE_KANA[p])).join('・')}
-          </p>
         )}
 
         <div className="flex-1 min-h-0 w-full">
@@ -402,16 +402,16 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
       </div>
 
       {feedback !== 'idle' && (
-        <div className={`text-center text-base font-semibold shrink-0 ${feedback === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
-          {feedback === 'correct' ? '✓ 正解！' : '✗ 不正解'}
+        <div className="text-center shrink-0">
+          <div className={`text-base font-semibold ${feedback === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
+            {feedback === 'correct' ? '✓ 正解！' : '✗ 不正解'}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {mode === 'B'
+              ? `${withKana(municipality.name, municipality.kana)} （正解: ${municipality.prefecture}）`
+              : withKana(municipality.name, municipality.kana)}
+          </p>
         </div>
-      )}
-      {feedback !== 'idle' && (
-        <p className="text-center text-xs text-muted-foreground shrink-0">
-          {mode === 'B'
-            ? withKana(municipality.prefecture, PREFECTURE_KANA[municipality.prefecture])
-            : withKana(municipality.name, municipality.kana)}
-        </p>
       )}
 
       {modeDFailed && (
