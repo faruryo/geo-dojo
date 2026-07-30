@@ -8,8 +8,7 @@ declare global {
   }
 }
 
-// @ts-expect-error sw context
-declare const self: ServiceWorkerGlobalScope & typeof globalThis;
+declare const self: ServiceWorkerGlobalScope;
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,

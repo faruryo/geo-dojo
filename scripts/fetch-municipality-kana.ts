@@ -15,7 +15,7 @@ const OUT_PATH = path.join(__dirname, 'data', 'municipality-kana-seed.json');
 
 // ─── 半角カタカナ → 全角カタカナ → ひらがな（決定的変換） ──────────────
 
-const HALFWIDTH_TO_FULLWIDTH_BASE: Record<string, string> = {
+const HALFWIDTH_TO_FULLWIDTH_BASE: Partial<Record<string, string>> = {
   '｡': '。', '｢': '「', '｣': '」', '､': '、', '･': '・',
   'ｦ': 'ヲ', 'ｧ': 'ァ', 'ｨ': 'ィ', 'ｩ': 'ゥ', 'ｪ': 'ェ', 'ｫ': 'ォ',
   'ｬ': 'ャ', 'ｭ': 'ュ', 'ｮ': 'ョ', 'ｯ': 'ッ', 'ｰ': 'ー',
@@ -32,7 +32,7 @@ const HALFWIDTH_TO_FULLWIDTH_BASE: Record<string, string> = {
 };
 
 // 濁点（ﾞ）が付くと変化する行（カ・サ・タ・ハ行 + ウ→ヴ）
-const DAKUTEN_MAP: Record<string, string> = {
+const DAKUTEN_MAP: Partial<Record<string, string>> = {
   'カ': 'ガ', 'キ': 'ギ', 'ク': 'グ', 'ケ': 'ゲ', 'コ': 'ゴ',
   'サ': 'ザ', 'シ': 'ジ', 'ス': 'ズ', 'セ': 'ゼ', 'ソ': 'ゾ',
   'タ': 'ダ', 'チ': 'ヂ', 'ツ': 'ヅ', 'テ': 'デ', 'ト': 'ド',
@@ -41,7 +41,7 @@ const DAKUTEN_MAP: Record<string, string> = {
 };
 
 // 半濁点（ﾟ）が付くと変化する行（ハ行のみ）
-const HANDAKUTEN_MAP: Record<string, string> = {
+const HANDAKUTEN_MAP: Partial<Record<string, string>> = {
   'ハ': 'パ', 'ヒ': 'ピ', 'フ': 'プ', 'ヘ': 'ペ', 'ホ': 'ポ',
 };
 
@@ -98,6 +98,12 @@ interface SoumuRow {
   municipalityKanaHalf: string | null;
 }
 
+function cellString(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  return '';
+}
+
 async function fetchSoumuRows(): Promise<SoumuRow[]> {
   console.log(`[fetch] downloading ${SOURCE_URL}`);
   const res = await fetch(SOURCE_URL);
@@ -116,11 +122,11 @@ async function fetchSoumuRows(): Promise<SoumuRow[]> {
   return rows.slice(1)
     .filter((r) => r[0])
     .map((r) => ({
-      code6: String(r[0]),
-      prefectureKanji: String(r[1] ?? ''),
-      municipalityKanji: r[2] ? String(r[2]) : null,
-      prefectureKanaHalf: String(r[3] ?? ''),
-      municipalityKanaHalf: r[4] ? String(r[4]) : null,
+      code6: cellString(r[0]),
+      prefectureKanji: cellString(r[1]),
+      municipalityKanji: r[2] ? cellString(r[2]) : null,
+      prefectureKanaHalf: cellString(r[3]),
+      municipalityKanaHalf: r[4] ? cellString(r[4]) : null,
     }));
 }
 

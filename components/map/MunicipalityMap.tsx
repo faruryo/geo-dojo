@@ -72,7 +72,7 @@ export function MunicipalityMap({
       if (!cancelled) onLoadError?.();
     };
 
-    (async () => {
+    void (async () => {
       try {
         const [maps, topology] = await Promise.all([getMapsLibrary(), getTopology()]);
         if (cancelled || !containerRef.current) return;

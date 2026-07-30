@@ -12,6 +12,16 @@ const MODE_LABELS: Record<GameMode, string> = {
 };
 const COUNTS = [10, 20, 30] as const;
 const LOCAL_STORAGE_KEY = 'geodojo-recommend-region-filters';
+const VALID_REGIONS: ReadonlySet<string> = new Set(REGION_VALUES);
+
+function isSavedRegionFilter(value: unknown): value is { targetRegions: unknown[] } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'targetRegions' in value &&
+    Array.isArray(value.targetRegions)
+  );
+}
 
 export type Overrides = {
   mode: GameMode;
@@ -36,18 +46,19 @@ export function RecommendOverride({ initial, onChange }: Props) {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.targetRegions)) {
-          loadedRegions = parsed.targetRegions.filter((r: string) => (REGION_VALUES as readonly string[]).includes(r));
+        const parsed: unknown = JSON.parse(saved);
+        if (isSavedRegionFilter(parsed)) {
+          loadedRegions = parsed.targetRegions.filter(
+            (region): region is string =>
+              typeof region === 'string' && VALID_REGIONS.has(region),
+          );
         }
       }
     } catch (e) {
       console.error('Failed to load region filters from localStorage', e);
     }
 
-    const finalRegions = loadedRegions !== null
-      ? loadedRegions
-      : ((initial.regions as string[]) || []).filter((r) => r !== '全国' && (REGION_VALUES as readonly string[]).includes(r));
+    const finalRegions = loadedRegions ?? [...initial.regions];
 
     setTargetRegions(finalRegions);
     onChange({
@@ -55,7 +66,6 @@ export function RecommendOverride({ initial, onChange }: Props) {
       count,
       targetRegions: finalRegions,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function update(next: Partial<Overrides>) {
@@ -190,4 +200,3 @@ export function RecommendOverride({ initial, onChange }: Props) {
     </div>
   );
 }
-

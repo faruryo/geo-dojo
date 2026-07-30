@@ -67,7 +67,7 @@ export default function ReviewPage() {
 
   useEffect(() => {
     if (masterLoading || allMunicipalities.length === 0 || phase !== 'loading') return;
-    loadBatch();
+    void loadBatch();
   }, [masterLoading, allMunicipalities, phase, loadBatch]);
 
   // ─── Loading ──────────────────────────────────────────────────────
