@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "app/sw.ts",
+    "scripts/*.{ts,mjs}",
+    "drizzle.config.ts",
+    "next.config.ts",
+    "postcss.config.js",
+    "vitest.config.ts"
+  ],
+  "project": [
+    "**/*.{ts,tsx,mjs,js}",
+    "!node_modules/**",
+    "!.next/**",
+    "!public/**",
+    "!reports/**",
+    "!.agents/**",
+    "!.specify/**"
+  ]
+}

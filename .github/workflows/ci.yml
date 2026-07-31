@@ -25,7 +25,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
+      - name: Lint
+        run: pnpm lint
+      - name: Enforce lint warning ratchet
+        run: pnpm lint:ratchet
+      - name: Type check
+        run: pnpm type-check
 
   test:
     name: Test

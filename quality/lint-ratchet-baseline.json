@@ -1,0 +1,750 @@
+{
+  "version": 1,
+  "violations": [
+    {
+      "file": "__tests__/lib/quiz/mode-a-dedupe.test.ts",
+      "rule": "sonarjs/no-alphabetical-sort",
+      "count": 2
+    },
+    {
+      "file": "__tests__/lib/quiz/municipality-data.test.ts",
+      "rule": "sonarjs/no-alphabetical-sort",
+      "count": 2
+    },
+    {
+      "file": "__tests__/lib/quiz/quiz-results.test.ts",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 2
+    },
+    {
+      "file": "__tests__/lib/quiz/representative-difficulty.test.ts",
+      "rule": "sonarjs/no-undefined-argument",
+      "count": 3
+    },
+    {
+      "file": "__tests__/lib/quiz/same-name-exclusion.test.ts",
+      "rule": "sonarjs/prefer-specific-assertions",
+      "count": 1
+    },
+    {
+      "file": "__tests__/server/no-public-runtime-read.test.ts",
+      "rule": "security/detect-non-literal-fs-filename",
+      "count": 3
+    },
+    {
+      "file": "__tests__/server/rls-on-user-tables.test.ts",
+      "rule": "security/detect-non-literal-fs-filename",
+      "count": 1
+    },
+    {
+      "file": "__tests__/server/rls-on-user-tables.test.ts",
+      "rule": "security/detect-non-literal-regexp",
+      "count": 1
+    },
+    {
+      "file": "__tests__/server/rls-on-user-tables.test.ts",
+      "rule": "security/detect-unsafe-regex",
+      "count": 1
+    },
+    {
+      "file": "__tests__/server/rls-on-user-tables.test.ts",
+      "rule": "sonarjs/no-alphabetical-sort",
+      "count": 1
+    },
+    {
+      "file": "__tests__/server/rls-on-user-tables.test.ts",
+      "rule": "sonarjs/super-linear-regex",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/dashboard/actions.ts",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/dashboard/actions.ts",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/dashboard/actions.ts",
+      "rule": "sonarjs/use-type-alias",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/dashboard/queries.ts",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 4
+    },
+    {
+      "file": "app/(app)/dashboard/queries.ts",
+      "rule": "complexity",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/dashboard/queries.ts",
+      "rule": "max-lines-per-function",
+      "count": 4
+    },
+    {
+      "file": "app/(app)/dashboard/queries.ts",
+      "rule": "security/detect-object-injection",
+      "count": 16
+    },
+    {
+      "file": "app/(app)/dashboard/queries.ts",
+      "rule": "sonarjs/cognitive-complexity",
+      "count": 2
+    },
+    {
+      "file": "app/(app)/dashboard/queries.ts",
+      "rule": "sonarjs/no-alphabetical-sort",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/dashboard/queries.ts",
+      "rule": "sonarjs/no-nested-conditional",
+      "count": 8
+    },
+    {
+      "file": "app/(app)/dashboard/queries.ts",
+      "rule": "sonarjs/use-type-alias",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/layout.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 2
+    },
+    {
+      "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
+      "rule": "complexity",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
+      "rule": "max-lines-per-function",
+      "count": 2
+    },
+    {
+      "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
+      "rule": "security/detect-object-injection",
+      "count": 3
+    },
+    {
+      "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
+      "rule": "sonarjs/cognitive-complexity",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
+      "rule": "sonarjs/no-nested-conditional",
+      "count": 4
+    },
+    {
+      "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
+      "rule": "sonarjs/no-nested-functions",
+      "count": 3
+    },
+    {
+      "file": "app/(app)/quiz/municipality/actions.ts",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 2
+    },
+    {
+      "file": "app/(app)/quiz/municipality/actions.ts",
+      "rule": "max-lines-per-function",
+      "count": 2
+    },
+    {
+      "file": "app/(app)/quiz/municipality/page.tsx",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/quiz/municipality/page.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/quiz/municipality/page.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/quiz/prefecture/page.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/quiz/prefecture/page.tsx",
+      "rule": "security/detect-object-injection",
+      "count": 4
+    },
+    {
+      "file": "app/(app)/quiz/prefecture/page.tsx",
+      "rule": "sonarjs/pseudo-random",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/quiz/review/items/page.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/quiz/review/items/page.tsx",
+      "rule": "sonarjs/no-nested-conditional",
+      "count": 1
+    },
+    {
+      "file": "app/(app)/quiz/review/page.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "app/(auth)/forgot-password/page.tsx",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 2
+    },
+    {
+      "file": "app/(auth)/forgot-password/page.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "app/(auth)/forgot-password/page.tsx",
+      "rule": "sonarjs/deprecation",
+      "count": 1
+    },
+    {
+      "file": "app/(auth)/login/page.tsx",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 2
+    },
+    {
+      "file": "app/(auth)/login/page.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "app/(auth)/login/page.tsx",
+      "rule": "sonarjs/deprecation",
+      "count": 1
+    },
+    {
+      "file": "app/(auth)/reset-password/page.tsx",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 2
+    },
+    {
+      "file": "app/(auth)/reset-password/page.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "app/(auth)/reset-password/page.tsx",
+      "rule": "security/detect-possible-timing-attacks",
+      "count": 1
+    },
+    {
+      "file": "app/(auth)/reset-password/page.tsx",
+      "rule": "sonarjs/deprecation",
+      "count": 1
+    },
+    {
+      "file": "app/(auth)/signup/page.tsx",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 2
+    },
+    {
+      "file": "app/(auth)/signup/page.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "app/(auth)/signup/page.tsx",
+      "rule": "sonarjs/deprecation",
+      "count": 1
+    },
+    {
+      "file": "app/layout.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "app/providers.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/accuracy-chart.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/accuracy-chart.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/completion-chart.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/completion-chart.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/completion-progress.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/dashboard-client.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/difficulty-progress.tsx",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/difficulty-progress.tsx",
+      "rule": "sonarjs/no-nested-conditional",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/difficulty-progress.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/empty-state.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/filter-bar.tsx",
+      "rule": "security/detect-object-injection",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/filter-bar.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/filter-bar.tsx",
+      "rule": "sonarjs/redundant-type-aliases",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/milestone-banner.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/review-card.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "components/dashboard/summary-cards.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 2
+    },
+    {
+      "file": "components/dashboard/weakness-ranking.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "components/map/JapanMap.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "components/map/JapanMap.tsx",
+      "rule": "sonarjs/no-nested-conditional",
+      "count": 5
+    },
+    {
+      "file": "components/map/JapanMap.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/map/MiniJapanMap.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/map/MunicipalityMap.tsx",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 2
+    },
+    {
+      "file": "components/map/MunicipalityMap.tsx",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 2
+    },
+    {
+      "file": "components/map/MunicipalityMap.tsx",
+      "rule": "max-lines-per-function",
+      "count": 3
+    },
+    {
+      "file": "components/map/MunicipalityMap.tsx",
+      "rule": "security/detect-object-injection",
+      "count": 2
+    },
+    {
+      "file": "components/map/MunicipalityMap.tsx",
+      "rule": "sonarjs/no-nested-conditional",
+      "count": 2
+    },
+    {
+      "file": "components/map/MunicipalityMap.tsx",
+      "rule": "sonarjs/no-nested-functions",
+      "count": 2
+    },
+    {
+      "file": "components/map/MunicipalityMap.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/quiz/quiz-runner.tsx",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 1
+    },
+    {
+      "file": "components/quiz/quiz-runner.tsx",
+      "rule": "complexity",
+      "count": 1
+    },
+    {
+      "file": "components/quiz/quiz-runner.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "components/quiz/quiz-runner.tsx",
+      "rule": "security/detect-object-injection",
+      "count": 5
+    },
+    {
+      "file": "components/quiz/quiz-runner.tsx",
+      "rule": "sonarjs/cognitive-complexity",
+      "count": 1
+    },
+    {
+      "file": "components/quiz/quiz-runner.tsx",
+      "rule": "sonarjs/no-nested-conditional",
+      "count": 3
+    },
+    {
+      "file": "components/quiz/quiz-runner.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/recommend/recommend-content.tsx",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 1
+    },
+    {
+      "file": "components/recommend/recommend-content.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "components/recommend/recommend-content.tsx",
+      "rule": "security/detect-object-injection",
+      "count": 2
+    },
+    {
+      "file": "components/recommend/recommend-content.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/recommend/recommend-hero-card.tsx",
+      "rule": "security/detect-object-injection",
+      "count": 1
+    },
+    {
+      "file": "components/recommend/recommend-override.tsx",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "components/recommend/recommend-override.tsx",
+      "rule": "security/detect-object-injection",
+      "count": 1
+    },
+    {
+      "file": "components/recommend/recommend-override.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/recommend/recommend-rationale.tsx",
+      "rule": "security/detect-object-injection",
+      "count": 1
+    },
+    {
+      "file": "components/recommend/recommend-rationale.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/ui/separator.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 1
+    },
+    {
+      "file": "components/ui/sheet.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 7
+    },
+    {
+      "file": "components/ui/tabs.tsx",
+      "rule": "sonarjs/prefer-read-only-props",
+      "count": 3
+    },
+    {
+      "file": "drizzle.config.ts",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 1
+    },
+    {
+      "file": "lib/db/index.ts",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 1
+    },
+    {
+      "file": "lib/get-query-client.ts",
+      "rule": "sonarjs/deprecation",
+      "count": 2
+    },
+    {
+      "file": "lib/quiz/municipality-data.ts",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/municipality-data.ts",
+      "rule": "security/detect-object-injection",
+      "count": 7
+    },
+    {
+      "file": "lib/quiz/municipality-data.ts",
+      "rule": "sonarjs/pseudo-random",
+      "count": 2
+    },
+    {
+      "file": "lib/quiz/recommendation/axes/progression.ts",
+      "rule": "max-depth",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/axes/progression.ts",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/axes/progression.ts",
+      "rule": "sonarjs/cognitive-complexity",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/cell-stats.ts",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 2
+    },
+    {
+      "file": "lib/quiz/recommendation/cell-stats.ts",
+      "rule": "complexity",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/cell-stats.ts",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/cell-stats.ts",
+      "rule": "security/detect-object-injection",
+      "count": 2
+    },
+    {
+      "file": "lib/quiz/recommendation/cell-stats.ts",
+      "rule": "sonarjs/cognitive-complexity",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/engine.ts",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/engine.ts",
+      "rule": "complexity",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/engine.ts",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/engine.ts",
+      "rule": "sonarjs/cognitive-complexity",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/engine.ts",
+      "rule": "sonarjs/use-type-alias",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/fit-zone.ts",
+      "rule": "security/detect-object-injection",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/rationale.ts",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/rationale.ts",
+      "rule": "complexity",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/rationale.ts",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/rationale.ts",
+      "rule": "security/detect-object-injection",
+      "count": 7
+    },
+    {
+      "file": "lib/quiz/recommendation/rationale.ts",
+      "rule": "sonarjs/cognitive-complexity",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/recommendation/rationale.ts",
+      "rule": "sonarjs/no-nested-conditional",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/review-questions.ts",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/review-questions.ts",
+      "rule": "max-depth",
+      "count": 4
+    },
+    {
+      "file": "lib/quiz/review-questions.ts",
+      "rule": "sonarjs/cognitive-complexity",
+      "count": 1
+    },
+    {
+      "file": "lib/quiz/sound-effects.ts",
+      "rule": "security/detect-object-injection",
+      "count": 1
+    },
+    {
+      "file": "lib/supabase/client.ts",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 4
+    },
+    {
+      "file": "lib/supabase/client.ts",
+      "rule": "security/detect-object-injection",
+      "count": 1
+    },
+    {
+      "file": "lib/supabase/server.ts",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 2
+    },
+    {
+      "file": "scripts/apply-municipality-master.ts",
+      "rule": "sonarjs/super-linear-regex",
+      "count": 1
+    },
+    {
+      "file": "scripts/backfill-early-graduation.ts",
+      "rule": "sonarjs/super-linear-regex",
+      "count": 1
+    },
+    {
+      "file": "scripts/check-lint-ratchet.mjs",
+      "rule": "security/detect-non-literal-fs-filename",
+      "count": 3
+    },
+    {
+      "file": "scripts/fetch-municipality-kana.ts",
+      "rule": "@typescript-eslint/no-non-null-assertion",
+      "count": 1
+    },
+    {
+      "file": "scripts/fetch-municipality-kana.ts",
+      "rule": "security/detect-object-injection",
+      "count": 10
+    },
+    {
+      "file": "scripts/generate-municipalities.ts",
+      "rule": "security/detect-object-injection",
+      "count": 2
+    },
+    {
+      "file": "scripts/generate-prefecture-center.ts",
+      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
+      "count": 1
+    },
+    {
+      "file": "scripts/generate-prefecture-center.ts",
+      "rule": "security/detect-object-injection",
+      "count": 3
+    },
+    {
+      "file": "scripts/generate-prefecture-center.ts",
+      "rule": "sonarjs/no-nested-assignment",
+      "count": 1
+    },
+    {
+      "file": "scripts/sync-municipality-master.ts",
+      "rule": "max-lines-per-function",
+      "count": 1
+    },
+    {
+      "file": "scripts/sync-municipality-master.ts",
+      "rule": "security/detect-object-injection",
+      "count": 1
+    },
+    {
+      "file": "scripts/sync-municipality-master.ts",
+      "rule": "sonarjs/super-linear-regex",
+      "count": 1
+    }
+  ]
+}

@@ -35,10 +35,18 @@ Backlog（将来の spec 候補）は specs/backlog.md に管理
 pnpm dev      # 開発サーバー（Turbopack、http://127.0.0.1:3000）
 pnpm build    # 本番ビルド（serwist 有効）
 pnpm start    # 本番サーバー
-pnpm lint     # next lint（型チェック含む）
+pnpm lint     # ESLint（型チェックは別の pnpm type-check）
+pnpm lint:ratchet # 既存lint警告のファイル・ルール別baselineから増加がないことを確認
+pnpm type-check   # TypeScript strict型検査
+pnpm test         # Vitest回帰テスト
+pnpm audit:duplicates # jscpd重複レポート（report-only）
+pnpm audit:dead-code  # Knip未使用候補レポート（report-only）
 ```
 
 ソース（`.tsx`/`.ts`/`.css`）編集は Turbopack HMR が反映するので dev 再起動不要。再起動が要るのは config / env / 依存変更時のみ。
+
+- **Testing**: テスト追加・既存ロジックのテスタビリティ改善前に `.agents/rules/testing.instructions.md` を読む。pure関数、I/O境界への依存注入、ケース表、新規回帰テストが実際に赤くなる確認を定義している。
+- **Automated quality**: lint ratchet、jscpd/Knip、AIレビュー運用の詳細は `docs/automated-quality.md` を参照。
 
 ## 環境分離
 
@@ -108,3 +116,13 @@ supabase db reset           # マイグレーションをゼロから再適用�
   - 本番ログ: `vercel logs <prod-deployment-url> --json`（`level:"error"` を探す）。
   - 本番 DB read-only 集計: `node scripts/diag-srs.mjs`（`.env.prod.local` を読む）。SRS の `due_date` / `last_reviewed_at` / quiz_results の最新 `answered_at` を出す。**本番DB直クエリは安全機構がブロックするのでユーザーに `!node scripts/diag-srs.mjs` の実行を依頼する。**
 - **Preview デプロイは本番 DB を共有**するので、DB 書き込みを伴う修正はマージ前に PR の Preview URL でプレイ→`diag-srs.mjs` で確認できる（マージ＝本番反映の前に end-to-end 検証）。
+
+## Code Review Rules
+
+- `user_id`を持つテーブルを追加・変更するのに、同じmigrationでRLS有効化と`auth.uid()`スコープのpolicyを設定しない変更をBLOCKERとする。アプリのDrizzle接続はRLSを迂回するため、アプリ動作だけでは安全性を確認できない。
+- serverコードが`public/`配下を実行時にfilesystem読みする変更をBLOCKERとする。参照データはDBを正とし、必要ならJSONをビルド時importする。
+- Previewは本番Supabaseを共有する。テスト/検証データを無確認で書き込む変更、ユーザー間データを混ぜるクエリ、破壊的migrationをBLOCKERとする。local stackかread-only診断を安全経路にする。
+- 保存系Server Actionの失敗をクライアントまたはサーバで握り潰す変更をBLOCKERとする。UX継続が必要でも両境界で理由を記録し、サーバ側は再throwする。
+- Mode Aの同名・複数県問題は1問表示・県別保存である。保存行数を完了問題数に使う変更を指摘し、`toQuestionResult()`相当の1問1件正規化を維持する。
+- UI変更では375px幅、ダークモード、回答前後の情報開示を確認する。機械的なformat/lint事項はレビュー指摘にせずCIへ任せる。
+- 製品/runtime挙動を変える変更は該当Spec Kitのspec/plan/tasksと整合させる。CI、lint、開発ツール、agent規約、文書、PR templateだけの変更には新規feature specを要求しない。

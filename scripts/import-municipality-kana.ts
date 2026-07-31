@@ -12,8 +12,21 @@ import postgres from 'postgres';
 
 const SEED_PATH = path.join(__dirname, 'data', 'municipality-kana-seed.json');
 
+function parseKanaSeed(json: string): Record<string, string> {
+  const value: unknown = JSON.parse(json);
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    Array.isArray(value) ||
+    !Object.values(value).every((entry) => typeof entry === 'string')
+  ) {
+    throw new Error('municipality kana seed must be an object of string values');
+  }
+  return Object.fromEntries(Object.entries(value));
+}
+
 async function main() {
-  const seed: Record<string, string> = JSON.parse(fs.readFileSync(SEED_PATH, 'utf-8'));
+  const seed = parseKanaSeed(fs.readFileSync(SEED_PATH, 'utf-8'));
   const entries = Object.entries(seed);
   console.log(`[import] loaded ${entries.length} codes from ${SEED_PATH}`);
 
