@@ -3,7 +3,7 @@
 **Input**: Design documents from `/specs/015-kana-support/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/kana-data.md, quickstart.md
 
-**Tests**: PREFECTURE_KANA の整合性・kana 伝播ロジックに対する Vitest 単体テスト、および `getWeaknessRankingData`/`getDueReviewItems`/`getReviewItemList` の kana 列に対する既存 DB 統合テストパターンの拡張を含む（プロジェクト方針: 純粋関数＋Vitest、DB統合テストは `DATABASE_URL` 切り替え）。UI レンダリングは手動確認（quickstart.md）。
+**Tests**: PREFECTURE_KANA の整合性・kana 伝播ロジック・Mode A のフィードバック表示整形に対する Vitest 単体テスト、および `getWeaknessRankingData`/`getDueReviewItems`/`getReviewItemList` の kana 列に対する既存 DB 統合テストパターンの拡張を含む（プロジェクト方針: 純粋関数＋Vitest、DB統合テストは `DATABASE_URL` 切り替え）。UI レンダリングは手動確認（quickstart.md）。
 
 **Organization**: タスクはユーザーストーリー単位。US1（解答直後フィードバック）が P1 (MVP)。US2（苦手リスト・復習項目一覧）、US3（出題中表示）は独立して実装・検証可能だが、いずれも Foundational フェーズでの `kana` データ整備・伝播に依存する。
 
@@ -53,9 +53,11 @@ Next.js 単一プロジェクト（App Router）。DB スキーマは `lib/db/sc
 
 - [x] T010 [US1] `app/(app)/quiz/municipality/[mode]/page.tsx` で `masterData` から `Municipality[]` を構築する箇所に `kana: m.kana ?? undefined` を追加し、下流（`buildQuestions`, `QuizRunner`）に伝播させる。
 - [x] T011 [US1] `app/(app)/quiz/review/page.tsx` で同様に `allMunicipalities` の構築箇所に `kana` を伝播させる。
-- [x] T012 [US1] `components/quiz/quiz-runner.tsx` のモードA正解・不正解フィードバック部分で、出題対象の市区町村名（`name`）に対応する読み仮名、および正解都道府県リスト（`correctPrefectures`）に `PREFECTURE_KANA` を用いた読み仮名を併記する。読み仮名が存在しない場合は何も表示しない（FR-005）。
+- [x] T012 [US1] `components/quiz/quiz-runner.tsx` のモードA〜D正解・不正解フィードバック部分で、出題対象の市区町村名に対応する読み仮名（`kana`）を併記する。特にモードA（都道府県当て）では回答都道府県ではなく出題対象市区町村の `kana` を表示し、同名自治体の読みが都道府県ごとに異なる場合は `都道府県: 読み` の組で対応を明示する。また `app/(app)/quiz/prefecture/page.tsx`（都道府県クイズ）では `PREFECTURE_KANA` を用いて都道府県の読み仮名を併記する。読み仮名が存在しない場合は何も表示しない（FR-005, FR-006）。
+  - **レビュー修正**: `lib/quiz/feedback-labels.ts` に表示整形を純粋関数として分離し、`__tests__/lib/quiz/feedback-labels.test.ts` で松前町（北海道/愛媛県）の異読、一部欠落、全件欠落を回帰テストする。
 - [x] T013 [US1] `components/quiz/quiz-runner.tsx` のモードB/C/D正解・不正解フィードバック部分で、対象市区町村の `kana` を読み仮名として併記する。読み仮名が存在しない場合は何も表示しない（FR-005）。
-  - **バグ修正（実装レビューで発見）**: 初回実装は「正解」時に読み仮名を一切表示していなかった（不正解メッセージの中にのみ埋め込んでいたため）。また、モードA/Bは出題（お題）が市区町村名で答えが都道府県のため、答え側（都道府県）の読みしか出ておらず、学習対象である市区町村側の読みが解答後も表示されない欠落があった。正解・不正解どちらでも「✓/✗」の下に都道府県側・市区町村側の読みを常に別行で表示するよう修正（ブラウザで実機確認: モードAの「大野市/おおのし」→「福井県（ふくいけん）」、モードBの「下郷町/しもごうまち」→「福島県（ふくしまけん）」で確認）。
+  - **バグ修正（仕様改修）**: モードA（都道府県当て）およびモードB（名前当て）は出題が市区町村名で答えが都道府県であるため、解答フィードバックで出題対象市区町村の読み仮名（ひらがな）が確実に画面へ伝播・表示されるように整備（モードAの「大野市/おおのし」→「正解: 福井県」、モードBの「下郷町/しもごうまち」→「正解: 福島県」等で確認）。都道府県クイズ（`/quiz/prefecture`）では「北海道（ほっかいどう）」等の都道府県読み仮名を表示。
+
 
 **Checkpoint**: 全モードの解答直後フィードバックに読み仮名が併記される（MVP完了）。
 

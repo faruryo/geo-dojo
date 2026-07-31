@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 import { completionSeEvent, playSe } from '@/lib/quiz/sound-effects';
 import { MuteToggle } from '@/components/quiz/mute-toggle';
+import { PREFECTURE_KANA } from '@/lib/quiz/municipality-data';
 
 const JapanMap = dynamic(
   () => import('@/components/map/JapanMap').then((m) => m.JapanMap),
@@ -22,6 +23,12 @@ const PREFECTURES = [
   '徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県',
   '熊本県','大分県','宮崎県','鹿児島県','沖縄県',
 ];
+
+const PREFECTURE_KANA_MAP = new Map<string, string>(Object.entries(PREFECTURE_KANA));
+
+function getPrefectureKana(prefecture: string): string | undefined {
+  return PREFECTURE_KANA_MAP.get(prefecture);
+}
 
 type QuizState = 'question' | 'correct' | 'wrong' | 'result';
 
@@ -121,11 +128,14 @@ export default function PrefectureQuizPage() {
           <div className="rounded-xl bg-card p-4">
             <p className="text-sm font-medium mb-2">苦手な都道府県：</p>
             <div className="flex flex-wrap gap-1.5">
-              {wrong.map((r) => (
-                <span key={r.prefecture} className="text-xs px-2 py-0.5 rounded-full bg-destructive/20 text-destructive">
-                  {r.prefecture}
-                </span>
-              ))}
+              {wrong.map((r) => {
+                const kana = getPrefectureKana(r.prefecture);
+                return (
+                  <span key={r.prefecture} className="text-xs px-2 py-0.5 rounded-full bg-destructive/20 text-destructive">
+                    {r.prefecture}{kana ? `（${kana}）` : ''}
+                  </span>
+                );
+              })}
             </div>
           </div>
         )}
@@ -152,8 +162,13 @@ export default function PrefectureQuizPage() {
       </div>
 
       {state !== 'question' && (
-        <div className={`text-center text-lg font-semibold ${state === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
-          {state === 'correct' ? '✓ 正解！' : `✗ 不正解（${target}）`}
+        <div className="text-center">
+          <div className={`text-lg font-semibold ${state === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
+            {state === 'correct' ? '✓ 正解！' : '✗ 不正解'}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {target}{getPrefectureKana(target) ? `（${getPrefectureKana(target)}）` : ''}
+          </p>
         </div>
       )}
 

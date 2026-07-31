@@ -75,10 +75,14 @@ scripts/
 └── import-municipality-kana.ts      # [新規] seed JSON を読み込み municipality_master.kana のみを UPDATE する独立スクリプト（sync-municipality-master.ts は拡張しない）
 
 lib/quiz/
-└── municipality-data.ts             # [変更] PREFECTURE_KANA（47件の静的マップ）追加、Municipality interface に kana?: string 追加
+├── municipality-data.ts             # [変更] PREFECTURE_KANA（47件の静的マップ）追加、Municipality interface に kana?: string 追加
+└── feedback-labels.ts               # [新規] Mode A の同名自治体について都道府県と読みを対応付ける純粋な表示整形
+
+app/(app)/quiz/prefecture/
+└── page.tsx                         # [変更] 正解・不正解フィードバック表示時に PREFECTURE_KANA を参照して都道府県の読み仮名を併記
 
 app/(app)/quiz/municipality/[mode]/
-└── page.tsx                         # [変更] masterData → Municipality 変換時に kana を伝播（下流の feedback 表示に必要。問題文・選択肢自体には表示しない）
+└── page.tsx                         # [変更] masterData → Municipality 変換時に kana を伝播（モードA含め下流の feedback 表示に必要。問題文・選択肢自体には表示しない）
 
 app/(app)/quiz/review/
 ├── page.tsx                         # [変更] masterData → Municipality 変換時に kana を伝播、「まだ苦手な市区町村」バッジに反映（P2）
@@ -92,11 +96,12 @@ app/(app)/dashboard/
 └── queries.ts                       # [変更] getWeaknessRankingData の SELECT に municipalityMaster.kana を追加
 
 components/
-├── quiz/quiz-runner.tsx             # [変更] 正解・不正解フィードバック表示に kana を併記（P1）。出題中の問題文・選択肢には併記しない（スコープ外）
+├── quiz/quiz-runner.tsx             # [変更] モードA〜Dの正解・不正解フィードバック表示に対象市区町村の kana を併記（P1）。モードAでは回答都道府県ではなく出題対象市区町村の kana を表示
 └── dashboard/weakness-ranking.tsx   # [変更] 苦手ランキングの各項目に kana を併記（P2）
 
 __tests__/
 ├── lib/quiz/municipality-data.test.ts   # [変更/新規] PREFECTURE_KANA・Municipality.kana 伝播のテスト
+├── lib/quiz/feedback-labels.test.ts     # [新規] Mode A の単一・同読・異読・読み欠落時の表示回帰テスト
 └── lib/dashboard/queries-parity.test.ts # [変更] getWeaknessRankingData/getDueReviewItems/getReviewItemList の kana 列 DB 統合テスト追加
 ```
 

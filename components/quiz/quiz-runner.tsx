@@ -6,7 +6,8 @@ import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { saveMunicipalityQuizResult } from '@/app/(app)/quiz/municipality/actions';
-import { DIFFICULTY_LABEL, PREFECTURE_KANA, dedupeInstancesByPrefecture, representativeDifficulty, type GameMode, type Municipality } from '@/lib/quiz/municipality-data';
+import { DIFFICULTY_LABEL, dedupeInstancesByPrefecture, representativeDifficulty, type GameMode, type Municipality } from '@/lib/quiz/municipality-data';
+import { formatModeAFeedback, withKana } from '@/lib/quiz/feedback-labels';
 import { toQuestionResult } from '@/lib/quiz/quiz-results';
 import { completionSeEvent, playSe } from '@/lib/quiz/sound-effects';
 import { MuteToggle } from '@/components/quiz/mute-toggle';
@@ -46,11 +47,6 @@ interface ResultEntry {
 type FeedbackState = 'idle' | 'correct' | 'incorrect';
 
 const TIME_LIMIT_SEC = 30;
-
-// 読み仮名が存在する場合のみ「名称（かな）」の形で併記する（FR-005: 未整備データはそのまま名称のみ）。
-function withKana(name: string, kana: string | undefined): string {
-  return kana ? `${name}（${kana}）` : name;
-}
 
 interface QuizRunnerProps {
   questions: Question[];
@@ -294,9 +290,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
     const { name, instances, correctPrefectures } = currentQuestion;
     const remaining = correctPrefectures.size - selectedPrefectures.size;
     const canSubmit = remaining === 0 && feedback === 'idle';
-    const municipalityKana = Array.from(
-      new Set(instances.map((i) => i.kana).filter((k): k is string => !!k))
-    ).join(' / ');
+    const feedbackLabel = formatModeAFeedback(name, instances);
 
     return (
       <div className="flex flex-col h-full gap-2 p-3 max-w-4xl mx-auto">
@@ -313,9 +307,6 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
           <p className="text-xs text-muted-foreground mb-1">この市区町村がある都道府県を地図でタップ</p>
           {difficultyBadge}
           <p className="text-2xl font-bold">{name}</p>
-          {feedback !== 'idle' && municipalityKana && (
-            <p className="text-xs text-muted-foreground mt-0.5">{municipalityKana}</p>
-          )}
           {correctPrefectures.size > 1 && (
             <p className="text-xs text-muted-foreground mt-1">{correctPrefectures.size} か所あります</p>
           )}
@@ -325,14 +316,12 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
         </div>
 
         {feedback !== 'idle' && (
-          <div className={`text-center text-base font-semibold shrink-0 ${feedback === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
-            {feedback === 'correct' ? '✓ 正解！' : '✗ 不正解'}
+          <div className="text-center shrink-0">
+            <div className={`text-base font-semibold ${feedback === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
+              {feedback === 'correct' ? '✓ 正解！' : '✗ 不正解'}
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">{feedbackLabel}</p>
           </div>
-        )}
-        {feedback !== 'idle' && (
-          <p className="text-center text-xs text-muted-foreground shrink-0">
-            {[...correctPrefectures].map((p) => withKana(p, PREFECTURE_KANA[p])).join('・')}
-          </p>
         )}
 
         <div className="flex-1 min-h-0 w-full">
@@ -382,9 +371,6 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
             <p className="text-xs text-muted-foreground mb-1">この市区町村はどの都道府県？</p>
             {difficultyBadge}
             <p className="text-2xl font-bold">{municipality.name}</p>
-            {feedback !== 'idle' && municipality.kana && (
-              <p className="text-xs text-muted-foreground mt-0.5">{municipality.kana}</p>
-            )}
           </>
         ) : effectiveMode === 'D' ? (
           <>
@@ -403,16 +389,16 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
       </div>
 
       {feedback !== 'idle' && (
-        <div className={`text-center text-base font-semibold shrink-0 ${feedback === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
-          {feedback === 'correct' ? '✓ 正解！' : '✗ 不正解'}
+        <div className="text-center shrink-0">
+          <div className={`text-base font-semibold ${feedback === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
+            {feedback === 'correct' ? '✓ 正解！' : '✗ 不正解'}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {mode === 'B'
+              ? `${withKana(municipality.name, municipality.kana)} （正解: ${municipality.prefecture}）`
+              : withKana(municipality.name, municipality.kana)}
+          </p>
         </div>
-      )}
-      {feedback !== 'idle' && (
-        <p className="text-center text-xs text-muted-foreground shrink-0">
-          {mode === 'B'
-            ? withKana(municipality.prefecture, PREFECTURE_KANA[municipality.prefecture])
-            : withKana(municipality.name, municipality.kana)}
-        </p>
       )}
 
       {modeDFailed && (

@@ -45,3 +45,11 @@ export const PREFECTURE_KANA: Record<string, string>; // 47件、既存 ALL_PREF
 ```
 
 - **整合性ルール**: `Object.keys(PREFECTURE_KANA)` は `ALL_PREFECTURES` と完全に一致しなければならない（テストで担保）。
+
+## 6. クイズ表示・フィードバックUI契約 (Quiz Feedback Contract)
+
+- **市区町村クイズ（Mode A, B, C, D）**:
+  - フィードバック時に表示する読み仮名は、出題対象となる **市区町村の `kana`**（`ResultEntry.kana` / `Municipality.kana`）。
+  - Mode A（都道府県当て）では出題対象市区町村名に `kana` を併記する。複数都道府県の同名自治体で読みが異なる、または一部の読みが欠落する場合は、`都道府県: 市区町村の読み` の組で表示する。都道府県名自体の読みは付けない。
+- **都道府県クイズ (`/quiz/prefecture`)**:
+  - フィードバック時に表示する読み仮名は、対象となる **都道府県の読み仮名**（`PREFECTURE_KANA[targetPrefecture]`）。

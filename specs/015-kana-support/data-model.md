@@ -35,7 +35,7 @@ export const municipalityMaster = pgTable('municipality_master', {
 - **nullable な理由**: マイグレーション直後（シード適用前）や将来的にデータ欠落がありうるケースで、既存表示を壊さずグレースフルデグレードするため（FR-005）。
 - **値の形式**: ひらがなのみ（例: `さっぽろし`）。文字単位のルビ（各漢字への個別対応）ではなく、名称全体に対する読みをまとめて1文字列として保持する。
 
-### 3. クライアント側 Municipality インターフェース — フィールド追加
+### 3. クライアント側 Municipality インターフェース・クイズ構造 — フィールド追加
 
 ```typescript
 export interface Municipality {
@@ -46,7 +46,24 @@ export interface Municipality {
   difficulty?: Difficulty;
   kana?: string; // [新規] 読み仮名。municipality_master.kana から伝播（未整備なら undefined）
 }
+
+// QuizRunner の Mode A 問題定義
+export interface ModeAQuestion {
+  kind: 'A';
+  name: string;
+  instances: Municipality[]; // 各代表/都道府県インスタンス（kana を包含）
+  correctPrefectures: Set<string>;
+}
+
+// クイズ回答フィードバック・結果エントリー
+export interface ResultEntry {
+  name: string;      // 市区町村名（モードA含む市区町村クイズ）または 都道府県名（都道府県クイズ）
+  prefecture: string;
+  correct: boolean;
+  kana?: string;     // [新規] モードA含む市区町村クイズでは対象市区町村の kana、都道府県クイズでは都道府県の kana
+}
 ```
+
 
 ### 4. 苦手リスト・復習項目一覧の返却型 — フィールド追加
 
