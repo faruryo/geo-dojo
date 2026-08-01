@@ -83,4 +83,31 @@ describe('buildModeCDistractors', () => {
     expect(distractors).toHaveLength(3);
     expect(distractors.includes('横浜市')).toBe(true);
   });
+
+  it('collects all valid candidates before sampling to maintain distractor variety', () => {
+    const target: Municipality = {
+      code: '13101',
+      name: '千代田区',
+      prefecture: '東京都',
+      region: '関東',
+      difficulty: 'easy',
+    };
+
+    const manyEasyPool: Municipality[] = [
+      target,
+      { code: '14100', name: '横浜市', prefecture: '神奈川県', region: '関東', difficulty: 'easy' },
+      { code: '27100', name: '大阪市', prefecture: '大阪府', region: '近畿', difficulty: 'easy' },
+      { code: '40100', name: '福岡市', prefecture: '福岡県', region: '九州', difficulty: 'easy' },
+      { code: '01100', name: '札幌市', prefecture: '北海道', region: '北海道', difficulty: 'easy' },
+      { code: '23100', name: '名古屋市', prefecture: '愛知県', region: '中部', difficulty: 'easy' },
+    ];
+
+    const sampledNames = new Set<string>();
+    for (let i = 0; i < 30; i++) {
+      const distractors = buildModeCDistractors(target, manyEasyPool, { targetDifficulties: ['easy'] });
+      distractors.forEach((d) => sampledNames.add(d));
+    }
+
+    expect(sampledNames.size).toBe(5);
+  });
 });

@@ -207,10 +207,8 @@ function collectDistractors(
   ctx: DistractorFilterContext,
   diffSet: Set<Difficulty> | null,
   distractorPool: Map<string, Municipality>,
-  maxCount = 3,
 ): void {
   for (const c of pool) {
-    if (distractorPool.size >= maxCount) break;
     if (isValidDistractor(c, ctx, diffSet) && !distractorPool.has(c.name)) {
       distractorPool.set(c.name, c);
     }
