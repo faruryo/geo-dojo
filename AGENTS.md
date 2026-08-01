@@ -1,14 +1,14 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/012-continuous-review/plan.md
+at specs/015-kana-support/plan.md
 
 Backlog（将来の spec 候補）は specs/backlog.md に管理
 <!-- SPECKIT END -->
 
 # geo-dojo
 
-日本の地理クイズ PWA。市区町村・都道府県の位置当てクイズと、苦手・適応型の出題推薦を提供する。詳細設計は `specs/<feature>/plan.md`（最新: `specs/005-spaced-review/plan.md`）を参照。
+日本の地理クイズ PWA。市区町村・都道府県の位置当てクイズと、苦手・適応型の出題推薦を提供する。詳細設計は `specs/<feature>/plan.md`（最新: `specs/015-kana-support/plan.md`）を参照。
 
 ## 技術スタック
 
