@@ -21,6 +21,7 @@ import {
   REGIONS,
   SESSION_COUNTS,
   ALL_PREFECTURES,
+  buildModeCDistractors,
   filterByDifficulty,
   filterByRegions,
   filterSameName,
@@ -93,7 +94,6 @@ function buildQuestions(
   const sliced = deduped.slice(0, settings.count);
 
   const regionPrefs = getRegionsPrefectures(settings.regions);
-  const regionPrefSet = new Set(regionPrefs);
 
   return sliced.map((m): Question => {
     if (settings.mode === 'B') {
@@ -102,17 +102,10 @@ function buildQuestions(
       const choices = shuffle([m.prefecture, ...distractors]);
       return { kind: 'BCD', mode: 'B', municipality: m, choices };
     }
-    const useRegionDistractors = regionPrefs.length >= 4;
-    const namesInTargetPref = new Set(all.filter((a) => a.prefecture === m.prefecture).map((a) => a.name));
-    const distractorPool = new Map<string, Municipality>();
-    for (const c of all) {
-      if (c.prefecture === m.prefecture) continue;
-      if (useRegionDistractors && !regionPrefSet.has(c.prefecture)) continue;
-      if (namesInTargetPref.has(c.name)) continue;
-      if (distractorPool.has(c.name)) continue;
-      distractorPool.set(c.name, c);
-    }
-    const distractors = shuffle([...distractorPool.values()]).slice(0, 3).map((d) => d.name);
+    const distractors = buildModeCDistractors(m, source, {
+      regionPrefs,
+      targetDifficulties: settings.difficulties,
+    });
     const choices = shuffle([m.name, ...distractors]);
     return { kind: 'BCD', mode: settings.mode as 'C' | 'D', municipality: m, choices };
   });

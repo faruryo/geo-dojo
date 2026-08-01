@@ -4,6 +4,8 @@ import {
   type Municipality,
   type Region,
   ALL_PREFECTURES,
+  buildModeCDistractors,
+  filterSameName,
   getRegionsPrefectures,
   shuffle,
 } from '@/lib/quiz/municipality-data';
@@ -15,7 +17,6 @@ export function buildReviewQuestions(
   // モード混在 Question[] を組み立てる（出題順は期日優先順のまま）
   const seenInSession = new Set<string>();
   const qs: Question[] = [];
-  const namesByPrefecture = new Map<string, Set<string>>();
 
   // Mode A: 同じ name を持つ due コードをグルーピング
   const modeANames = new Set<string>();
@@ -50,24 +51,10 @@ export function buildReviewQuestions(
       } else {
         // Mode C/D
         const regionPrefs = getRegionsPrefectures([municipality.region as Region]);
-        const useRegion = regionPrefs.length >= 4;
-        let namesInTargetPref = namesByPrefecture.get(municipality.prefecture);
-        if (!namesInTargetPref) {
-          namesInTargetPref = new Set(
-            allMunicipalities.filter((a) => a.prefecture === municipality.prefecture).map((a) => a.name),
-          );
-          namesByPrefecture.set(municipality.prefecture, namesInTargetPref);
-        }
-        const regionPrefSet = new Set(regionPrefs);
-        const distractorPool = new Map<string, Municipality>();
-        for (const c of allMunicipalities) {
-          if (c.prefecture === municipality.prefecture) continue;
-          if (useRegion && !regionPrefSet.has(c.prefecture)) continue;
-          if (namesInTargetPref.has(c.name)) continue;
-          if (distractorPool.has(c.name)) continue;
-          distractorPool.set(c.name, c);
-        }
-        const distractors = shuffle([...distractorPool.values()]).slice(0, 3).map((d) => d.name);
+        const pool = filterSameName(allMunicipalities);
+        const distractors = buildModeCDistractors(municipality, pool, {
+          regionPrefs,
+        });
         const choices = shuffle([municipality.name, ...distractors]);
         qs.push({ kind: 'BCD', mode, municipality, choices });
       }

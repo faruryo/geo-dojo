@@ -22,8 +22,9 @@ const OSAKA = muni('M3', '大阪市', '大阪府', '近畿');
 const KOBE = muni('M4', '神戸市', '兵庫県', '近畿');
 const KYOTO = muni('M5', '京都市', '京都府', '近畿');
 const NARA = muni('M6', '奈良市', '奈良県', '近畿');
+const NAGOYA = muni('M7', '名古屋市', '愛知県', '中部');
 
-const ALL_MUNICIPALITIES: Municipality[] = [CHUO_HOKKAIDO, CHUO_TOKYO, OSAKA, KOBE, KYOTO, NARA];
+const ALL_MUNICIPALITIES: Municipality[] = [CHUO_HOKKAIDO, CHUO_TOKYO, OSAKA, KOBE, KYOTO, NARA, NAGOYA];
 
 describe('buildReviewQuestions', () => {
   it('items が空なら空配列を返す', () => {

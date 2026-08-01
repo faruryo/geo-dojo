@@ -182,3 +182,86 @@ export function isSameNameMunicipality(name: string, prefecture: string): boolea
 export function filterSameName(municipalities: Municipality[]): Municipality[] {
   return municipalities.filter((m) => !isSameNameMunicipality(m.name, m.prefecture));
 }
+
+interface DistractorFilterContext {
+  targetPrefecture: string;
+  useRegion: boolean;
+  regionPrefSet: Set<string> | null;
+  namesInTargetPref: Set<string>;
+}
+
+function isValidDistractor(
+  c: Municipality,
+  ctx: DistractorFilterContext,
+  diffSet?: Set<Difficulty> | null,
+): boolean {
+  if (c.prefecture === ctx.targetPrefecture) return false;
+  if (ctx.useRegion && ctx.regionPrefSet && !ctx.regionPrefSet.has(c.prefecture)) return false;
+  if (ctx.namesInTargetPref.has(c.name)) return false;
+  if (diffSet && (c.difficulty === undefined || !diffSet.has(c.difficulty))) return false;
+  return true;
+}
+
+function collectDistractors(
+  pool: Municipality[],
+  ctx: DistractorFilterContext,
+  diffSet: Set<Difficulty> | null,
+  distractorPool: Map<string, Municipality>,
+  maxCount = 3,
+): void {
+  for (const c of pool) {
+    if (distractorPool.size >= maxCount) break;
+    if (isValidDistractor(c, ctx, diffSet) && !distractorPool.has(c.name)) {
+      distractorPool.set(c.name, c);
+    }
+  }
+}
+
+/**
+ * モードC・D等で市区町村名を選択肢にする際の誤答選択肢（3件）を抽出する。
+ * 出題難易度 (targetDifficulties / target.difficulty) に一致する市区町村を優先して選択する。
+ */
+export function buildModeCDistractors(
+  target: Municipality,
+  pool: Municipality[],
+  options?: {
+    regionPrefs?: string[];
+    targetDifficulties?: Difficulty[];
+  },
+): string[] {
+  const useRegion = (options?.regionPrefs?.length ?? 0) >= 4;
+  const ctx: DistractorFilterContext = {
+    targetPrefecture: target.prefecture,
+    useRegion,
+    regionPrefSet: options?.regionPrefs ? new Set(options.regionPrefs) : null,
+    namesInTargetPref: new Set(
+      pool.filter((a) => a.prefecture === target.prefecture).map((a) => a.name),
+    ),
+  };
+
+  let targetDiffs: Difficulty[] | null = null;
+  if (options?.targetDifficulties && options.targetDifficulties.length > 0) {
+    targetDiffs = options.targetDifficulties;
+  } else if (target.difficulty) {
+    targetDiffs = [target.difficulty];
+  }
+
+  const diffSet = targetDiffs ? new Set(targetDiffs) : null;
+  const distractorPool = new Map<string, Municipality>();
+
+  // 1st pass: 難易度一致 ＆ リージョン一致（リージョン指定時）
+  collectDistractors(pool, ctx, diffSet, distractorPool);
+
+  // 2nd pass: 3件未満なら、難易度一致のままリージョン制限を外して全国から探索
+  if (distractorPool.size < 3 && useRegion) {
+    collectDistractors(pool, { ...ctx, useRegion: false }, diffSet, distractorPool);
+  }
+
+  // 3rd pass: それでも 3 件未満なら、全難易度・全国から補テン
+  if (distractorPool.size < 3) {
+    collectDistractors(pool, { ...ctx, useRegion: false }, null, distractorPool);
+  }
+
+  return shuffle([...distractorPool.values()]).slice(0, 3).map((d) => d.name);
+}
+
