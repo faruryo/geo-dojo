@@ -75,7 +75,7 @@
     - `getUpcomingReviewScheduleData` の開始基準を `dueDate > jstEndOfToday`（明日以降の予定）に変更する。
     - `formatNextDue` を JST 日付ベースの差分計算に修正する（差分0日なら「今日」、1日なら「明日」など）。
 
-- [ ] B017 【バグ】市区町村モードCで「入門」難易度なのに「村」がダミー選択肢に出てしまう
+- [x] B017 【バグ】市区町村モードCで「入門」難易度なのに「村」がダミー選択肢に出てしまう
   - 症状: 市区町村クイズのモードC（順引き4択）で難易度「入門」を選択している際、問題の答え（正解）は入門対象の「市」などだが、不正解のダミー選択肢に「村」などの高難易度の市区町村が混入してしまう。
   - 原因: `app/(app)/quiz/municipality/[mode]/page.tsx` の `buildQuestions` 内で、ダミー選択肢（distractors）を抽出する `distractorPool` の収集ループ（`for (const c of all)`）において、難易度（difficulty）によるフィルタリングを一切行っていないため。
   - 対策案: `distractorPool` を構築する際、`settings.difficulties` に含まれる難易度の市区町村のみを対象にするように修正する。
