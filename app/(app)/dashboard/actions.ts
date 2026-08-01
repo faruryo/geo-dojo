@@ -16,7 +16,6 @@ import {
   getUpcomingReviewScheduleData,
   getItemAccuracyData,
 } from './queries';
-import { getMunicipalityKana } from '@/lib/quiz/municipality-data';
 
 async function requireUserId(): Promise<string> {
   const userId = await getCurrentUserId();
@@ -169,7 +168,7 @@ export async function getReviewItemList(opts?: {
       repetition: r.repetition,
       interval: r.interval,
       accuracy: accuracyMap.get(`${r.municipalityCode}|${r.mode}`),
-      kana: getMunicipalityKana(r.municipalityCode, r.kana),
+      kana: r.kana ?? undefined,
     })),
     total: totalRow[0]?.value ?? 0,
   };

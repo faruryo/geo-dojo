@@ -1,5 +1,3 @@
-import kanaSeed from '@/scripts/data/municipality-kana-seed.json';
-
 export interface Municipality {
   code: string;
   name: string;
@@ -7,14 +5,6 @@ export interface Municipality {
   region: string;
   difficulty?: Difficulty;
   kana?: string;
-}
-
-export const MUNICIPALITY_KANA_SEED: Record<string, string> = kanaSeed;
-const MUNICIPALITY_KANA_MAP = new Map<string, string>(Object.entries(MUNICIPALITY_KANA_SEED));
-
-export function getMunicipalityKana(code: string, dbKana?: string | null): string | undefined {
-  if (dbKana) return dbKana;
-  return MUNICIPALITY_KANA_MAP.get(code);
 }
 
 

@@ -65,7 +65,8 @@ supabase status   # URL/キー確認
 
 ## DB / マイグレーション
 
-- スキーマの正は `lib/db/schema.ts`（`municipality_master` / `municipality_quiz_results` / `srs_records`（SM-2 間隔反復）の3テーブル）。
+- スキーマの正は `lib/db/schema.ts`（`municipality_master` / `municipality_quiz_results` / `srs_records`（SM-2 間隔反復）の3テーブル）。詳細な ER図・テーブル＆カラム仕様は [docs/db-schema.md](file:///Users/faru/geo-dojo/docs/db-schema.md) を参照。
+- スキーマ変更時のドキュメント更新ルールは [.agents/rules/db-schema.instructions.md](file:///Users/faru/geo-dojo/.agents/rules/db-schema.instructions.md) に定義。
 - マイグレーションは Drizzle 生成 → `supabase/migrations/` に置き、`supabase start` / `supabase db reset` が適用。
 
 ```bash
@@ -84,27 +85,37 @@ supabase db reset           # マイグレーションをゼロから再適用�
 
 - `sync-municipality-master.ts` — `public/municipalities.json` を元に e-Stat 国勢調査2020から人口を取得し `municipality_master` を upsert（難易度を人口で算出）。
   - **⚠️ 地雷**: e-Stat の正式名（政令市の区名入り、例「大阪市西区」）を取得して DB と `municipalities.json` を in-place 上書きする。しかしクイズは政令市を親市名（「大阪市」）で扱い mode B 等で `(name, prefecture)` 重複排除する設計なので、このスクリプトを素で実行すると政令市の区が個別出題されて壊れる。人口の再取得だけしたい場合は、実行後に `git checkout public/municipalities.json` で名前を戻し、DB の `name` も市レベルへ戻すこと（東京23区=131xx は独立自治体なので「区」名のままが正しい）。
+- `import-municipality-kana.ts` — `scripts/data/municipality-kana-seed.json` から `municipality_master.kana` のみを UPDATE 投入する独立スクリプト（`sync-municipality-master.ts` の地雷を避けるため分離）。
+  - **本番 DB への反映手順**:
+    ```bash
+    cp .env.local .env.local.bak && cp .env.prod.local .env.local && pnpm tsx scripts/import-municipality-kana.ts; STATUS=$?; cp .env.local.bak .env.local && rm .env.local.bak && exit $STATUS
+    ```
 - `apply-municipality-master.ts` — `municipality_master` の DDL + RLS を作る one-off（マイグレーション化済み。通常は不要）。
 - `verify-master.ts` / `cleanup-master.ts` — 投入後の分布確認 / GIS 残骸除去。
 - `generate-municipalities.ts` — topojson から `public/municipalities.json` を生成。
 - `diag-srs.mjs` — **本番 DB read-only 診断**（`node scripts/diag-srs.mjs`）。`srs_records` の status/due/last_reviewed_at 集計と `municipality_quiz_results` の最新書き込みを出力。保存系の本番障害調査用（上記「本番障害から得た教訓」参照）。
 
 新しいローカル環境を立ち上げたら: `supabase start` → `supabase db reset` →
-`pnpm tsx scripts/sync-municipality-master.ts` で `municipality_master` を埋める。
+`pnpm tsx scripts/sync-municipality-master.ts` → `pnpm tsx scripts/import-municipality-kana.ts` で `municipality_master` を埋める。
 
 ## 注意点
 
 - `public/japan-municipalities.topojson`（16MB）は serwist precache / Tailwind v4 スキャナ / Turbopack+serwist を詰まらせるため除外設定済み（`next.config.ts` / `sw.ts`）。安易に precache 対象へ戻さない。
 - `municipality_master` は e-Stat 由来データなので、ローカルでは `sync` を実行しないと空（クイズが成立しない）。
 
-### 本番障害から得た教訓（重要 / PR #12）
+### 本番障害・運用から得た教訓（重要 / PR #12, PR #29）
 
 - **server コードで `public/` を実行時に `fs` 読みしない。** Vercel の serverless 関数バンドル(`/var/task`)に `public/` の静的アセットは含まれず、`fs.readFileSync(path.join(process.cwd(), 'public', ...))` は本番で `ENOENT` になる。**ローカルは `public/` が存在するので再現しない**のが罠。実際にコード検証で `municipalities.json` を実行時読みしていて、クイズ結果が9日間サイレントに保存されない本番障害を起こした。
   - 検証・参照データは **DB（`municipality_master` 等、クライアント出題元と同一の情報源）** から取る。どうしてもファイルが要るなら `import data from '...json'`（ビルド時バンドル）か `next.config` の `outputFileTracingIncludes`。
   - 回帰防止: `__tests__/server/no-public-runtime-read.test.ts` が `app/`・`lib/` の実行時 `public/` fs 読みを静的検出する。
+- **本番 DB へのシード・属性データ更新（PR #29）**:
+  - DDL マイグレーション追加（例: `kana` カラム追加）の際、本番 DB へデータ投入スクリプト（`import-municipality-kana.ts` 等）を反映し忘れると、DB レベルで属性が全行 `NULL` になり表示が抜ける。
+  - アプリ側で静的フォールバックをしてしまうと DB のデータ未投入に気付けなくなってしまうため、サイレントな自動補完は行わず **DB（`municipality_master`）のデータ正当性を正** とし、新属性追加時は本番 DB へのデータ反映（`import-municipality-kana.ts` 等）を確実に実行すること。
+  - TanStack Query 等で `staleTime`（例: 1時間）が設定されているマスターデータは DB 更新後もブラウザキャッシュが残るため、動作確認時はスーパーリロード（`Cmd + Shift + R`）を行う。
 - **Server Action の失敗はサイレントになりやすい。** クライアントの `Promise.allSettled` は reject を握り潰し、Next.js は本番で throw のメッセージを `digest` に隠す。保存系は**クライアントで `console.error`＋サーバ側でも理由を `console.error` してから再 throw**する（再発検知のため。例: `saveMunicipalityQuizResult` / `quiz-runner` の `recordAndAdvance`）。
 - **Mode A の同名・複数県の市（伊達市=北海道/福島, 川崎町 等）**は名前で1問に集約して出題するが DB 保存は県ごと（`dedupeInstancesByPrefecture`）。**表示カウントは `toQuestionResult()` で必ず1問1件に正規化**する（保存件数で数えると「19問なのに21完了」になる）。回帰テスト: `__tests__/lib/quiz/quiz-results.test.ts`。
 - **本番調査は Vercel ログと本番 DB の直読みが速い**（drizzle-kit の spinner がエラー本体を消すのと同様、原因はログ/状態で確認するのが確実）。
   - 本番ログ: `vercel logs <prod-deployment-url> --json`（`level:"error"` を探す）。
   - 本番 DB read-only 集計: `node scripts/diag-srs.mjs`（`.env.prod.local` を読む）。SRS の `due_date` / `last_reviewed_at` / quiz_results の最新 `answered_at` を出す。**本番DB直クエリは安全機構がブロックするのでユーザーに `!node scripts/diag-srs.mjs` の実行を依頼する。**
 - **Preview デプロイは本番 DB を共有**するので、DB 書き込みを伴う修正はマージ前に PR の Preview URL でプレイ→`diag-srs.mjs` で確認できる（マージ＝本番反映の前に end-to-end 検証）。
+
