@@ -25,6 +25,7 @@ import {
   filterByDifficulty,
   filterByRegions,
   filterSameName,
+  filterTokyoSpecialWards,
   getRegionsPrefectures,
   isModeAvailable,
   shuffle,
@@ -57,7 +58,7 @@ function buildQuestions(
   weaknessMap: Map<string, number>,
 ): Question[] {
   const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
-  const source = isTextMode ? filterSameName(all) : all;
+  const source = isTextMode ? filterTokyoSpecialWards(filterSameName(all)) : all;
   const byRegion = filterByRegions(source, settings.regions);
   const filtered = filterByDifficulty(byRegion, settings.difficulties);
   const pool = settings.weaknessFirst
@@ -210,7 +211,7 @@ export default function MunicipalityQuizPage() {
   const effectivePoolSize = useMemo(() => {
     if (allMunicipalities.length === 0) return 0;
     const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
-    const source = isTextMode ? filterSameName(allMunicipalities) : allMunicipalities;
+    const source = isTextMode ? filterTokyoSpecialWards(filterSameName(allMunicipalities)) : allMunicipalities;
     const filtered = filterByDifficulty(
       filterByRegions(source, settings.regions),
       settings.difficulties,
