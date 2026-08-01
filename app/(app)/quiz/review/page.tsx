@@ -11,7 +11,7 @@ import { getDueReviewItems } from './actions';
 import { buildReviewQuestions } from '@/lib/quiz/review-questions';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
 import type { Question } from '@/components/quiz/quiz-runner';
-import { type Difficulty, type Municipality } from '@/lib/quiz/municipality-data';
+import { type Difficulty, type Municipality, getMunicipalityKana } from '@/lib/quiz/municipality-data';
 
 interface ResultEntry {
   name: string;
@@ -39,7 +39,7 @@ export default function ReviewPage() {
         prefecture: m.prefecture,
         region: m.region,
         difficulty: m.difficulty as Difficulty,
-        kana: m.kana ?? undefined,
+        kana: getMunicipalityKana(m.code, m.kana),
       })),
     [masterData],
   );

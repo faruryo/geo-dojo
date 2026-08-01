@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { srsRecords, municipalityMaster } from '@/lib/db/schema';
 import { sql, eq } from 'drizzle-orm';
 import { dueReviewCondition } from '@/lib/db/srs-due';
+import { getMunicipalityKana } from '@/lib/quiz/municipality-data';
 
 export type DueReviewItem = {
   municipalityCode: string;
@@ -52,6 +53,6 @@ export async function getDueReviewItems(opts?: { limit?: number }): Promise<DueR
     mode: r.mode as 'A' | 'B' | 'C' | 'D',
     interval: r.interval,
     dueDate: r.dueDate instanceof Date ? r.dueDate.toISOString() : String(r.dueDate),
-    kana: r.kana ?? undefined,
+    kana: getMunicipalityKana(r.municipalityCode, r.kana),
   }));
 }

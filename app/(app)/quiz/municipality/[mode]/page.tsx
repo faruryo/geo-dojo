@@ -24,6 +24,7 @@ import {
   filterByDifficulty,
   filterByRegions,
   filterSameName,
+  getMunicipalityKana,
   getRegionsPrefectures,
   isModeAvailable,
   shuffle,
@@ -174,7 +175,7 @@ export default function MunicipalityQuizPage() {
         prefecture: m.prefecture,
         region: m.region,
         difficulty: m.difficulty as Difficulty,
-        kana: m.kana ?? undefined,
+        kana: getMunicipalityKana(m.code, m.kana),
       })),
     [masterData],
   );
