@@ -212,7 +212,6 @@ export default function MunicipalityQuizPage() {
     setQuestions(qs);
     setResults([]);
     setPhase('playing');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRecommendSource, masterLoading, allMunicipalities]);
 
   const effectivePoolSize = useMemo(() => {

@@ -113,10 +113,11 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
       // 保存失敗は UX を止めないが握り潰すと今回のような本番障害に気付けないため必ずログする
       saved.forEach((r, i) => {
         if (r.status === 'rejected') {
+          const reason: unknown = r.reason;
           console.error('[quiz-runner] failed to save result', {
             code: entries[i].municipality.code,
             mode: entries[i].mode,
-            reason: r.reason,
+            reason,
           });
         }
       });
@@ -237,7 +238,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
       if (remaining <= 0) {
         clearInterval(interval);
         setTimeLeft(0);
-        handleTimeout();
+        void handleTimeout();
       } else {
         setTimeLeft(remaining);
       }

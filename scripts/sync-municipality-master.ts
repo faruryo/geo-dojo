@@ -19,6 +19,29 @@ interface EStatValue { '@area': string; '$': string; }
 interface MetaClass { '@code': string; '@name': string; '@level'?: string; }
 interface MetaClassObj { '@id': string; '@name': string; CLASS: MetaClass | MetaClass[]; }
 
+function isSeed(value: unknown): value is Seed {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'code' in value &&
+    typeof value.code === 'string' &&
+    'name' in value &&
+    typeof value.name === 'string' &&
+    'prefecture' in value &&
+    typeof value.prefecture === 'string' &&
+    'region' in value &&
+    typeof value.region === 'string'
+  );
+}
+
+function parseSeeds(json: string): Seed[] {
+  const value: unknown = JSON.parse(json);
+  if (!Array.isArray(value) || !value.every(isSeed)) {
+    throw new Error('municipalities.json must contain valid municipality seeds');
+  }
+  return value;
+}
+
 function calculateDifficulty(input: { name: string; population: number | null }): Difficulty {
   if (input.population !== null) {
     if (input.population >= 100_000) return 'easy';
@@ -36,7 +59,7 @@ function calculateDifficulty(input: { name: string; population: number | null })
 
 // Fetch official municipality names from e-Stat getMetaInfo.
 // The 国勢調査 area classification contains proper names including 政令市 ward names
-// (e.g. "仙台市　青葉区") which the topojson nam_ja field lacks.
+// (e.g. a full-width space between "仙台市" and "青葉区") which the topojson field lacks.
 async function fetchMunicipalityNameMap(): Promise<Map<string, string>> {
   const appId = process.env.E_STAT_APP_ID;
   if (!appId) throw new Error('E_STAT_APP_ID not set');
@@ -77,8 +100,8 @@ async function fetchMunicipalityNameMap(): Promise<Map<string, string>> {
   const nameMap = new Map<string, string>();
   for (const c of classes) {
     if (!/^\d{5}$/.test(c['@code'])) continue;
-    // e-Stat uses full-width space between city and ward name: "仙台市　青葉区" → "仙台市青葉区"
-    const name = c['@name'].replace(/[\s　]+/g, '');
+    // e-Stat uses a full-width space between city and ward names.
+    const name = c['@name'].replace(/[\s\u3000]+/g, '');
     if (name) nameMap.set(c['@code'], name);
   }
   console.log(`[sync] fetched ${nameMap.size} municipality names from e-Stat MetaInfo`);
@@ -129,7 +152,7 @@ async function main() {
   await new Promise((r) => setTimeout(r, 3000));
 
   const seedPath = path.join(process.cwd(), 'public', 'municipalities.json');
-  const rawSeeds: Seed[] = JSON.parse(fs.readFileSync(seedPath, 'utf-8'));
+  const rawSeeds = parseSeeds(fs.readFileSync(seedPath, 'utf-8'));
   // Filter out N03 GIS残骸: "所属未定地" entries with prefecture-aggregate codes (XX000).
   // These are coastal/boundary placeholders, not real municipalities.
   const seeds = rawSeeds.filter(
