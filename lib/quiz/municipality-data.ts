@@ -7,6 +7,7 @@ export interface Municipality {
   kana?: string;
 }
 
+
 export type GameMode = 'A' | 'B' | 'C' | 'D';
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
