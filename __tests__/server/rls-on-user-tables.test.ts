@@ -20,14 +20,14 @@ const MIGRATIONS_DIR = path.join(ROOT, 'supabase', 'migrations');
 
 /** `--` 行コメントを除去（コメントアウトされた SQL を有効扱いしないため） */
 function stripLineComments(sql: string): string {
-  return sql.replace(/--.*$/gm, '');
+  return sql.replace(/--[^\r\n]*/g, '');
 }
 
 function readAllMigrationSql(): string {
   const files = fs
     .readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith('.sql'))
-    .sort();
+    .sort((a, b) => a.localeCompare(b));
   const raw = files
     .map((f) => fs.readFileSync(path.join(MIGRATIONS_DIR, f), 'utf-8'))
     .join('\n');

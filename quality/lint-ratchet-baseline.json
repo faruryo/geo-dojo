@@ -2,38 +2,8 @@
   "version": 1,
   "violations": [
     {
-      "file": "__tests__/server/rls-on-user-tables.test.ts",
-      "rule": "security/detect-non-literal-regexp",
-      "count": 1
-    },
-    {
-      "file": "__tests__/server/rls-on-user-tables.test.ts",
-      "rule": "security/detect-unsafe-regex",
-      "count": 1
-    },
-    {
-      "file": "__tests__/server/rls-on-user-tables.test.ts",
-      "rule": "sonarjs/no-alphabetical-sort",
-      "count": 1
-    },
-    {
-      "file": "__tests__/server/rls-on-user-tables.test.ts",
-      "rule": "sonarjs/super-linear-regex",
-      "count": 1
-    },
-    {
-      "file": "app/(app)/dashboard/actions.ts",
-      "rule": "@typescript-eslint/no-non-null-assertion",
-      "count": 1
-    },
-    {
       "file": "app/(app)/dashboard/actions.ts",
       "rule": "max-lines-per-function",
-      "count": 1
-    },
-    {
-      "file": "app/(app)/dashboard/actions.ts",
-      "rule": "sonarjs/use-type-alias",
       "count": 1
     },
     {
@@ -54,7 +24,7 @@
     {
       "file": "app/(app)/dashboard/queries.ts",
       "rule": "security/detect-object-injection",
-      "count": 16
+      "count": 15
     },
     {
       "file": "app/(app)/dashboard/queries.ts",

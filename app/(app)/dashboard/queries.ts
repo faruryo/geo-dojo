@@ -22,17 +22,18 @@ import { dueReviewCondition } from '@/lib/db/srs-due';
 
 const notSameNameSql = sql`NOT (REGEXP_REPLACE(${municipalityMaster.name}, '[市区町村]$', '') = REGEXP_REPLACE(${municipalityMaster.prefecture}, '[都道府県]$', ''))`;
 
+export type QuizModeFilter = 'all' | 'A' | 'B' | 'C' | 'D';
+
 function stripDates(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
   if (obj instanceof Date) return obj.toISOString();
   if (typeof obj === 'bigint') return Number(obj);
   if (Array.isArray(obj)) return obj.map(stripDates);
   if (typeof obj === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-      result[k] = stripDates(v);
-    }
-    return result;
+    const entries = Object.entries(obj as Record<string, unknown>).map(
+      ([k, v]) => [k, stripDates(v)],
+    );
+    return Object.fromEntries(entries);
   }
   return obj;
 }
@@ -42,7 +43,7 @@ export function serialize<T>(data: T): T {
 }
 
 export async function getMasterPoolSize(
-  mode: 'all' | 'A' | 'B' | 'C' | 'D',
+  mode: QuizModeFilter,
   region?: string,
 ): Promise<number> {
   const regionCond = region && region !== '全国'
