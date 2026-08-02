@@ -16,10 +16,8 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const SCAN_DIRS = ['app', 'lib'];
 
 function walk(dir: string): string[] {
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!fs.existsSync(dir)) return [];
   const out: string[] = [];
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
