@@ -132,6 +132,8 @@ export default [
       'max-lines-per-function': 'off',
       'max-nested-callbacks': 'off',
       'security/detect-non-literal-fs-filename': 'off',
+      'security/detect-non-literal-regexp': 'off',
+      'security/detect-unsafe-regex': 'off',
     },
   },
   {

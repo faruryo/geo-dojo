@@ -15,6 +15,7 @@ import {
   getDueReviewSummaryData,
   getUpcomingReviewScheduleData,
   getItemAccuracyData,
+  type QuizModeFilter,
 } from './queries';
 
 async function requireUserId(): Promise<string> {
@@ -36,7 +37,7 @@ export async function getDashboardSummary() {
 // 2. getAccuracyTrend
 export async function getAccuracyTrend(params: {
   period: '7d' | '30d' | 'all';
-  mode: 'all' | 'A' | 'B' | 'C' | 'D';
+  mode: QuizModeFilter;
   region: string;
 }) {
   const userId = await requireUserId();
@@ -46,7 +47,7 @@ export async function getAccuracyTrend(params: {
 // 2b. getCompletionTrend
 export async function getCompletionTrend(params: {
   period: '7d' | '30d' | 'all';
-  mode: 'all' | 'A' | 'B' | 'C' | 'D';
+  mode: QuizModeFilter;
   region: string;
 }) {
   const userId = await requireUserId();
@@ -202,5 +203,8 @@ export async function getReviewModeBreakdown(): Promise<
     map.set(r.mode, e);
   }
 
-  return (['A', 'B', 'C', 'D'] as const).map((mode) => ({ mode, ...map.get(mode)! }));
+  return (['A', 'B', 'C', 'D'] as const).map((mode) => ({
+    mode,
+    ...(map.get(mode) ?? { reviewing: 0, graduated: 0 }),
+  }));
 }
