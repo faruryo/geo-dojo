@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   dedupeInstancesByPrefecture,
-  type GameMode,
   type Municipality,
 } from '@/lib/quiz/municipality-data';
 import { toQuestionResult, type AnswerEntry } from '@/lib/quiz/quiz-results';
@@ -15,7 +14,7 @@ function modeAEntries(instances: Municipality[], isCorrect: boolean): AnswerEntr
   return dedupeInstancesByPrefecture(instances).map((m) => ({
     municipality: m,
     isCorrect,
-    mode: 'A' as GameMode,
+    mode: 'A',
   }));
 }
 
@@ -42,7 +41,7 @@ describe('toQuestionResult (二重カウント回帰防止)', () => {
   it('19問（うち複数県の市が2問）のセッションで 表示=19 / 保存=21 になる', () => {
     // 通常の市17問（各1県）
     const singles: AnswerEntry[][] = Array.from({ length: 17 }, (_, i) => [
-      { municipality: muni(`${1000 + i}`, `市${i}`, '東京都'), isCorrect: true, mode: 'B' as GameMode },
+      { municipality: muni(`${1000 + i}`, `市${i}`, '東京都'), isCorrect: true, mode: 'B' },
     ]);
     // 複数県の Mode A 2問（各2県 → 保存2件ずつ）
     const datePref = modeAEntries([muni('01233', '伊達市', '北海道'), muni('07213', '伊達市', '福島県')], true);

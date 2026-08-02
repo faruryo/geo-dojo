@@ -73,7 +73,7 @@ export function selectRationale(
   // Bridging: both progression and weakness present
   if (flags.isProgressionFired && flags.isDifficultyCapped) {
     const current = recommendation.difficulties[0] ?? 'easy';
-    const nextIdx = DIFFICULTY_ORDER.indexOf(current as 'easy' | 'medium' | 'hard' | 'expert') + 1;
+    const nextIdx = DIFFICULTY_ORDER.indexOf(current) + 1;
     const next = DIFFICULTY_ORDER[nextIdx];
     if (next) {
       return {

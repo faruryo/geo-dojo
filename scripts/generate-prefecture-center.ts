@@ -21,7 +21,7 @@ const result: Record<string, { center: [number, number]; scale: number }> = {};
 for (const [pref, feats] of Object.entries(byPrefecture)) {
   const fc: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: feats };
   const [[w, s], [e, n]] = geoBounds(fc);
-  const center = geoCentroid(fc) as [number, number];
+  const center = geoCentroid(fc);
   const span = Math.max(e - w, (n - s) * 1.4);
   const scale = Math.round(8000 / span);
   result[pref] = { center, scale };

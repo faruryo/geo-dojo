@@ -100,7 +100,7 @@ export function generateRecommendation(
   const fitZoneRegions = new Set<string>(state.fitZone.cells.map((ca) => ca.cell.region));
   const underexploredRegions = shuffle(
     [...REGION_VALUES].filter((r) => !fitZoneRegions.has(r)),
-  ) as typeof REGION_VALUES[number][];
+  );
 
   // Novelty injection is suppressed during regression guard or when progression already fired
   const canInjectNovelty = !progression.isRegressionGuarded && !progression.isProgressionFired;

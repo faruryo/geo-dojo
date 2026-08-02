@@ -86,7 +86,7 @@ export function isModeAvailable(mode: GameMode, regions: Region[]): boolean {
 
 export function filterByRegion(municipalities: Municipality[], region: Region): Municipality[] {
   if (region === '全国') return municipalities;
-  if (REGIONS.slice(1).includes(region as Exclude<Region, '全国'>)) {
+  if (REGIONS.slice(1).includes(region)) {
     // It's a region name — filter by region field
     return municipalities.filter((m) => m.region === region);
   }

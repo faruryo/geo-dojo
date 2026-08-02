@@ -153,7 +153,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
     // 記録する（区数ぶんの多重カウントを防ぐ）。採点は correctPrefectures（県の Set）で実施済み。
     const reps = dedupeInstancesByPrefecture(instances);
     await recordAndAdvance(
-      reps.map((m) => ({ municipality: m, isCorrect: correct, mode: 'A' as GameMode })),
+      reps.map((m) => ({ municipality: m, isCorrect: correct, mode: 'A' })),
       1500,
     );
   }, [currentQuestion, selectedPrefectures, recordAndAdvance]);
