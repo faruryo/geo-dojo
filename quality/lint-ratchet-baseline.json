@@ -12,11 +12,6 @@
       "count": 2
     },
     {
-      "file": "__tests__/lib/quiz/quiz-results.test.ts",
-      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
-      "count": 2
-    },
-    {
       "file": "__tests__/lib/quiz/representative-difficulty.test.ts",
       "rule": "sonarjs/no-undefined-argument",
       "count": 3
@@ -118,18 +113,13 @@
     },
     {
       "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
-      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
-      "count": 2
-    },
-    {
-      "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
       "rule": "complexity",
       "count": 1
     },
     {
       "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
       "rule": "max-lines-per-function",
-      "count": 2
+      "count": 1
     },
     {
       "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
@@ -150,11 +140,6 @@
       "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
       "rule": "sonarjs/no-nested-functions",
       "count": 3
-    },
-    {
-      "file": "app/(app)/quiz/municipality/actions.ts",
-      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
-      "count": 2
     },
     {
       "file": "app/(app)/quiz/municipality/actions.ts",
@@ -313,11 +298,6 @@
     },
     {
       "file": "components/dashboard/difficulty-progress.tsx",
-      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
-      "count": 1
-    },
-    {
-      "file": "components/dashboard/difficulty-progress.tsx",
       "rule": "sonarjs/no-nested-conditional",
       "count": 1
     },
@@ -423,11 +403,6 @@
     },
     {
       "file": "components/quiz/quiz-runner.tsx",
-      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
-      "count": 1
-    },
-    {
-      "file": "components/quiz/quiz-runner.tsx",
       "rule": "complexity",
       "count": 1
     },
@@ -439,7 +414,7 @@
     {
       "file": "components/quiz/quiz-runner.tsx",
       "rule": "security/detect-object-injection",
-      "count": 5
+      "count": 4
     },
     {
       "file": "components/quiz/quiz-runner.tsx",
@@ -538,11 +513,6 @@
     },
     {
       "file": "lib/quiz/municipality-data.ts",
-      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
-      "count": 1
-    },
-    {
-      "file": "lib/quiz/municipality-data.ts",
       "rule": "security/detect-object-injection",
       "count": 7
     },
@@ -568,11 +538,6 @@
     },
     {
       "file": "lib/quiz/recommendation/cell-stats.ts",
-      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
-      "count": 2
-    },
-    {
-      "file": "lib/quiz/recommendation/cell-stats.ts",
       "rule": "complexity",
       "count": 1
     },
@@ -589,11 +554,6 @@
     {
       "file": "lib/quiz/recommendation/cell-stats.ts",
       "rule": "sonarjs/cognitive-complexity",
-      "count": 1
-    },
-    {
-      "file": "lib/quiz/recommendation/engine.ts",
-      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
       "count": 1
     },
     {
@@ -623,11 +583,6 @@
     },
     {
       "file": "lib/quiz/recommendation/rationale.ts",
-      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
-      "count": 1
-    },
-    {
-      "file": "lib/quiz/recommendation/rationale.ts",
       "rule": "complexity",
       "count": 1
     },
@@ -650,16 +605,6 @@
       "file": "lib/quiz/recommendation/rationale.ts",
       "rule": "sonarjs/no-nested-conditional",
       "count": 1
-    },
-    {
-      "file": "lib/quiz/review-questions.ts",
-      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
-      "count": 1
-    },
-    {
-      "file": "lib/quiz/review-questions.ts",
-      "rule": "max-depth",
-      "count": 4
     },
     {
       "file": "lib/quiz/review-questions.ts",
@@ -715,11 +660,6 @@
       "file": "scripts/generate-municipalities.ts",
       "rule": "security/detect-object-injection",
       "count": 2
-    },
-    {
-      "file": "scripts/generate-prefecture-center.ts",
-      "rule": "@typescript-eslint/no-unnecessary-type-assertion",
-      "count": 1
     },
     {
       "file": "scripts/generate-prefecture-center.ts",

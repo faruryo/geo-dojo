@@ -49,7 +49,7 @@ export function inferSessions(rows: RawRow[]): Session[] {
       mode: group[0].mode as Session['mode'],
       rows: group,
       accuracy: correct / count,
-      count: count as 10 | 20 | 30,
+      count: count,
     });
   }
   return sessions;
@@ -88,7 +88,7 @@ export function computeCellAccuracies(
       for (const row of s.rows) {
         const master = masterMap.get(row.municipalityCode);
         if (!master) continue;
-        const k = cellKey({ difficulty: master.difficulty as Cell['difficulty'], region: master.region as Cell['region'], mode: s.mode as Cell['mode'] });
+        const k = cellKey({ difficulty: master.difficulty as Cell['difficulty'], region: master.region as Cell['region'], mode: s.mode });
         allCells.add(k);
       }
     }

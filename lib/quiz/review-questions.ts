@@ -42,7 +42,7 @@ export function buildReviewQuestions(
       const municipality = allMunicipalities.find((m) => m.code === it.municipalityCode);
       if (!municipality) continue;
 
-      const mode = it.mode as 'B' | 'C' | 'D';
+      const mode = it.mode;
       if (mode === 'B') {
         const prefPool = ALL_PREFECTURES;
         const distractors = shuffle(prefPool.filter((p) => p !== municipality.prefecture)).slice(0, 3);

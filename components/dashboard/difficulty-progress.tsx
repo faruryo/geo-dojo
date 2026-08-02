@@ -34,7 +34,7 @@ export function DifficultyProgress({
         <div className="flex flex-col gap-3">
           {data.map((item) => {
             const config =
-              DIFFICULTY_CONFIG[item.difficulty as keyof typeof DIFFICULTY_CONFIG];
+              DIFFICULTY_CONFIG[item.difficulty];
             if (!config) return null;
 
             const percent =

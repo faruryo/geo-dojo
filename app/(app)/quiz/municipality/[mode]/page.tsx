@@ -142,8 +142,8 @@ export default function MunicipalityQuizPage() {
 
   const initDifficulties: Difficulty[] | null = initDifficultiesParam
     ? (initDifficultiesParam.split(',').filter((d) => DIFFICULTIES.includes(d as Difficulty)) as Difficulty[])
-    : initDifficulty && DIFFICULTIES.includes(initDifficulty as Difficulty)
-      ? [initDifficulty as Difficulty]
+    : initDifficulty && DIFFICULTIES.includes(initDifficulty)
+      ? [initDifficulty]
       : null;
 
   const [phase, setPhase] = useState<Phase>('setup');

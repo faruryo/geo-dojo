@@ -263,7 +263,7 @@ async function buildLearnerState(userId: string): Promise<{
     answeredAt: r.answeredAt,
   })));
 
-  const cellAccuracies = computeCellAccuracies(sessions, masterMap as Map<string, { code: string; region: string; difficulty: string }>, crowdAccuracyByDifficulty);
+  const cellAccuracies = computeCellAccuracies(sessions, masterMap, crowdAccuracyByDifficulty);
   const fitZone = extractFitZone(cellAccuracies);
 
   const correctCodesByUser = new Set(
@@ -322,7 +322,7 @@ async function buildLearnerState(userId: string): Promise<{
     recentQuestionCounts,
     recentlyPlayedCodes,
     playedModes,
-    crowdAccuracyByDifficulty: crowdAccuracyByDifficulty as Record<'easy' | 'medium' | 'hard' | 'expert', number>,
+    crowdAccuracyByDifficulty: crowdAccuracyByDifficulty,
   };
 
   return { state, allMaster: allMasterRows };
