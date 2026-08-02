@@ -40,10 +40,10 @@ function addDismissed(id: string) {
 export function MilestoneBanner({
   totalCorrect,
   coverageRate,
-}: {
+}: Readonly<{
   totalCorrect: number;
   coverageRate: number;
-}) {
+}>) {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
 

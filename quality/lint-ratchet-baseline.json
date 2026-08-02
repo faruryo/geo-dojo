@@ -42,11 +42,6 @@
       "count": 1
     },
     {
-      "file": "app/(app)/layout.tsx",
-      "rule": "sonarjs/prefer-read-only-props",
-      "count": 1
-    },
-    {
       "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
       "rule": "complexity",
       "count": 1
@@ -192,16 +187,6 @@
       "count": 1
     },
     {
-      "file": "app/layout.tsx",
-      "rule": "sonarjs/prefer-read-only-props",
-      "count": 1
-    },
-    {
-      "file": "app/providers.tsx",
-      "rule": "sonarjs/prefer-read-only-props",
-      "count": 1
-    },
-    {
       "file": "components/dashboard/accuracy-chart.tsx",
       "rule": "max-lines-per-function",
       "count": 1
@@ -218,11 +203,6 @@
     },
     {
       "file": "components/dashboard/completion-chart.tsx",
-      "rule": "sonarjs/prefer-read-only-props",
-      "count": 1
-    },
-    {
-      "file": "components/dashboard/completion-progress.tsx",
       "rule": "sonarjs/prefer-read-only-props",
       "count": 1
     },
@@ -242,11 +222,6 @@
       "count": 1
     },
     {
-      "file": "components/dashboard/empty-state.tsx",
-      "rule": "sonarjs/prefer-read-only-props",
-      "count": 1
-    },
-    {
       "file": "components/dashboard/filter-bar.tsx",
       "rule": "security/detect-object-injection",
       "count": 1
@@ -262,19 +237,9 @@
       "count": 1
     },
     {
-      "file": "components/dashboard/milestone-banner.tsx",
-      "rule": "sonarjs/prefer-read-only-props",
-      "count": 1
-    },
-    {
       "file": "components/dashboard/review-card.tsx",
       "rule": "max-lines-per-function",
       "count": 1
-    },
-    {
-      "file": "components/dashboard/summary-cards.tsx",
-      "rule": "sonarjs/prefer-read-only-props",
-      "count": 2
     },
     {
       "file": "components/dashboard/weakness-ranking.tsx",
@@ -415,21 +380,6 @@
       "file": "components/recommend/recommend-rationale.tsx",
       "rule": "sonarjs/prefer-read-only-props",
       "count": 1
-    },
-    {
-      "file": "components/ui/separator.tsx",
-      "rule": "sonarjs/prefer-read-only-props",
-      "count": 1
-    },
-    {
-      "file": "components/ui/sheet.tsx",
-      "rule": "sonarjs/prefer-read-only-props",
-      "count": 7
-    },
-    {
-      "file": "components/ui/tabs.tsx",
-      "rule": "sonarjs/prefer-read-only-props",
-      "count": 3
     },
     {
       "file": "drizzle.config.ts",
