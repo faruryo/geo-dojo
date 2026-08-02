@@ -6,10 +6,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 export function CompletionProgress({
   mode,
   region,
-}: {
+}: Readonly<{
   mode: 'all' | 'A' | 'B' | 'C' | 'D';
   region: string;
-}) {
+}>) {
   const { data, isLoading } = useCompletionByMode(mode, region);
 
   return (

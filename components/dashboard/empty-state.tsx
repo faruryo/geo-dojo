@@ -4,11 +4,11 @@ export function EmptyState({
   message,
   linkText = 'クイズを始める',
   linkHref = '/quiz/municipality',
-}: {
+}: Readonly<{
   message: string;
   linkText?: string;
   linkHref?: string;
-}) {
+}>) {
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center">
       <p className="text-sm text-muted-foreground">{message}</p>

@@ -13,7 +13,7 @@ function getDelta(current: number, prev: number): DeltaDirection {
   return 'same';
 }
 
-function DeltaIndicator({ direction }: { direction: DeltaDirection }) {
+function DeltaIndicator({ direction }: Readonly<{ direction: DeltaDirection }>) {
   switch (direction) {
     case 'up':
       return <span className="text-green-400">↑</span>;
@@ -32,11 +32,11 @@ function SummaryCard({
   label,
   value,
   delta,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   delta: DeltaDirection;
-}) {
+}>) {
   return (
     <Card size="sm">
       <CardContent className="flex flex-col gap-1">

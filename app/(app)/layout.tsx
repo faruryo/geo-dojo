@@ -6,9 +6,9 @@ import BottomNav from './bottom-nav';
 
 export default async function AppLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   // getClaims 優先（非対称鍵ならローカル検証で往復ゼロ、未対応時は getUser フォールバック）
   const userId = await getCurrentUserId();
 
