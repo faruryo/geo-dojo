@@ -22,7 +22,7 @@ describe('dedupeInstancesByPrefecture (B007)', () => {
     ];
     const reps = dedupeInstancesByPrefecture(fuchu);
     expect(reps).toHaveLength(2);
-    expect(reps.map((r) => r.prefecture).sort()).toEqual(['広島県', '東京都']);
+    expect(reps.map((r) => r.prefecture).sort((a, b) => a.localeCompare(b))).toEqual(['広島県', '東京都']);
   });
 
   it('単一インスタンスはそのまま1件', () => {
@@ -40,7 +40,7 @@ describe('dedupeInstancesByPrefecture (B007)', () => {
     ];
     const reps = dedupeInstancesByPrefecture(items);
     expect(reps).toHaveLength(2);
-    expect(reps.map((r) => r.prefecture).sort()).toEqual(['A県', 'B県']);
+    expect(reps.map((r) => r.prefecture).sort((a, b) => a.localeCompare(b))).toEqual(['A県', 'B県']);
   });
 
   it('空配列は空', () => {

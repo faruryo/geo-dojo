@@ -131,6 +131,7 @@ export default [
       // complexity, type safety, and assertion checks remain enabled.
       'max-lines-per-function': 'off',
       'max-nested-callbacks': 'off',
+      'security/detect-non-literal-fs-filename': 'off',
     },
   },
   {

@@ -68,7 +68,7 @@ describe('Same-name municipality exclusion logic', () => {
       ];
 
       const filtered = filterSameName(list);
-      expect(filtered.length).toBe(3);
+      expect(filtered).toHaveLength(3);
       expect(filtered.map(m => m.name)).toEqual(['弘前市', 'さいたま市', '下関市']);
     });
   });

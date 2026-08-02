@@ -22,7 +22,7 @@ describe('representativeDifficulty', () => {
 
   it('一部が difficulty undefined を含む場合は残りのうち最難を返す', () => {
     const result = representativeDifficulty([
-      muni('1', 'X市', 'A県', undefined),
+      muni('1', 'X市', 'A県'),
       muni('2', 'X市', 'B県', 'easy'),
       muni('3', 'X市', 'C県', 'medium'),
     ]);
@@ -31,8 +31,8 @@ describe('representativeDifficulty', () => {
 
   it('全要素が difficulty undefined の場合は undefined を返す', () => {
     const result = representativeDifficulty([
-      muni('1', 'X市', 'A県', undefined),
-      muni('2', 'X市', 'B県', undefined),
+      muni('1', 'X市', 'A県'),
+      muni('2', 'X市', 'B県'),
     ]);
     expect(result).toBeUndefined();
   });
