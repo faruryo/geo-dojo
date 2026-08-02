@@ -191,6 +191,10 @@ export function filterTokyoSpecialWards(municipalities: Municipality[]): Municip
   return municipalities.filter((m) => !isTokyoSpecialWard(m));
 }
 
+export function filterTextModeMunicipalities(municipalities: Municipality[]): Municipality[] {
+  return filterTokyoSpecialWards(filterSameName(municipalities));
+}
+
 interface DistractorFilterContext {
   targetPrefecture: string;
   useRegion: boolean;

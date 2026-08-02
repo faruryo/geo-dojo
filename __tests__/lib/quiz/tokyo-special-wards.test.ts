@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isTokyoSpecialWard,
   filterTokyoSpecialWards,
+  filterTextModeMunicipalities,
   type Municipality,
 } from '../../../lib/quiz/municipality-data';
 
@@ -36,6 +37,21 @@ describe('Tokyo special wards exclusion logic', () => {
       const filtered = filterTokyoSpecialWards(list);
       expect(filtered).toHaveLength(2);
       expect(filtered.map((m: Municipality) => m.name)).toEqual(['八王子市', '横浜市']);
+    });
+  });
+
+  describe('filterTextModeMunicipalities', () => {
+    it('filters out both same-name municipalities and Tokyo 23 special wards', () => {
+      const list: Municipality[] = [
+        { code: '02201', name: '青森市', prefecture: '青森県', region: '東北' }, // same-name
+        { code: '02202', name: '弘前市', prefecture: '青森県', region: '東北' },
+        { code: '13101', name: '千代田区', prefecture: '東京都', region: '関東' }, // Tokyo ward
+        { code: '13201', name: '八王子市', prefecture: '東京都', region: '関東' },
+      ];
+
+      const filtered = filterTextModeMunicipalities(list);
+      expect(filtered).toHaveLength(2);
+      expect(filtered.map((m: Municipality) => m.name)).toEqual(['弘前市', '八王子市']);
     });
   });
 });
