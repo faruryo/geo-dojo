@@ -3,7 +3,9 @@ import { ALL_PREFECTURES, PREFECTURE_KANA } from '@/lib/quiz/municipality-data';
 
 describe('PREFECTURE_KANA', () => {
   it('ALL_PREFECTURES と完全に1:1対応する（欠落・余分なし）', () => {
-    expect(Object.keys(PREFECTURE_KANA).sort()).toEqual([...ALL_PREFECTURES].sort());
+    expect(Object.keys(PREFECTURE_KANA).sort((a, b) => a.localeCompare(b))).toEqual(
+      [...ALL_PREFECTURES].sort((a, b) => a.localeCompare(b)),
+    );
   });
 
   it('全件がひらがなのみで構成される（カタカナ・漢字混入なし）', () => {
