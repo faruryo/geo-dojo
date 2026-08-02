@@ -97,27 +97,32 @@ export async function getUpcomingReviewSchedule(days = 7) {
 }
 
 // ──────────────────────────────────────────────────────
-// 9. getReviewItemList — 復習中（学習途中）のアイテム一覧（ページング+モードフィルタ）
-//    メタ認知/進捗の可視化。答え（都道府県）は返さない（流暢性の錯覚を避ける）
-//    ※ 初回ダッシュボード描画には載らない（オンデマンド専用）ため SA に残す。
-// ──────────────────────────────────────────────────────
-export async function getReviewItemList(opts?: {
+export interface ReviewItemFilterOpts {
   mode?: 'A' | 'B' | 'C' | 'D';
   limit?: number;
   offset?: number;
-}): Promise<{
-  items: Array<{
-    municipalityCode: string;
-    municipalityName: string;
-    mode: string;
-    dueDate: string;
-    repetition: number;
-    interval: number;
-    accuracy?: { correct: number; total: number };
-    kana?: string;
-  }>;
+}
+
+export interface ReviewItem {
+  municipalityCode: string;
+  municipalityName: string;
+  mode: string;
+  dueDate: string;
+  repetition: number;
+  interval: number;
+  accuracy?: { correct: number; total: number };
+  kana?: string;
+}
+
+export interface ReviewItemListResult {
+  items: ReviewItem[];
   total: number;
-}> {
+}
+
+// 9. getReviewItemList — 復習中（学習途中）のアイテム一覧（ページング+モードフィルタ）
+export async function getReviewItemList(
+  opts?: ReviewItemFilterOpts,
+): Promise<ReviewItemListResult> {
   const userId = await requireUserId();
   const limit = opts?.limit ?? 25;
   const offset = opts?.offset ?? 0;
@@ -140,9 +145,6 @@ export async function getReviewItemList(opts?: {
         kana: municipalityMaster.kana,
       })
       .from(srsRecords)
-      // left join: srsRecords 行は master に対応が無くても必ず残す（total は srsRecords 単独の
-      // count のため、innerJoin だと items だけ欠けてページングと不整合になる）。
-      // code は municipality_master の PK なので、行が増える(1:多)心配はない。
       .leftJoin(municipalityMaster, eq(srsRecords.municipalityCode, municipalityMaster.code))
       .where(where)
       .orderBy(asc(srsRecords.dueDate))
@@ -151,7 +153,6 @@ export async function getReviewItemList(opts?: {
     db.select({ value: count() }).from(srsRecords).where(where),
   ]);
 
-  // 正答率集計は一覧本体の取得とは独立して行う。失敗しても一覧表示をブロックしない（FR-006）。
   let accuracyMap = new Map<string, { correct: number; total: number }>();
   try {
     const pairs = rows.map((r) => ({ municipalityCode: r.municipalityCode, mode: r.mode }));
