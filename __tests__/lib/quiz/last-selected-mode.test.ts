@@ -33,6 +33,11 @@ describe('resolveInitialSelectedMode', () => {
     expect(resolveInitialSelectedMode(undefined, 'A')).toBe('A');
   });
 
+  it('modeParam が無効で savedMode が有効な場合は savedMode が選択される', () => {
+    expect(resolveInitialSelectedMode('invalid', 'C')).toBe('C');
+    expect(resolveInitialSelectedMode('E', 'D')).toBe('D');
+  });
+
   it('どちらも無効・存在しない場合はデフォルト(B)が返る', () => {
     expect(resolveInitialSelectedMode(null, null)).toBe('B');
     expect(resolveInitialSelectedMode('invalid', 'invalid')).toBe('B');

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { RecommendHeroCard } from '@/components/recommend/recommend-hero-card';
 import {
   LAST_SELECTED_MODE_KEY,
+  parseGameMode,
   resolveInitialSelectedMode,
 } from '@/lib/quiz/last-selected-mode';
 
@@ -169,7 +170,7 @@ export default function MunicipalityModeSelectPage() {
   const selectedInfo = MODES.find((m) => m.key === selected)!;
 
   useEffect(() => {
-    if (modeParam) return;
+    if (parseGameMode(modeParam)) return;
     try {
       const saved = localStorage.getItem(LAST_SELECTED_MODE_KEY);
       const initialMode = resolveInitialSelectedMode(modeParam, saved);
