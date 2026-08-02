@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, MapPin, List, HelpCircle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RecommendHeroCard } from '@/components/recommend/recommend-hero-card';
+import {
+  LAST_SELECTED_MODE_KEY,
+  resolveInitialSelectedMode,
+} from '@/lib/quiz/last-selected-mode';
 
 const MiniJapanMap = dynamic(
   () => import('@/components/map/MiniJapanMap').then((m) => m.MiniJapanMap),
@@ -158,13 +162,38 @@ function ModePreview({ mode }: { mode: Mode }) {
 export default function MunicipalityModeSelectPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const modeParam = searchParams.get('mode')?.toUpperCase() as Mode | undefined;
-  const [selected, setSelected] = useState<Mode>(
-    modeParam && (['A', 'B', 'C', 'D'] as Mode[]).includes(modeParam) ? modeParam : 'B',
+  const modeParam = searchParams.get('mode');
+  const [selected, setSelected] = useState<Mode>(() =>
+    resolveInitialSelectedMode(modeParam, null),
   );
   const selectedInfo = MODES.find((m) => m.key === selected)!;
 
+  useEffect(() => {
+    if (modeParam) return;
+    try {
+      const saved = localStorage.getItem(LAST_SELECTED_MODE_KEY);
+      const initialMode = resolveInitialSelectedMode(modeParam, saved);
+      setSelected(initialMode);
+    } catch {
+      // ignore storage error
+    }
+  }, [modeParam]);
+
+  function handleSelectMode(mode: Mode) {
+    setSelected(mode);
+    try {
+      localStorage.setItem(LAST_SELECTED_MODE_KEY, mode);
+    } catch {
+      // ignore storage error
+    }
+  }
+
   function handleProceed() {
+    try {
+      localStorage.setItem(LAST_SELECTED_MODE_KEY, selected);
+    } catch {
+      // ignore storage error
+    }
     router.push(`/quiz/municipality/${selected.toLowerCase()}`);
   }
 
@@ -190,7 +219,7 @@ export default function MunicipalityModeSelectPage() {
             return (
               <button
                 key={m.key}
-                onClick={() => setSelected(m.key)}
+                onClick={() => handleSelectMode(m.key)}
                 className={`rounded-xl border p-3 text-left transition-colors ${
                   isSelected
                     ? 'border-primary bg-primary/10'

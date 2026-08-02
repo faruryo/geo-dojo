@@ -10,6 +10,7 @@ import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
 import { RecommendReplayButton } from '@/components/recommend/recommend-replay-button';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
 import type { Question } from '@/components/quiz/quiz-runner';
+import { LAST_SELECTED_MODE_KEY, parseGameMode } from '@/lib/quiz/last-selected-mode';
 import {
   type Difficulty,
   type GameMode,
@@ -171,6 +172,18 @@ export default function MunicipalityQuizPage() {
       })),
     [masterData],
   );
+
+  // ── Persist valid mode to localStorage ──
+  useEffect(() => {
+    const validMode = parseGameMode(modeFromUrl);
+    if (validMode) {
+      try {
+        localStorage.setItem(LAST_SELECTED_MODE_KEY, validMode);
+      } catch {
+        // ignore storage error
+      }
+    }
+  }, [modeFromUrl]);
 
   // ── Back-button interception during play ──
   useEffect(() => {

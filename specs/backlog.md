@@ -81,11 +81,8 @@
   - 対策案: `distractorPool` を構築する際、`settings.difficulties` に含まれる難易度の市区町村のみを対象にするように修正する。
   - 該当: [page.tsx](file:///Users/faru/geo-dojo/app/%28app%29/quiz/municipality/%5Bmode%5D/page.tsx) の `buildQuestions`
 
-- [ ] B018 【UX改善】モード選択画面に戻った際に直前に選択・プレイしていたモードを保持する
-  - 症状: クイズプレイ後や戻るボタンなどで市区町村クイズ of モード選択画面 (`/quiz/municipality`) に戻った際、直前にプレイしたモードが保持されず、常にデフォルト（モードB）が選択された状態になってしまう。
-  - 期待値: ユーザーが最後に選択・プレイしたモードを保持し、次回アクセス時に初期選択状態とする。
-  - 対策案: `localStorage`（キー：`geo-dojo:last-selected-mode` 等）を利用して最後に選択されたモードをクライアントサイドで記憶し、画面初期化時にその値を `selected` ステートの初期値として採用する。サーバーサイドレンダリング時のハイドレーションミスマッチを防ぐため、マウント後の `useEffect` 等で復元するか、あるいはクイズ結果画面等からの戻り遷移時に URL クエリパラメータ（`?mode=X`）を引き回すようにする。
-  - 該当: [page.tsx](file:///Users/faru/geo-dojo/app/%28app%29/quiz/municipality/page.tsx)（記憶・選択状態の復元）
+- [x] B018 【UX改善】モード選択画面に戻った際に直前に選択・プレイしていたモードを保持する → **実装完了**
+  - 実装: `lib/quiz/last-selected-mode.ts` にモード解釈・フォールバック関数 `resolveInitialSelectedMode` と純粋関数群を定義し、localStorage キー `geo-dojo:last-selected-mode` に保存・復元。モード選択画面 (`/quiz/municipality`) でのボタン選択・決定時、および各モード設定画面 (`/quiz/municipality/[mode]`) への直アクセス・遷移時に自動記録。URL パラメータ（`?mode=X`）がある場合は URL パラメータを最優先。`__tests__/lib/quiz/last-selected-mode.test.ts` に単体テストを追加。
 
 ## アイデアストック
 
