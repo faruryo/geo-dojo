@@ -5,7 +5,7 @@ import {
   type Region,
   ALL_PREFECTURES,
   buildModeCDistractors,
-  filterSameName,
+  filterTextModeMunicipalities,
   getRegionsPrefectures,
   shuffle,
 } from '@/lib/quiz/municipality-data';
@@ -51,7 +51,7 @@ export function buildReviewQuestions(
       } else {
         // Mode C/D
         const regionPrefs = getRegionsPrefectures([municipality.region as Region]);
-        const pool = filterSameName(allMunicipalities);
+        const pool = filterTextModeMunicipalities(allMunicipalities);
         const distractors = buildModeCDistractors(municipality, pool, {
           regionPrefs,
         });

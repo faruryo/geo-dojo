@@ -183,6 +183,18 @@ export function filterSameName(municipalities: Municipality[]): Municipality[] {
   return municipalities.filter((m) => !isSameNameMunicipality(m.name, m.prefecture));
 }
 
+export function isTokyoSpecialWard(m: Municipality): boolean {
+  return m.prefecture === '東京都' && m.name.endsWith('区');
+}
+
+export function filterTokyoSpecialWards(municipalities: Municipality[]): Municipality[] {
+  return municipalities.filter((m) => !isTokyoSpecialWard(m));
+}
+
+export function filterTextModeMunicipalities(municipalities: Municipality[]): Municipality[] {
+  return filterTokyoSpecialWards(filterSameName(municipalities));
+}
+
 interface DistractorFilterContext {
   targetPrefecture: string;
   useRegion: boolean;
