@@ -104,31 +104,8 @@ export async function getMasterPoolSize(
   return 0;
 }
 
-/**
- * ダッシュボード サマリ。認証非依存（userId 引数）。
- * 相互依存のない全クエリを Promise.all で並列実行する（totalSlots を含め全て独立。
- * 各値は最後の算術でのみ使用するため順序依存なし）。
- */
-export async function getDashboardSummaryData(userId: string) {
-  const todayStart = getJSTStartOfToday();
-
-  const prevCondition = and(
-    eq(municipalityQuizResults.userId, userId),
-    lt(municipalityQuizResults.answeredAt, todayStart),
-  );
-
-  const [
-    totalRow,
-    correctRow,
-    studiedRow,
-    clearedRow,
-    totalSlots,
-    prevTotalRow,
-    prevCorrectRow,
-    prevStudiedRow,
-    prevClearedRow,
-  ] = await Promise.all([
-    // --- Current (all time) ---
+async function fetchCurrentSummaryCounts(userId: string) {
+  return Promise.all([
     db
       .select({ value: count() })
       .from(municipalityQuizResults)
@@ -148,7 +125,6 @@ export async function getDashboardSummaryData(userId: string) {
       })
       .from(municipalityQuizResults)
       .where(eq(municipalityQuizResults.userId, userId)),
-    // モード×市区町村のユニーク組み合わせで正解済みカウント
     db
       .select({
         value: sql<number>`
@@ -166,7 +142,17 @@ export async function getDashboardSummaryData(userId: string) {
         ),
       ),
     getMasterPoolSize('all'),
-    // --- Prev (before today JST 0:00) ---
+  ]);
+}
+
+async function fetchPrevSummaryCounts(userId: string) {
+  const todayStart = getJSTStartOfToday();
+  const prevCondition = and(
+    eq(municipalityQuizResults.userId, userId),
+    lt(municipalityQuizResults.answeredAt, todayStart),
+  );
+
+  return Promise.all([
     db
       .select({ value: count() })
       .from(municipalityQuizResults)
@@ -192,6 +178,19 @@ export async function getDashboardSummaryData(userId: string) {
       .from(municipalityQuizResults)
       .innerJoin(municipalityMaster, eq(municipalityMaster.code, municipalityQuizResults.municipalityCode))
       .where(and(prevCondition, eq(municipalityQuizResults.isCorrect, true))),
+  ]);
+}
+
+/**
+ * ダッシュボード サマリ。認証非依存（userId 引数）。
+ */
+export async function getDashboardSummaryData(userId: string) {
+  const [
+    [totalRow, correctRow, studiedRow, clearedRow, totalSlots],
+    [prevTotalRow, prevCorrectRow, prevStudiedRow, prevClearedRow],
+  ] = await Promise.all([
+    fetchCurrentSummaryCounts(userId),
+    fetchPrevSummaryCounts(userId),
   ]);
 
   const totalQuestions = totalRow[0].value;
@@ -229,6 +228,59 @@ export async function getDashboardSummaryData(userId: string) {
   });
 }
 
+interface RawAccuracyRow {
+  date: unknown;
+  difficulty: string | null;
+  correctCount: number;
+  totalCount: number;
+}
+
+function aggregateAccuracyByDate(rows: RawAccuracyRow[]) {
+  const diffs = ['easy', 'medium', 'hard', 'expert'] as const;
+  const dateMap = new Map<string, Map<string, { correct: number; total: number }>>();
+
+  for (const r of rows) {
+    const d = r.date;
+    const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+    const diff = r.difficulty ?? 'unknown';
+
+    let diffMap = dateMap.get(dateStr);
+    if (!diffMap) {
+      diffMap = new Map();
+      dateMap.set(dateStr, diffMap);
+    }
+    const prev = diffMap.get(diff) ?? { correct: 0, total: 0 };
+    diffMap.set(diff, {
+      correct: prev.correct + Number(r.correctCount),
+      total: prev.total + Number(r.totalCount),
+    });
+  }
+
+  return Array.from(dateMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, byDiff]) => {
+      let allCorrect = 0;
+      let allTotal = 0;
+      const entries = diffs.map((diff) => {
+        const d = byDiff.get(diff);
+        let val: number | null = null;
+        if (d) {
+          val = d.total > 0 ? Math.round((d.correct / d.total) * 1000) / 10 : 0;
+          allCorrect += d.correct;
+          allTotal += d.total;
+        }
+        return [diff, val] as const;
+      });
+
+      const row: Record<string, unknown> = Object.fromEntries(entries);
+      row.date = date;
+      row.all = allTotal > 0 ? Math.round((allCorrect / allTotal) * 1000) / 10 : 0;
+      row.correctCount = allCorrect;
+      row.totalCount = allTotal;
+      return row;
+    });
+}
+
 // ──────────────────────────────────────────────────────
 // getAccuracyTrendData
 // ──────────────────────────────────────────────────────
@@ -240,7 +292,7 @@ export async function getAccuracyTrendData(
     region,
   }: {
     period: '7d' | '30d' | 'all';
-    mode: 'all' | 'A' | 'B' | 'C' | 'D';
+    mode: QuizModeFilter;
     region: string;
   },
 ) {
@@ -283,47 +335,190 @@ export async function getAccuracyTrendData(
       sql`DATE(${municipalityQuizResults.answeredAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')`,
     );
 
-  // Pivot: group by date, with per-difficulty accuracy
-  const diffs = ['easy', 'medium', 'hard', 'expert'] as const;
-  const dateMap = new Map<string, Record<string, { correct: number; total: number }>>();
+  return serialize(aggregateAccuracyByDate(rows));
+}
 
-  for (const r of [...rows]) {
-    const d = r.date as unknown;
-    const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
-    const diff = r.difficulty ?? 'unknown';
-    if (!dateMap.has(dateStr)) {
-      dateMap.set(dateStr, {});
+function calculateDiffTotals(
+  mode: QuizModeFilter,
+  fullMap: Map<string, { cnt: number; cntExcluded: number; cntDistinctExcluded: number }>,
+  dedupMap: Map<string, { cnt: number; cntExcluded: number }>,
+) {
+  const diffs = ['easy', 'medium', 'hard', 'expert'] as const;
+  const diffTotals = new Map<string, number>();
+
+  for (const diff of diffs) {
+    const full = fullMap.get(diff) ?? { cnt: 0, cntExcluded: 0, cntDistinctExcluded: 0 };
+    const dedup = dedupMap.get(diff) ?? { cnt: 0, cntExcluded: 0 };
+    if (mode === 'all') {
+      diffTotals.set(diff, full.cntDistinctExcluded + dedup.cntExcluded * 2 + full.cnt);
+    } else if (mode === 'B' || mode === 'C') {
+      diffTotals.set(diff, dedup.cntExcluded);
+    } else if (mode === 'A') {
+      diffTotals.set(diff, full.cntDistinctExcluded);
+    } else {
+      diffTotals.set(diff, full.cnt);
     }
-    const entry = dateMap.get(dateStr)!;
-    const prev = entry[diff] ?? { correct: 0, total: 0 };
-    prev.correct += Number(r.correctCount);
-    prev.total += Number(r.totalCount);
-    entry[diff] = prev;
   }
 
-  const dailyData = Array.from(dateMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, byDiff]) => {
-      const row: Record<string, unknown> = { date };
-      let allCorrect = 0;
-      let allTotal = 0;
-      for (const diff of diffs) {
-        const d = byDiff[diff];
-        if (d) {
-          row[diff] = d.total > 0 ? Math.round((d.correct / d.total) * 1000) / 10 : 0;
-          allCorrect += d.correct;
-          allTotal += d.total;
-        } else {
-          row[diff] = null;
-        }
+  const totalAllSlots = Array.from(diffTotals.values()).reduce((a, b) => a + b, 0);
+  return { diffTotals, totalAllSlots };
+}
+
+async function fetchCompletionDenominators(
+  mode: QuizModeFilter,
+  useRegion: boolean,
+  region: string,
+) {
+  const masterWhere = [
+    sql`${municipalityMaster.difficulty} IN ('easy', 'medium', 'hard', 'expert')`,
+  ];
+  if (useRegion) {
+    masterWhere.push(eq(municipalityMaster.region, region));
+  }
+
+  const [fullRows, dedupRows] = await Promise.all([
+    db
+      .select({
+        difficulty: municipalityMaster.difficulty,
+        cnt: sql<number>`COUNT(*)`,
+        cntExcluded: sql<number>`COUNT(*) FILTER (WHERE ${notSameNameSql})`,
+        cntDistinctExcluded: sql<number>`COUNT(DISTINCT ${municipalityMaster.name}) FILTER (WHERE ${notSameNameSql})`,
+      })
+      .from(municipalityMaster)
+      .where(and(...masterWhere))
+      .groupBy(municipalityMaster.difficulty),
+    db
+      .select({
+        difficulty: municipalityMaster.difficulty,
+        cnt: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
+        cntExcluded: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture})) FILTER (WHERE ${notSameNameSql})`,
+      })
+      .from(municipalityMaster)
+      .where(and(...masterWhere))
+      .groupBy(municipalityMaster.difficulty),
+  ]);
+
+  const fullMap = new Map(
+    [...fullRows].map((r) => [
+      r.difficulty,
+      {
+        cnt: Number(r.cnt),
+        cntExcluded: Number(r.cntExcluded),
+        cntDistinctExcluded: Number(r.cntDistinctExcluded),
+      },
+    ]),
+  );
+  const dedupMap = new Map(
+    [...dedupRows].map((r) => [r.difficulty, { cnt: Number(r.cnt), cntExcluded: Number(r.cntExcluded) }]),
+  );
+
+  return calculateDiffTotals(mode, fullMap, dedupMap);
+}
+
+interface RawCompletionRow {
+  date: unknown;
+  difficulty: string | null;
+  municipalityCode: string;
+  municipalityName: string | null;
+  prefecture: string | null;
+  mode: string;
+}
+
+function getCompletionEntryKey(
+  mode: QuizModeFilter,
+  entry: { mode: string; code: string; name: string; prefecture: string },
+) {
+  if (mode === 'all') {
+    if (entry.mode === 'A') return `A:${entry.name}`;
+    if (entry.mode === 'B' || entry.mode === 'C') return `${entry.mode}:${entry.name}::${entry.prefecture}`;
+    return `D:${entry.code}`;
+  }
+  if (mode === 'A') return entry.name;
+  if (mode === 'B' || mode === 'C') return `${entry.name}::${entry.prefecture}`;
+  return entry.code;
+}
+
+function updateCumSets(
+  diffMap: Map<string, Array<{ mode: string; code: string; name: string; prefecture: string }>>,
+  cumSets: Map<string, Set<string>>,
+  mode: QuizModeFilter,
+) {
+  const diffs = ['easy', 'medium', 'hard', 'expert'] as const;
+  for (const diff of diffs) {
+    const entries = diffMap.get(diff);
+    if (!entries) continue;
+    const set = cumSets.get(diff);
+    if (set) {
+      for (const entry of entries) {
+        set.add(getCompletionEntryKey(mode, entry));
       }
-      row.all = allTotal > 0 ? Math.round((allCorrect / allTotal) * 1000) / 10 : 0;
-      row.correctCount = allCorrect;
-      row.totalCount = allTotal;
-      return row;
+    }
+  }
+}
+
+function buildCompletionDailyTrend(
+  rows: RawCompletionRow[],
+  mode: QuizModeFilter,
+  diffTotals: Map<string, number>,
+  totalAllSlots: number,
+  periodStart: Date | null,
+) {
+  const diffs = ['easy', 'medium', 'hard', 'expert'] as const;
+  const dateMap = new Map<string, Map<string, Array<{ mode: string; code: string; name: string; prefecture: string }>>>();
+
+  for (const r of rows) {
+    const dateStr = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10);
+    const diff = r.difficulty ?? 'unknown';
+
+    let diffMap = dateMap.get(dateStr);
+    if (!diffMap) {
+      diffMap = new Map();
+      dateMap.set(dateStr, diffMap);
+    }
+    let list = diffMap.get(diff);
+    if (!list) {
+      list = [];
+      diffMap.set(diff, list);
+    }
+    list.push({
+      mode: r.mode,
+      code: r.municipalityCode,
+      name: r.municipalityName || '',
+      prefecture: r.prefecture || '',
+    });
+  }
+
+  const cumSets = new Map<string, Set<string>>(diffs.map((d) => [d, new Set()]));
+  const sortedDates = Array.from(dateMap.keys()).sort((a, b) => a.localeCompare(b));
+  const dailyData: Record<string, unknown>[] = [];
+
+  for (const dateStr of sortedDates) {
+    const diffMap = dateMap.get(dateStr);
+    if (diffMap) {
+      updateCumSets(diffMap, cumSets, mode);
+    }
+
+    if (periodStart && dateStr < periodStart.toISOString().slice(0, 10)) {
+      continue;
+    }
+
+    let cumAllCount = 0;
+    const rowValues = diffs.map((diff) => {
+      const set = cumSets.get(diff);
+      const cumCount = set ? set.size : 0;
+      const total = diffTotals.get(diff) ?? 1;
+      const val = Math.round((cumCount / total) * 10000) / 100;
+      cumAllCount += cumCount;
+      return [diff, val] as const;
     });
 
-  return serialize(dailyData);
+    const row: Record<string, unknown> = Object.fromEntries(rowValues);
+    row.date = dateStr;
+    row.all = totalAllSlots > 0 ? Math.round((cumAllCount / totalAllSlots) * 10000) / 100 : 0;
+    dailyData.push(row);
+  }
+
+  return dailyData;
 }
 
 // ──────────────────────────────────────────────────────
@@ -337,74 +532,15 @@ export async function getCompletionTrendData(
     region,
   }: {
     period: '7d' | '30d' | 'all';
-    mode: 'all' | 'A' | 'B' | 'C' | 'D';
+    mode: QuizModeFilter;
     region: string;
   },
 ) {
   const useRegion = region && region !== '全国';
   const periodStart = getJSTDateRange(period);
 
-  const diffs = ['easy', 'medium', 'hard', 'expert'] as const;
+  const { diffTotals, totalAllSlots } = await fetchCompletionDenominators(mode, Boolean(useRegion), region);
 
-  // ── Denominator: per-difficulty totals (same logic as getDifficultyProgress) ──
-  const masterWhere = [
-    sql`${municipalityMaster.difficulty} IN ('easy', 'medium', 'hard', 'expert')`,
-  ];
-  if (useRegion) {
-    masterWhere.push(eq(municipalityMaster.region, region));
-  }
-
-  const fullRows = await db
-    .select({
-      difficulty: municipalityMaster.difficulty,
-      cnt: sql<number>`COUNT(*)`,
-      cntExcluded: sql<number>`COUNT(*) FILTER (WHERE ${notSameNameSql})`,
-      cntDistinctExcluded: sql<number>`COUNT(DISTINCT ${municipalityMaster.name}) FILTER (WHERE ${notSameNameSql})`,
-    })
-    .from(municipalityMaster)
-    .where(and(...masterWhere))
-    .groupBy(municipalityMaster.difficulty);
-  const fullMap = new Map(
-    [...fullRows].map((r) => [
-      r.difficulty,
-      {
-        cnt: Number(r.cnt),
-        cntExcluded: Number(r.cntExcluded),
-        cntDistinctExcluded: Number(r.cntDistinctExcluded),
-      },
-    ]),
-  );
-
-  const dedupRows = await db
-    .select({
-      difficulty: municipalityMaster.difficulty,
-      cnt: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
-      cntExcluded: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture})) FILTER (WHERE ${notSameNameSql})`,
-    })
-    .from(municipalityMaster)
-    .where(and(...masterWhere))
-    .groupBy(municipalityMaster.difficulty);
-  const dedupMap = new Map(
-    [...dedupRows].map((r) => [r.difficulty, { cnt: Number(r.cnt), cntExcluded: Number(r.cntExcluded) }]),
-  );
-
-  const diffTotals: Record<string, number> = {};
-  for (const diff of diffs) {
-    const full = fullMap.get(diff) ?? { cnt: 0, cntExcluded: 0, cntDistinctExcluded: 0 };
-    const dedup = dedupMap.get(diff) ?? { cnt: 0, cntExcluded: 0 };
-    if (mode === 'all') {
-      diffTotals[diff] = full.cntDistinctExcluded + dedup.cntExcluded * 2 + full.cnt;
-    } else if (mode === 'B' || mode === 'C') {
-      diffTotals[diff] = dedup.cntExcluded;
-    } else if (mode === 'A') {
-      diffTotals[diff] = full.cntDistinctExcluded;
-    } else {
-      diffTotals[diff] = full.cnt;
-    }
-  }
-  const totalAllSlots = Object.values(diffTotals).reduce((a, b) => a + b, 0);
-
-  // ── Numerator: query ALL correct answers (no period filter) for accurate cumulative counts ──
   const conditions = [
     eq(municipalityQuizResults.userId, userId),
     eq(municipalityQuizResults.isCorrect, true),
@@ -416,11 +552,12 @@ export async function getCompletionTrendData(
     conditions.push(eq(municipalityMaster.region, region));
   }
 
-  const filterCond = mode === 'all'
-    ? sql`(${municipalityQuizResults.mode} = 'D' OR ${notSameNameSql})`
-    : ['A', 'B', 'C'].includes(mode)
-      ? notSameNameSql
-      : undefined;
+  let filterCond;
+  if (mode === 'all') {
+    filterCond = sql`(${municipalityQuizResults.mode} = 'D' OR ${notSameNameSql})`;
+  } else if (mode === 'A' || mode === 'B' || mode === 'C') {
+    filterCond = notSameNameSql;
+  }
 
   const rows = await db
     .select({
@@ -441,75 +578,9 @@ export async function getCompletionTrendData(
       sql`DATE(${municipalityQuizResults.answeredAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')`,
     );
 
-  // ── Build cumulative distinct counts per difficulty per date ──
-  const dateMap = new Map<string, Map<string, Array<{ mode: string; code: string; name: string; prefecture: string }>>>();
-  for (const r of [...rows]) {
-    const d = r.date as unknown;
-    const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
-    const diff = r.difficulty ?? 'unknown';
-    if (!dateMap.has(dateStr)) dateMap.set(dateStr, new Map());
-    const diffMap = dateMap.get(dateStr)!;
-    if (!diffMap.has(diff)) diffMap.set(diff, []);
-    diffMap.get(diff)!.push({
-      mode: r.mode,
-      code: r.municipalityCode,
-      name: r.municipalityName || '',
-      prefecture: r.prefecture || '',
-    });
-  }
-
-  const cumSets: Record<string, Set<string>> = {};
-  for (const diff of diffs) cumSets[diff] = new Set();
-
-  const sortedDates = Array.from(dateMap.keys()).sort();
-
-  const dailyData: Record<string, unknown>[] = [];
-  for (const dateStr of sortedDates) {
-    const diffMap = dateMap.get(dateStr)!;
-
-    for (const diff of diffs) {
-      const entries = diffMap.get(diff);
-      if (!entries) continue;
-      for (const entry of entries) {
-        let key = '';
-        if (mode === 'all') {
-          if (entry.mode === 'A') {
-            key = `A:${entry.name}`;
-          } else if (entry.mode === 'B' || entry.mode === 'C') {
-            key = `${entry.mode}:${entry.name}::${entry.prefecture}`;
-          } else {
-            key = `D:${entry.code}`;
-          }
-        } else {
-          if (mode === 'A') {
-            key = entry.name;
-          } else if (mode === 'B' || mode === 'C') {
-            key = `${entry.name}::${entry.prefecture}`;
-          } else {
-            key = entry.code;
-          }
-        }
-        cumSets[diff].add(key);
-      }
-    }
-
-    if (periodStart && dateStr < periodStart.toISOString().slice(0, 10)) {
-      continue;
-    }
-
-    const row: Record<string, unknown> = { date: dateStr };
-    let cumAllCount = 0;
-    for (const diff of diffs) {
-      const cumCount = cumSets[diff].size;
-      const total = diffTotals[diff] ?? 1;
-      row[diff] = Math.round((cumCount / total) * 10000) / 100;
-      cumAllCount += cumCount;
-    }
-    row.all = totalAllSlots > 0 ? Math.round((cumAllCount / totalAllSlots) * 10000) / 100 : 0;
-    dailyData.push(row);
-  }
-
-  return serialize(dailyData);
+  return serialize(
+    buildCompletionDailyTrend(rows, mode, diffTotals, totalAllSlots, periodStart),
+  );
 }
 
 // ──────────────────────────────────────────────────────
@@ -610,6 +681,8 @@ export async function getItemAccuracyData(
 // ──────────────────────────────────────────────────────
 // getStreakData
 // ──────────────────────────────────────────────────────
+// getStreakData
+// ──────────────────────────────────────────────────────
 export async function getStreakData(userId: string) {
   const rows = await db
     .select({
@@ -628,43 +701,61 @@ export async function getStreakData(userId: string) {
   const today = getJSTToday();
   const hasPlayedToday = dates.length > 0 && dates[0] === today;
 
-  if (dates.length === 0) {
-    return { currentStreak: 0, longestStreak: 0, hasPlayedToday: false };
-  }
-
   let currentStreak = 0;
-  let longestStreak = 0;
-  let streak = 1;
+  let maxStreak = 0;
+  let tempStreak = 0;
+  const expected = new Date(today);
 
-  const mostRecentDate = new Date(dates[0] + 'T00:00:00Z');
-  const todayDate = new Date(today + 'T00:00:00Z');
-  const diffFromToday =
-    (todayDate.getTime() - mostRecentDate.getTime()) / (24 * 60 * 60 * 1000);
-
-  const isCurrentStreakActive = diffFromToday <= 1;
-
-  for (let i = 1; i < dates.length; i++) {
-    const curr = new Date(dates[i] + 'T00:00:00Z');
-    const prev = new Date(dates[i - 1] + 'T00:00:00Z');
-    const diff = (prev.getTime() - curr.getTime()) / (24 * 60 * 60 * 1000);
-
-    if (diff === 1) {
-      streak++;
-    } else {
-      if (currentStreak === 0 && isCurrentStreakActive) {
-        currentStreak = streak;
-      }
-      longestStreak = Math.max(longestStreak, streak);
-      streak = 1;
+  if (dates.length > 0) {
+    if (!hasPlayedToday) {
+      expected.setDate(expected.getDate() - 1);
     }
+
+    for (const dateStr of dates) {
+      const expStr = expected.toISOString().slice(0, 10);
+      if (dateStr === expStr) {
+        tempStreak++;
+        if (tempStreak > maxStreak) maxStreak = tempStreak;
+        expected.setDate(expected.getDate() - 1);
+      } else if (dateStr < expStr) {
+        break;
+      }
+    }
+    currentStreak = tempStreak;
   }
 
-  if (currentStreak === 0 && isCurrentStreakActive) {
-    currentStreak = streak;
-  }
-  longestStreak = Math.max(longestStreak, streak);
+  return serialize({
+    currentStreak,
+    longestStreak: maxStreak,
+    hasPlayedToday,
+  });
+}
 
-  return serialize({ currentStreak, longestStreak, hasPlayedToday });
+function getClearedDistinctSql(mode: QuizModeFilter) {
+  if (mode === 'all') {
+    return sql<number>`
+      COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
+      + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A'), 0)
+      + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE ${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C'), 0)
+    `;
+  }
+  if (mode === 'A') {
+    return sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityName})`;
+  }
+  if (mode === 'B' || mode === 'C') {
+    return sql<number>`COUNT(DISTINCT (${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture}))`;
+  }
+  return sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})`;
+}
+
+function getFilterCondSql(mode: QuizModeFilter) {
+  if (mode === 'all') {
+    return sql`(${municipalityQuizResults.mode} = 'D' OR ${notSameNameSql})`;
+  }
+  if (mode === 'A' || mode === 'B' || mode === 'C') {
+    return notSameNameSql;
+  }
+  return undefined;
 }
 
 // ──────────────────────────────────────────────────────
@@ -676,12 +767,15 @@ export async function getDifficultyProgressData(
     mode,
     region,
   }: {
-    mode: 'all' | 'A' | 'B' | 'C' | 'D';
+    mode: QuizModeFilter;
     region: string;
   },
 ) {
   const useRegion = region && region !== '全国';
   const difficulties = ['easy', 'medium', 'hard', 'expert'] as const;
+
+  const { diffTotals } = await fetchCompletionDenominators(mode, Boolean(useRegion), region);
+  const totalMap = diffTotals;
 
   const whereConditions = [
     sql`${municipalityMaster.difficulty} IN ('easy', 'medium', 'hard', 'expert')`,
@@ -689,67 +783,6 @@ export async function getDifficultyProgressData(
   if (useRegion) {
     whereConditions.push(eq(municipalityMaster.region, region));
   }
-
-  const fullRows = await db
-    .select({
-      difficulty: municipalityMaster.difficulty,
-      cnt: sql<number>`COUNT(*)`,
-      cntExcluded: sql<number>`COUNT(*) FILTER (WHERE ${notSameNameSql})`,
-      cntDistinctExcluded: sql<number>`COUNT(DISTINCT ${municipalityMaster.name}) FILTER (WHERE ${notSameNameSql})`,
-    })
-    .from(municipalityMaster)
-    .where(and(...whereConditions))
-    .groupBy(municipalityMaster.difficulty);
-  const fullMap = new Map(
-    [...fullRows].map((r) => [
-      r.difficulty,
-      {
-        cnt: Number(r.cnt),
-        cntExcluded: Number(r.cntExcluded),
-        cntDistinctExcluded: Number(r.cntDistinctExcluded),
-      },
-    ]),
-  );
-
-  const dedupRows = await db
-    .select({
-      difficulty: municipalityMaster.difficulty,
-      cnt: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
-      cntExcluded: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture})) FILTER (WHERE ${notSameNameSql})`,
-    })
-    .from(municipalityMaster)
-    .where(and(...whereConditions))
-    .groupBy(municipalityMaster.difficulty);
-  const dedupMap = new Map(
-    [...dedupRows].map((r) => [r.difficulty, { cnt: Number(r.cnt), cntExcluded: Number(r.cntExcluded) }]),
-  );
-
-  const totalMap = new Map<string, number>();
-  for (const diff of difficulties) {
-    const full = fullMap.get(diff) ?? { cnt: 0, cntExcluded: 0, cntDistinctExcluded: 0 };
-    const dedup = dedupMap.get(diff) ?? { cnt: 0, cntExcluded: 0 };
-    if (mode === 'all') {
-      totalMap.set(diff, full.cntDistinctExcluded + dedup.cntExcluded * 2 + full.cnt);
-    } else if (mode === 'B' || mode === 'C') {
-      totalMap.set(diff, dedup.cntExcluded);
-    } else if (mode === 'A') {
-      totalMap.set(diff, full.cntDistinctExcluded);
-    } else {
-      totalMap.set(diff, full.cnt);
-    }
-  }
-
-  const clearedDistinct = mode === 'all'
-    ? sql<number>`
-        COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
-        + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A'), 0)
-        + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE ${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C'), 0)
-      `
-    : mode === 'A'
-      ? sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityName})`
-      : mode === 'B' || mode === 'C'
-        ? sql<number>`COUNT(DISTINCT (${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture}))`
-        : sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})`;
 
   const clearedConditions = [
     eq(municipalityQuizResults.userId, userId),
@@ -759,39 +792,37 @@ export async function getDifficultyProgressData(
     clearedConditions.push(eq(municipalityQuizResults.mode, mode));
   }
 
-  const filterCond = mode === 'all'
-    ? sql`(${municipalityQuizResults.mode} = 'D' OR ${notSameNameSql})`
-    : ['A', 'B', 'C'].includes(mode)
-      ? notSameNameSql
-      : undefined;
-
   const clearedRows = await db
     .select({
       difficulty: municipalityMaster.difficulty,
-      clearedCount: clearedDistinct,
+      clearedCount: getClearedDistinctSql(mode),
     })
     .from(municipalityQuizResults)
     .innerJoin(
       municipalityMaster,
       eq(municipalityMaster.code, municipalityQuizResults.municipalityCode),
     )
-    .where(and(...clearedConditions, ...whereConditions, filterCond))
+    .where(and(...clearedConditions, ...whereConditions, getFilterCondSql(mode)))
     .groupBy(municipalityMaster.difficulty);
 
-  const clearedMap = new Map(
-    [...clearedRows].map((r) => [r.difficulty, Number(r.clearedCount)]),
+  const clearedMap = new Map<string, number>(
+    [...clearedRows].map((r) => [String(r.difficulty), Number(r.clearedCount)]),
   );
 
-  return serialize(difficulties.map((diff) => {
+  const items = difficulties.map((diff) => {
     const totalCount = totalMap.get(diff) ?? 0;
     const clearedCount = clearedMap.get(diff) ?? 0;
+    const rate = totalCount > 0 ? clearedCount / totalCount : 0;
     return {
       difficulty: diff,
-      totalCount,
       clearedCount,
-      coverageRate: totalCount > 0 ? clearedCount / totalCount : 0,
+      totalCount,
+      rate,
+      coverageRate: rate,
     };
-  }));
+  });
+
+  return serialize(items);
 }
 
 // ──────────────────────────────────────────────────────
@@ -803,7 +834,7 @@ export async function getCompletionByModeData(
     mode,
     region,
   }: {
-    mode: 'all' | 'A' | 'B' | 'C' | 'D';
+    mode: QuizModeFilter;
     region: string;
   },
 ) {
@@ -817,29 +848,12 @@ export async function getCompletionByModeData(
     conditions.push(eq(municipalityQuizResults.mode, mode));
   }
 
-  const distinctExpr = mode === 'all'
-    ? sql<number>`
-        COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
-        + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A'), 0)
-        + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE ${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C'), 0)
-      `
-    : mode === 'A'
-      ? sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityName})`
-      : mode === 'B' || mode === 'C'
-        ? sql<number>`COUNT(DISTINCT (${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture}))`
-        : sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})`;
-
   const query = db
-    .select({ value: distinctExpr })
+    .select({ value: getClearedDistinctSql(mode) })
     .from(municipalityQuizResults)
     .innerJoin(municipalityMaster, eq(municipalityMaster.code, municipalityQuizResults.municipalityCode));
 
-  const filterCond = mode === 'all'
-    ? sql`(${municipalityQuizResults.mode} = 'D' OR ${notSameNameSql})`
-    : ['A', 'B', 'C'].includes(mode)
-      ? notSameNameSql
-      : undefined;
-
+  const filterCond = getFilterCondSql(mode);
   const regionCond = useRegion ? eq(municipalityMaster.region, region) : undefined;
 
   const [clearedRow] = await query.where(and(...conditions, filterCond, regionCond));
@@ -892,11 +906,18 @@ export async function getDueReviewSummaryData(userId: string): Promise<{
   ]);
 
   const nextDue = nextDueRow[0]?.value;
+  let nextDueAt: string | null = null;
+  if (nextDue instanceof Date) {
+    nextDueAt = nextDue.toISOString();
+  } else if (nextDue) {
+    nextDueAt = String(nextDue);
+  }
+
   return {
     dueCount: dueRow[0]?.value ?? 0,
     reviewingCount: reviewingRow[0]?.value ?? 0,
     graduatedCount: graduatedRow[0]?.value ?? 0,
-    nextDueAt: nextDue instanceof Date ? nextDue.toISOString() : nextDue ? String(nextDue) : null,
+    nextDueAt,
   };
 }
 
