@@ -81,7 +81,10 @@ interface JapanMapProps {
 1. **TopoJSON デコード**: デルタエンコードされた `japan.topojson`（Topology）から、`topojson-client` の `feature(topology, topology.objects[Object.keys(topology.objects)[0]])` を用いて、ポリゴン座標を持つ GeoJSON `FeatureCollection` へ明示的に復元・展開する。
 2. **対象都道府県の座標抽出**: 復元された FeatureCollection より、正解 (`highlightCorrect`) および 誤選択 (`selectedNames`) に該当する都道府県 Feature(s) の Geometry 座標を抽出する。
 3. **正確な Mercator 投影座標変換**: `ComposableMap` が実際に使用している描画設定と完全に一致するプロジェクション `d3-geo` の `geoMercator().center([138, 35]).scale(1000).translate([200, 250])`（400x500 ビューポート基準）を用いて、経緯度 `[lng, lat]` を SVG Viewport 投影座標 `[x, y]` へ変換し、対象要素の最小・最大 SVG 座標 `[minX, minY, maxX, maxY]` を算出する。
-4. **`scale` & `translate` の計算**: 投影 Bounding Box の中心 `cx = (minX + maxX) / 2`, `cy = (minY + maxY) / 2` および幅・高さに対して、Viewport (400x500) 内で対象領域が画面の 70% 程度を占めるよう `targetScale`（1〜8 の範囲）と中心位置合わせ用 `targetTranslate` (`{ x: (200 - cx) * targetScale, y: (250 - cy) * targetScale }`) を正確に算出する。
+4. **`scale` & `translate` のコンテナ CSS Pixel 補正計算**:
+   - 投影 Bounding Box の中心 `cx = (minX + maxX) / 2`, `cy = (minY + maxY) / 2` および幅・高さより、SVG viewBox 空間での `targetScale`（1〜8 の範囲）を算出する。
+   - レスポンシブコンテナ (`375px` 等) における SVG の `preserveAspectRatio` (`meet`) レターボックス余白・拡大率を補正するため、描画コンテナ実サイズ `rect = containerRef.current.getBoundingClientRect()` から `svgContentScale = Math.min(rect.width / 400, rect.height / 500)` を算出する。
+   - SVG viewBox オフセット `(200 - cx)`, `(250 - cy)` を CSS pixel 単位へ変換した `targetTranslate = { x: (200 - cx) * svgContentScale * targetScale, y: (250 - cy) * svgContentScale * targetScale }` を正確に算出し、画面アスペクト比に関わらず対象エリアが中央にフィットするように設定する。
 5. `scale` と `translate` を更新し、CSS の smooth transition (`transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1)`) でアニメーション移動。
 6. **問題リセット処理**: `qIdx` が変化して新しい問題に進んだ際（または `isIncorrect` が `false` に戻った際）、手動ズーム/パン位置をリセットし、`scale: 1, translate: { x: 0, y: 0 }` に確定スムーズ復元。
 
