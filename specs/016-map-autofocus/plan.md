@@ -99,9 +99,10 @@ sequenceDiagram
    - 複数座標・複数ポリゴンから正確な Union Bounding Box が算出できるか。
    - `scale` と `translate` の計算において 0 除算や 範囲外 (`scale < 1`, `scale > 8`) のガードが動作するか。
 2. **コンポーネント統合テスト (`__tests__/components/map/autofocus-integration.test.ts`)**:
-   - 不正解時 (`isIncorrect: true`) に `fitBounds` または `setTranslate` が適切に呼ばれ、`idle` リスナで zoom 12 クランプが発動するか。
-   - 正解時 (`feedback === 'correct'` / `isIncorrect: false`) に `fitBounds` および SVG transform が呼び出されず、画面が動かないか（FR-03.1 否定テスト）。
-   - `qIdx` 更新（新しい問題遷移）時にカメラ位置および zoom / translate が初期構図へリセットされるか。
+   - **前提条件**: Client Component マウントおよび `google.maps` / SVG 連携検証用 DOM テスト環境（`happy-dom` または lightweight DOM harness + Maps API Mock）の定義。
+   - **不正解フォーカス**: 不正解時 (`isIncorrect: true`) に `fitBounds` または `setTranslate` が適切に呼ばれ、`idle` リスナで zoom 12 クランプが発動するか。
+   - **正解時の否定テスト (FR-03.1)**: 初期表示 (`idle`) でコンポーネントをマウントして初期表示 `fitBounds` の呼び出しを確認後、スパイをクリア (`spy.mockClear()`) し、同一 `qIdx` のまま正解判定 (`isIncorrect: false` / `feedback === 'correct'`) へ再レンダリングした際、追加の `fitBounds` や SVG transform 呼び出しが発生しないことを確認。
+   - **問題遷移リセット**: `qIdx` 更新（新しい問題遷移）時にカメラ位置および zoom / translate が初期構図へリセットされるか。
 3. **回帰テスト・品質検証**:
    - `pnpm type-check`
    - `pnpm test`
