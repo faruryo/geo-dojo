@@ -6,6 +6,36 @@
 
 ---
 
+## 概要
+
+geo-dojo の地図タップ型クイズ（Mode D: 順引き市区町村タップ / Mode A: 逆引き都道府県タップ）において、不正解（タイムアウト含む）発生時に正解位置（および誤って選択した位置）の包含 Bounding Box へ地図を自動でスムーズパン・ズーム（フォーカス）させる機能を提供します。
+
+---
+
+## 技術的文脈 (Technical Context)
+
+**言語/バージョン**: TypeScript (strict)、Next.js 15.2.6+（App Router / React 19）  
+**主要な依存関係**: Google Maps JS API (`@googlemaps/js-api-loader`)、`@vnedyalk0v/react19-simple-maps` (TopoJSON)  
+**ストレージ**: なし (純粋なクライアント地図表示・ビューポート制御)  
+**テスト**: Vitest (`pnpm test`)。ロジック単体テスト (`autofocus-bounds.test.ts`) および コンポーネント統合テスト (`autofocus-integration.test.ts`)  
+**対象プラットフォーム**: PWA（モバイルファースト 375px 基準、ダークモード `#111111`）  
+**プロジェクトタイプ**: Web アプリケーション  
+**パフォーマンス目標**: Bounds 計算 < 10ms、500ms アニメーションでスムーズな表示追従  
+**制約事項**: 正解時 (`feedback === 'correct'`) はカメラ非移動、過度なズームイン防止 (非同期 `idle` リスナでの `zoom > 12` クランプ)
+
+---
+
+## 憲法チェック (Constitution Check)
+
+| 原則 | 評価 | 判定 |
+|------|------|------|
+| **I. セキュリティ & コンプライアンス** | 新規 API キーの追加なし。`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` のみを使用し、サーバー専用環境変数のクライアント露出は一切行わない。 | ✅ 合格 (Pass) |
+| **II. アーキテクチャ & パフォーマンス** | 地図データは既存の非同期 TopoJSON ロード (`/japan-municipalities.topojson`, `/japan.topojson`) をそのまま利用。新たな重い同期アセットは追加せず、Bounds 計算処理は純粋関数として分離してレイテンシ < 10ms を達成。 | ✅ 合格 (Pass) |
+| **III. ロジック & UI** | 375px モバイル画面基準を前提とし、`fitBounds` 時の Padding（40px）を設定してヘッダーや画面端に要素が被らないよう配慮。ダークモードスタイル（`#111111`）を維持。正解時は画面を揺らさず現状維持する否定条件を遵守。 | ✅ 合格 (Pass) |
+| **IV. コーディング規約** | TypeScript `strict` 徹底。計算ロジックは `lib/map/autofocus-bounds.ts` として切り出してTDDでテスト可能な構造を確保。 | ✅ 合格 (Pass) |
+
+---
+
 ## 1. コンポーネント改修設計 (Component Refactoring)
 
 ### 1.1 `MunicipalityMap.tsx` (Mode D / Google Maps)
