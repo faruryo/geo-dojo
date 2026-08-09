@@ -330,6 +330,8 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
             selectedNames={[...selectedPrefectures]}
             highlightCorrect={feedback !== 'idle' ? [...correctPrefectures] : undefined}
             highlightWrong={undefined}
+            isIncorrect={feedback === 'incorrect'}
+            qIdx={qIdx}
           />
         </div>
 
@@ -414,6 +416,8 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
             onMunicipalityClick={handleDTap}
             highlightCodes={correctCodes}
             wrongCodes={wrongCodes}
+            isIncorrect={feedback === 'incorrect'}
+            qIdx={qIdx}
             onLoadError={handleModeDFallback}
           />
         </div>

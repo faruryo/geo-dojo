@@ -11,14 +11,25 @@ import {
 import type { Topology } from 'topojson-specification';
 import { Plus, Minus, RotateCcw } from 'lucide-react';
 
+import { calculateFocusTransform } from '@/lib/map/autofocus-bounds';
+
 interface JapanMapProps {
   onPrefectureClick: (name: string) => void;
   highlightCorrect?: string | string[];
   highlightWrong?: string;
   selectedNames?: string[];
+  isIncorrect?: boolean;
+  qIdx?: number;
 }
 
-export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, selectedNames }: JapanMapProps) {
+export function JapanMap({
+  onPrefectureClick,
+  highlightCorrect,
+  highlightWrong,
+  selectedNames,
+  isIncorrect = false,
+  qIdx,
+}: JapanMapProps) {
   const correctSet = new Set(
     Array.isArray(highlightCorrect) ? highlightCorrect : highlightCorrect ? [highlightCorrect] : [],
   );
@@ -43,6 +54,36 @@ export function JapanMap({ onPrefectureClick, highlightCorrect, highlightWrong, 
   useEffect(() => {
     fetch('/japan.topojson').then((r) => r.json()).then(setTopology).catch(console.error);
   }, []);
+
+  // ── Autofocus to correct + wrong prefectures on incorrect feedback (B006) ──
+  useEffect(() => {
+    if (!isIncorrect || !topology || !containerRef.current) return;
+    let correctArr: string[] = [];
+    if (Array.isArray(highlightCorrect)) {
+      correctArr = highlightCorrect;
+    } else if (highlightCorrect) {
+      correctArr = [highlightCorrect];
+    }
+    const targets = Array.from(new Set([...correctArr, ...(selectedNames ?? [])]));
+    if (targets.length === 0) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const { scale: targetScale, translate: targetTranslate } = calculateFocusTransform({
+      targetNames: targets,
+      topology,
+      containerWidth: rect.width || 375,
+      containerHeight: rect.height || 500,
+    });
+
+    setScale(targetScale);
+    setTranslate(targetTranslate);
+  }, [isIncorrect, topology, highlightCorrect, selectedNames]);
+
+  // ── Reset map framing on qIdx change for a new question (FR-03.2) ──
+  useEffect(() => {
+    setScale(1);
+    setTranslate({ x: 0, y: 0 });
+  }, [qIdx]);
 
   function midpointOf(points: { x: number; y: number }[]) {
     const [p1, p2] = points;
