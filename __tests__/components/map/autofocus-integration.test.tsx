@@ -46,6 +46,32 @@ const mockTopology = {
   transform: { scale: [1, 1], translate: [0, 0] },
 };
 
+const mockJapanTopology = {
+  type: 'Topology',
+  objects: {
+    japan: {
+      type: 'GeometryCollection',
+      geometries: [
+        {
+          type: 'Polygon',
+          arcs: [[0]],
+          properties: { nam_ja: '東京都' },
+        },
+      ],
+    },
+  },
+  arcs: [
+    [
+      [139.75, 35.68],
+      [0.02, 0.0],
+      [0.0, 0.02],
+      [-0.02, 0.0],
+      [0.0, -0.02],
+    ],
+  ],
+  transform: { scale: [1, 1], translate: [0, 0] },
+};
+
 let mockMap: {
   fitBounds: ReturnType<typeof vi.fn<(bounds: unknown, padding?: unknown) => void>>;
   getZoom: ReturnType<typeof vi.fn<() => number>>;
@@ -143,10 +169,13 @@ describe('Map Autofocus Component Integration (T004 - Mounted Component Testing)
       },
     };
 
-    // Global fetch mock returning TopoJSON
-    (global as unknown as Record<string, unknown>).fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => mockTopology,
+    // Global fetch mock returning TopoJSON based on requested URL
+    (global as unknown as Record<string, unknown>).fetch = vi.fn().mockImplementation((url: string) => {
+      const data = url.includes('japan.topojson') ? mockJapanTopology : mockTopology;
+      return Promise.resolve({
+        ok: true,
+        json: async () => data,
+      });
     });
   });
 
@@ -245,7 +274,8 @@ describe('Map Autofocus Component Integration (T004 - Mounted Component Testing)
   });
 
   describe('Mode A (JapanMap) Real Component Mount Integration', () => {
-    it('renders JapanMap component and handles autofocus without crashing', async () => {
+    it('applies autofocus transform on incorrect answer and resets on qIdx change (FR-01.1 & FR-03.2)', async () => {
+      // Step 1: Render JapanMap on incorrect feedback
       await renderAndSettle(
         React.createElement(JapanMap, {
           onPrefectureClick: vi.fn(),
@@ -255,7 +285,29 @@ describe('Map Autofocus Component Integration (T004 - Mounted Component Testing)
         }),
       );
 
-      expect(container.firstElementChild).not.toBeNull();
+      // Query the inner map transform container div
+      const transformContainer = container.querySelector<HTMLDivElement>('div[style*="transform"]');
+      expect(transformContainer).not.toBeNull();
+
+      if (transformContainer) {
+        // Assert autofocus effect applied a non-default zoom transform (scale > 1)
+        expect(transformContainer.style.transform).not.toBe('translate(0px, 0px) scale(1)');
+        expect(transformContainer.style.transform).toMatch(/scale\((?!1\b)[0-9.]+\)/);
+      }
+
+      // Step 2: Advance question (qIdx = 1, isIncorrect = false)
+      await renderAndSettle(
+        React.createElement(JapanMap, {
+          onPrefectureClick: vi.fn(),
+          isIncorrect: false,
+          qIdx: 1,
+        }),
+      );
+
+      // Assert reset effect inside component restored scale: 1, translate: 0,0
+      if (transformContainer) {
+        expect(transformContainer.style.transform).toBe('translate(0px, 0px) scale(1)');
+      }
     });
   });
 });
