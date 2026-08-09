@@ -14,6 +14,8 @@ interface MunicipalityMapProps {
   onMunicipalityClick: (code: string, name: string) => void;
   highlightCodes?: string[];
   wrongCodes?: string[];
+  isIncorrect?: boolean;
+  qIdx?: number;
   onLoadError?: () => void;
 }
 
@@ -45,6 +47,8 @@ export function MunicipalityMap({
   onMunicipalityClick,
   highlightCodes = [],
   wrongCodes = [],
+  isIncorrect = false,
+  qIdx,
   onLoadError,
 }: MunicipalityMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -203,6 +207,51 @@ export function MunicipalityMap({
   useEffect(() => {
     if (ready) applyStyle();
   }, [ready, applyStyle]);
+
+  // ── Autofocus to correct + wrong bounds on incorrect feedback (B006) ──
+  useEffect(() => {
+    if (!ready || !mapRef.current || !dataLayerRef.current) return;
+    if (isIncorrect && (highlightCodes.length > 0 || wrongCodes.length > 0)) {
+      const map = mapRef.current;
+      const data = dataLayerRef.current;
+      const targetSet = new Set([...highlightCodes, ...wrongCodes]);
+      const bounds = new google.maps.LatLngBounds();
+      data.forEach((f) => {
+        const code = f.getProperty('code') as string | undefined;
+        if (code && targetSet.has(code)) {
+          f.getGeometry()?.forEachLatLng((ll) => bounds.extend(ll));
+        }
+      });
+      if (!bounds.isEmpty()) {
+        map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+        // Clamp maxZoom to 12 asynchronously after fitBounds settles (FR-01.4)
+        google.maps.event.addListenerOnce(map, 'idle', () => {
+          const currentZoom = map.getZoom();
+          if (currentZoom !== undefined && currentZoom > 12) {
+            map.setZoom(12);
+          }
+        });
+      }
+    }
+  }, [ready, isIncorrect, highlightCodes, wrongCodes]);
+
+  const prevQIdxRef = useRef<number | undefined>(qIdx);
+
+  // ── Reset map framing when qIdx changes to a new question (FR-03.2) ──
+  useEffect(() => {
+    if (!ready || !mapRef.current || !dataLayerRef.current) return;
+    if (prevQIdxRef.current !== undefined && prevQIdxRef.current !== qIdx && !isIncorrect) {
+      const data = dataLayerRef.current;
+      const bounds = new google.maps.LatLngBounds();
+      data.forEach((f) => {
+        f.getGeometry()?.forEachLatLng((ll) => bounds.extend(ll));
+      });
+      if (!bounds.isEmpty()) {
+        mapRef.current.fitBounds(bounds, { top: 24, right: 24, bottom: 24, left: 24 });
+      }
+    }
+    prevQIdxRef.current = qIdx;
+  }, [ready, qIdx, prefecture, isIncorrect]);
 
   // ── Cleanup on unmount ──
   useEffect(() => {
