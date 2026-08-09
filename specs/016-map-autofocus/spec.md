@@ -40,7 +40,7 @@ geo-dojo の地図タップ型クイズ（Mode D: 順引き市区町村タップ
 - **FR-01.1**: Mode D において `feedback === 'incorrect'` またはタイムアウト発生時、正解の市区町村の LatLngBounds を算出する。
 - **FR-01.2**: 誤タップが存在する場合、誤タップの LatLngBounds と正解の LatLngBounds を合成した Bounding Box を算出する。
 - **FR-01.3**: 算出された Bounding Box に対し、`google.maps.Map.fitBounds` を呼び出してスムーズにフォーカス・ズームさせる。
-- **FR-01.4**: 極端な超拡大（小さな町単体で周辺地理が消えるケース）を防ぐため、`maxZoom` や `padding`（上右下左: 32px〜48px）の適切な下限・上限を適用する。
+- **FR-01.4**: 極端な超拡大（小さな町単体で周辺地理が消えるケース）を防ぐため、`fitBounds` 適用完了後の非同期 `idle` リスナにおいて `maxZoom`（例: zoom ≤ 12）のワンショットクランプを適用し、安全な視野領域を確保する。
 
 ### FR-02: Mode A 不正解時の自動ズーム・パン (JapanMap / Simple Maps)
 - **FR-02.1**: Mode A において回答送信後に不正解判定となった場合、正解の都道府県（`correctPrefectures`）および誤選択された都道府県（`selectedPrefectures`）の地理 coordinates 領域を特定する。
@@ -50,7 +50,7 @@ geo-dojo の地図タップ型クイズ（Mode D: 順引き市区町村タップ
 
 ### FR-03: 正解時・リセット時の挙動制御
 - **FR-03.1**: 正解時（`feedback === 'correct'`）はカメラ移動を行わず、現在の表示状態またはハイライト強調のみを維持する（過度な画面揺れを防ぐため）。
-- **FR-03.2**: `qIdx` が進んで新しい問題が開始される（`feedback === 'idle'`）際、カメラ表示位置を初期位置へリセットする。
+- **FR-03.2**: `qIdx` が進んで新しい問題が開始される（`feedback === 'idle'`）際、正解直後の手動操作状態等に関わらず、問題インデックス (`qIdx`) の更新を契機としてカメラ表示位置を初期位置へ確実にリセットする。
   - Mode D: 対象都道府県の全市区町村 Bounds に `fitBounds`
   - Mode A: `scale: 1, translate: {x: 0, y: 0}`
 

@@ -18,6 +18,7 @@ interface MunicipalityMapProps {
   highlightCodes?: string[];  // 正解の市区町村コード
   wrongCodes?: string[];      // 誤タップの市区町村コード
   isIncorrect?: boolean;       // 不正解状態フラグ（自動フォーカス起動用）
+  qIdx?: number;               // 問題インデックス（問題切り替え時のリセットトリガー用）
   onLoadError?: () => void;
 }
 ```
@@ -27,8 +28,8 @@ interface MunicipalityMapProps {
 2. `dataLayerRef.current` から `highlightCodes` (正解) および `wrongCodes` (誤り) に一致する feature(s) を抽出。
 3. `google.maps.LatLngBounds` オブジェクトを構築し、対象 feature(s) の全 `LatLng` を `bounds.extend(ll)` で追加。
 4. 対象の `bounds` が有効な場合、`mapRef.current.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 })` を発動。
-5. **過度なズームイン防止**: `fitBounds` 直後に `zoom` が `13` を超える場合は `map.setZoom(12)` に制限して周辺の地理コンテキスト（山脈海沿い・隣接市）が視認できるように調整。
-6. **問題リセット処理**: `isIncorrect` が `false`（`feedback === 'idle'`）に戻った際、再度 `prefecture` 全体の Bounds へ `fitBounds` して初期表示に戻す。
+5. **過度なズームイン防止 (非同期 Clamping)**: `fitBounds` による非同期のアニメーション・ビューポート適用完了を検知するため、`google.maps.event.addListenerOnce(map, 'idle', ...)`（または `zoom_changed`）でワンショットイベントをリスン。アニメーション確定後の `zoom` が `13` を超える場合のみ `map.setZoom(12)` でクランプし、周囲の地理コンテキスト（山脈海沿い・隣接市）が確実に視認できるように調整。
+6. **問題リセット処理**: `qIdx` の変更または `feedback === 'idle'` 復帰時をトリガーとして、対象 `prefecture` 全体の Bounds へ `fitBounds` して初期表示に確定リセットする。
 
 ---
 
@@ -42,6 +43,7 @@ interface JapanMapProps {
   highlightWrong?: string;               // 誤選択都道府県
   selectedNames?: string[];              // ユーザーが選択中の都道府県
   isIncorrect?: boolean;                 // 不正解状態フラグ（自動フォーカス起動用）
+  qIdx?: number;                         // 問題インデックス（問題切り替え時のリセットトリガー用）
 }
 ```
 
@@ -51,14 +53,15 @@ interface JapanMapProps {
 3. `ComposableMap` の標準プロジェクション（`geoMercator` または `geoAlbers`）による Bounding Box または Viewport 座標へ変換。
 4. コンテナサイズ（幅・高さ）に対して、対象領域が画面の 70% 程度を占める最適 `targetScale`（1〜8 の範囲）と中心位置合わせ用 `targetTranslate` (`{ x, y }`) を計算。
 5. `scale` と `translate` を更新し、CSS の smooth transition (`transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1)`) でアニメーション移動。
-6. **問題リセット処理**: `isIncorrect` が `false` に戻った際、`scale: 1, translate: { x: 0, y: 0 }` にスムーズ復元。
+6. **問題リセット処理**: `qIdx` が変化して新しい問題に進んだ際（または `isIncorrect` が `false` に戻った際）、手動ズーム/パン位置をリセットし、`scale: 1, translate: { x: 0, y: 0 }` に確定スムーズ復元。
 
 ---
 
 ### 1.3 `QuizRunner.tsx` (クイズ進行オーケストレーション)
 
 - `feedback === 'incorrect'` の場合、`JapanMap` / `MunicipalityMap` へ `isIncorrect={true}` を渡す。
-- `advanceQuestion` 時（`feedback === 'idle'` に復帰時）、`isIncorrect` が `false` になり自動的に標準構図へ戻る。
+- 問題切り替え時のリセットを確実にシグナルするため、`qIdx`（問題インデックス）を各地図コンポーネントに伝達する (`qIdx={qIdx}`)。
+- これにより、正解判定時（`isIncorrect` が `false` のままのケース）や手動ズーム操作後でも、`advanceQuestion` による問題遷移 (`qIdx` インクリメント) で確実に初期カメラ構図へのリセット Effect がトリガーされる。
 
 ---
 
