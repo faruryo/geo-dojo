@@ -40,4 +40,7 @@
 
 ## 5. テスト・回帰検証 (Phase 5: Verification)
 
-- [ ] **T011**: 型チェック・回帰テスト・品質チェックスクリプト実行 (`pnpm type-check`, `pnpm test`, `pnpm lint:ratchet`)
+- [ ] **T011**: 地図フォーカス & リセット動作のコンポーネント統合テスト作成 (`__tests__/components/map/autofocus-integration.test.ts`)
+  - 不正解時 (`isIncorrect: true`) の `fitBounds` / `setTranslate` 呼び出しおよび `idle` 後の zoom 12 クランプ検証
+  - `qIdx` 変更時（新しい問題遷移）のカメラ構図・ズームリセット検証
+- [ ] **T012**: 型チェック・回帰テスト・品質チェックスクリプト実行 (`pnpm type-check`, `pnpm test`, `pnpm lint:ratchet`)

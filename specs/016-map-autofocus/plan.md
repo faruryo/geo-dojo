@@ -28,7 +28,7 @@ interface MunicipalityMapProps {
 2. `dataLayerRef.current` から `highlightCodes` (正解) および `wrongCodes` (誤り) に一致する feature(s) を抽出。
 3. `google.maps.LatLngBounds` オブジェクトを構築し、対象 feature(s) の全 `LatLng` を `bounds.extend(ll)` で追加。
 4. 対象の `bounds` が有効な場合、`mapRef.current.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 })` を発動。
-5. **過度なズームイン防止 (非同期 Clamping)**: `fitBounds` による非同期のアニメーション・ビューポート適用完了を検知するため、`google.maps.event.addListenerOnce(map, 'idle', ...)`（または `zoom_changed`）でワンショットイベントをリスン。アニメーション確定後の `zoom` が `13` を超える場合のみ `map.setZoom(12)` でクランプし、周囲の地理コンテキスト（山脈海沿い・隣接市）が確実に視認できるように調整。
+5. **過度なズームイン防止 (非同期 Clamping)**: `fitBounds` による非同期のアニメーション・ビューポート適用完了を検知するため、`google.maps.event.addListenerOnce(map, 'idle', ...)`（または `zoom_changed`）でワンショットイベントをリスン。アニメーション確定後の `zoom` が `12` を超える（`zoom > 12`）場合のみ `map.setZoom(12)` でクランプし、周囲の地理コンテキスト（山脈海沿い・隣接市）が確実に視認できるように調整。
 6. **問題リセット処理**: `qIdx` の変更または `feedback === 'idle'` 復帰時をトリガーとして、対象 `prefecture` 全体の Bounds へ `fitBounds` して初期表示に確定リセットする。
 
 ---
@@ -98,9 +98,9 @@ sequenceDiagram
 1. **ロジック単体テスト (`__tests__/lib/map/autofocus.test.ts`)**:
    - 複数座標・複数ポリゴンから正確な Union Bounding Box が算出できるか。
    - `scale` と `translate` の計算において 0 除算や 範囲外 (`scale < 1`, `scale > 8`) のガードが動作するか。
-2. **コンポーネント統合テスト**:
-   - `feedback === 'incorrect'` 時に `fitBounds` または `setTranslate` が適切に呼ばれるか。
-   - 新しい問題に進んだときに位置がリセットされるか。
+2. **コンポーネント統合テスト (`__tests__/components/map/autofocus-integration.test.ts`)**:
+   - `feedback === 'incorrect'` 時に `fitBounds` または `setTranslate` が適切に呼ばれ、`idle` リスナで zoom 12 クランプが発動するか。
+   - `qIdx` 更新（新しい問題遷移）時にカメラ位置および zoom / translate が初期構図へリセットされるか。
 3. **回帰テスト・品質検証**:
    - `pnpm type-check`
    - `pnpm test`

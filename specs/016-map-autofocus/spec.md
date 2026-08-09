@@ -40,7 +40,7 @@ geo-dojo の地図タップ型クイズ（Mode D: 順引き市区町村タップ
 - **FR-01.1**: Mode D において `feedback === 'incorrect'` またはタイムアウト発生時、正解の市区町村の LatLngBounds を算出する。
 - **FR-01.2**: 誤タップが存在する場合、誤タップの LatLngBounds と正解の LatLngBounds を合成した Bounding Box を算出する。
 - **FR-01.3**: 算出された Bounding Box に対し、`google.maps.Map.fitBounds` を呼び出してスムーズにフォーカス・ズームさせる。
-- **FR-01.4**: 極端な超拡大（小さな町単体で周辺地理が消えるケース）を防ぐため、`fitBounds` 適用完了後の非同期 `idle` リスナにおいて `maxZoom`（例: zoom ≤ 12）のワンショットクランプを適用し、安全な視野領域を確保する。
+- **FR-01.4**: 極端な超拡大（小さな町単体で周辺地理が消えるケース）を防ぐため、`fitBounds` 適用完了後の非同期 `idle` リスナにおいて `zoom > 12` を検知した場合に `setZoom(12)` のワンショットクランプを適用し、安全な視野領域を確保する。
 
 ### FR-02: Mode A 不正解時の自動ズーム・パン (JapanMap / Simple Maps)
 - **FR-02.1**: Mode A において回答送信後に不正解判定となった場合、正解の都道府県（`correctPrefectures`）および誤選択された都道府県（`selectedPrefectures`）の地理 coordinates 領域を特定する。
