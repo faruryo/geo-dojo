@@ -99,7 +99,8 @@ sequenceDiagram
    - 複数座標・複数ポリゴンから正確な Union Bounding Box が算出できるか。
    - `scale` と `translate` の計算において 0 除算や 範囲外 (`scale < 1`, `scale > 8`) のガードが動作するか。
 2. **コンポーネント統合テスト (`__tests__/components/map/autofocus-integration.test.ts`)**:
-   - `feedback === 'incorrect'` 時に `fitBounds` または `setTranslate` が適切に呼ばれ、`idle` リスナで zoom 12 クランプが発動するか。
+   - 不正解時 (`isIncorrect: true`) に `fitBounds` または `setTranslate` が適切に呼ばれ、`idle` リスナで zoom 12 クランプが発動するか。
+   - 正解時 (`feedback === 'correct'` / `isIncorrect: false`) に `fitBounds` および SVG transform が呼び出されず、画面が動かないか（FR-03.1 否定テスト）。
    - `qIdx` 更新（新しい問題遷移）時にカメラ位置および zoom / translate が初期構図へリセットされるか。
 3. **回帰テスト・品質検証**:
    - `pnpm type-check`
