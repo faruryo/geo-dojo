@@ -217,7 +217,7 @@ export function JapanMap({
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
             transformOrigin: 'center center',
-            transition: dragState.current || pinchState.current ? 'none' : 'transform 0.15s ease',
+            transition: dragState.current || pinchState.current ? 'none' : 'transform 0.5s ease-out',
           }}
         >
           <ComposableMap

@@ -290,9 +290,10 @@ describe('Map Autofocus Component Integration (T004 - Mounted Component Testing)
       expect(transformContainer).not.toBeNull();
 
       if (transformContainer) {
-        // Assert autofocus effect applied a non-default zoom transform (scale > 1)
+        // Assert autofocus effect applied a non-default zoom transform (scale > 1) and 500ms transition duration (FR-02.3)
         expect(transformContainer.style.transform).not.toBe('translate(0px, 0px) scale(1)');
         expect(transformContainer.style.transform).toMatch(/scale\((?!1\b)[0-9.]+\)/);
+        expect(transformContainer.style.transition).toMatch(/0\.5s/);
       }
 
       // Step 2: Advance question (qIdx = 1, isIncorrect = false)
