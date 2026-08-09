@@ -82,6 +82,15 @@ describe('Map Autofocus Component Integration (T004 - Mounted Component Testing)
   let container: HTMLDivElement;
   let root: Root;
 
+  const renderAndSettle = async (element: React.ReactElement) => {
+    await act(async () => {
+      root.render(element);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+  };
+
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -151,23 +160,16 @@ describe('Map Autofocus Component Integration (T004 - Mounted Component Testing)
 
   describe('Mode D (MunicipalityMap) Real Component Mount & Effect Integration', () => {
     it('executes autofocus effect inside mounted MunicipalityMap on incorrect answer (FR-01.4)', async () => {
-      await act(async () => {
-        root.render(
-          React.createElement(MunicipalityMap, {
-            prefecture: '東京都',
-            onMunicipalityClick: vi.fn(),
-            highlightCodes: ['13101'],
-            wrongCodes: ['13102'],
-            isIncorrect: true,
-            qIdx: 0,
-          }),
-        );
-      });
-
-      // Wait for async Promise.all (maps + topology) in component effect to settle
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      });
+      await renderAndSettle(
+        React.createElement(MunicipalityMap, {
+          prefecture: '東京都',
+          onMunicipalityClick: vi.fn(),
+          highlightCodes: ['13101'],
+          wrongCodes: ['13102'],
+          isIncorrect: true,
+          qIdx: 0,
+        }),
+      );
 
       // Assert mounted component effect triggered fitBounds
       expect(mockMap.fitBounds).toHaveBeenCalled();
@@ -185,20 +187,14 @@ describe('Map Autofocus Component Integration (T004 - Mounted Component Testing)
 
     it('does NOT trigger extra fitBounds when mounted component receives correct answer (FR-03.1 Scoped Negative Test)', async () => {
       // Step 1: Initial mount (idle question, qIdx = 0)
-      await act(async () => {
-        root.render(
-          React.createElement(MunicipalityMap, {
-            prefecture: '東京都',
-            onMunicipalityClick: vi.fn(),
-            isIncorrect: false,
-            qIdx: 0,
-          }),
-        );
-      });
-
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      });
+      await renderAndSettle(
+        React.createElement(MunicipalityMap, {
+          prefecture: '東京都',
+          onMunicipalityClick: vi.fn(),
+          isIncorrect: false,
+          qIdx: 0,
+        }),
+      );
 
       expect(mockMap.fitBounds).toHaveBeenCalled();
       mockMap.fitBounds.mockClear();
@@ -222,34 +218,26 @@ describe('Map Autofocus Component Integration (T004 - Mounted Component Testing)
 
     it('resets camera framing when mounted component receives updated qIdx (FR-03.2)', async () => {
       // Mount initial question
-      await act(async () => {
-        root.render(
-          React.createElement(MunicipalityMap, {
-            prefecture: '東京都',
-            onMunicipalityClick: vi.fn(),
-            isIncorrect: false,
-            qIdx: 0,
-          }),
-        );
-      });
-
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      });
+      await renderAndSettle(
+        React.createElement(MunicipalityMap, {
+          prefecture: '東京都',
+          onMunicipalityClick: vi.fn(),
+          isIncorrect: false,
+          qIdx: 0,
+        }),
+      );
 
       mockMap.fitBounds.mockClear();
 
       // Rerender with new question index (qIdx = 1)
-      await act(async () => {
-        root.render(
-          React.createElement(MunicipalityMap, {
-            prefecture: '東京都',
-            onMunicipalityClick: vi.fn(),
-            isIncorrect: false,
-            qIdx: 1,
-          }),
-        );
-      });
+      await renderAndSettle(
+        React.createElement(MunicipalityMap, {
+          prefecture: '東京都',
+          onMunicipalityClick: vi.fn(),
+          isIncorrect: false,
+          qIdx: 1,
+        }),
+      );
 
       // Assert reset effect inside component was executed for updated qIdx
       expect(mockMap.fitBounds).toHaveBeenCalledTimes(1);
@@ -258,20 +246,14 @@ describe('Map Autofocus Component Integration (T004 - Mounted Component Testing)
 
   describe('Mode A (JapanMap) Real Component Mount Integration', () => {
     it('renders JapanMap component and handles autofocus without crashing', async () => {
-      await act(async () => {
-        root.render(
-          React.createElement(JapanMap, {
-            onPrefectureClick: vi.fn(),
-            highlightCorrect: '東京都',
-            isIncorrect: true,
-            qIdx: 0,
-          }),
-        );
-      });
-
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      });
+      await renderAndSettle(
+        React.createElement(JapanMap, {
+          onPrefectureClick: vi.fn(),
+          highlightCorrect: '東京都',
+          isIncorrect: true,
+          qIdx: 0,
+        }),
+      );
 
       expect(container.firstElementChild).not.toBeNull();
     });
