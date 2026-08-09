@@ -79,11 +79,16 @@ export function JapanMap({
     setTranslate(targetTranslate);
   }, [isIncorrect, topology, highlightCorrect, selectedNames]);
 
+  const prevQIdxRef = useRef<number | undefined>(qIdx);
+
   // ── Reset map framing on qIdx change for a new question (FR-03.2) ──
   useEffect(() => {
-    setScale(1);
-    setTranslate({ x: 0, y: 0 });
-  }, [qIdx]);
+    if (prevQIdxRef.current !== undefined && prevQIdxRef.current !== qIdx && !isIncorrect) {
+      setScale(1);
+      setTranslate({ x: 0, y: 0 });
+    }
+    prevQIdxRef.current = qIdx;
+  }, [qIdx, isIncorrect]);
 
   function midpointOf(points: { x: number; y: number }[]) {
     const [p1, p2] = points;

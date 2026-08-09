@@ -235,18 +235,23 @@ export function MunicipalityMap({
     }
   }, [ready, isIncorrect, highlightCodes, wrongCodes]);
 
+  const prevQIdxRef = useRef<number | undefined>(qIdx);
+
   // ── Reset map framing when qIdx changes to a new question (FR-03.2) ──
   useEffect(() => {
     if (!ready || !mapRef.current || !dataLayerRef.current) return;
-    const data = dataLayerRef.current;
-    const bounds = new google.maps.LatLngBounds();
-    data.forEach((f) => {
-      f.getGeometry()?.forEachLatLng((ll) => bounds.extend(ll));
-    });
-    if (!bounds.isEmpty()) {
-      mapRef.current.fitBounds(bounds, { top: 24, right: 24, bottom: 24, left: 24 });
+    if (prevQIdxRef.current !== undefined && prevQIdxRef.current !== qIdx && !isIncorrect) {
+      const data = dataLayerRef.current;
+      const bounds = new google.maps.LatLngBounds();
+      data.forEach((f) => {
+        f.getGeometry()?.forEachLatLng((ll) => bounds.extend(ll));
+      });
+      if (!bounds.isEmpty()) {
+        mapRef.current.fitBounds(bounds, { top: 24, right: 24, bottom: 24, left: 24 });
+      }
     }
-  }, [ready, qIdx, prefecture]);
+    prevQIdxRef.current = qIdx;
+  }, [ready, qIdx, prefecture, isIncorrect]);
 
   // ── Cleanup on unmount ──
   useEffect(() => {
