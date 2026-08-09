@@ -8,10 +8,10 @@
 ## 1. 準備 & ユーティリティ計算ロジック (Phase 1: Math & Helpers TDD)
 
 - [ ] **T001**: Bounding Box 算出ユーティリティの単体テスト作成 & Red 確認 (`__tests__/lib/map/autofocus-bounds.test.ts`)
-  - 複数要素合成、単一極小要素、0除算ガードの仕様テストを記述し、未実装状態で Red（失敗）を確認する
+  - 複数要素合成、単一極小要素、0除算ガード、`topojson-client` デコード後の `geoMercator({ center: [138, 35], scale: 1000 })` 投影座標算出の仕様テストを記述し、未実装状態で Red（失敗）を確認する
 - [ ] **T002**: 座標領域計算・Bounding Box 算出ユーティリティ関数の実装と Green 確認 (`lib/map/autofocus-bounds.ts`)
   - Bounds 合成処理（`mergeBounds`）
-  - SVG 用 `scale` & `translate` 算出関数（`calculateFocusTransform`）
+  - TopoJSON (`topojson-client.feature`) デコードおよび Mercator 投影 (`geoMercator`) に基づく SVG 用 `scale` & `translate` 算出関数（`calculateFocusTransform`）
 
 ---
 
