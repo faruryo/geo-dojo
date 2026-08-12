@@ -23,6 +23,7 @@ export const municipalityQuizResults = pgTable(
     prefecture:       text('prefecture').notNull(),
     mode:             text('mode').notNull(),
     isCorrect:        boolean('is_correct').notNull(),
+    answerTimeMs:     integer('answer_time_ms'),
     answeredAt:       timestamp('answered_at').defaultNow().notNull(),
   },
   (table) => [

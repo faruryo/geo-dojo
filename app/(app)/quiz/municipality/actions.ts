@@ -9,6 +9,7 @@ import type { SrsStatus } from '@/lib/quiz/srs/types';
 import { inferSessions, computeCellAccuracies, computeCellCoverages } from '@/lib/quiz/recommendation/cell-stats';
 import { extractFitZone } from '@/lib/quiz/recommendation/fit-zone';
 import { generateRecommendation } from '@/lib/quiz/recommendation/engine';
+import { normalizeAnswerTimeMs } from '@/lib/quiz/answer-time';
 import type { LearnerState, Recommendation, GameMode } from '@/lib/quiz/recommendation/types';
 
 // Lazy-loaded municipality validation set (loaded once, reused across warm invocations).
@@ -49,6 +50,7 @@ export async function saveMunicipalityQuizResult(input: {
   prefecture: string;
   mode: 'A' | 'B' | 'C' | 'D';
   isCorrect: boolean;
+  answerTimeMs?: number;
 }): Promise<void> {
   // 本番では Next.js が server action の throw を digest に隠すため、原因を必ず明示ログしてから
   // 再 throw する。クライアントは Promise.allSettled で握り潰すので、ここが唯一の検知点になる。
@@ -75,6 +77,7 @@ export async function saveMunicipalityQuizResult(input: {
       prefecture: input.prefecture,
       mode: input.mode,
       isCorrect: input.isCorrect,
+      answerTimeMs: normalizeAnswerTimeMs(input.answerTimeMs),
     });
 
     // SM-2 更新（全クイズ共通: 復習セッション・通常クイズ双方）
@@ -92,7 +95,7 @@ export async function saveMunicipalityQuizResult(input: {
 
 async function upsertSrsRecord(
   userId: string,
-  input: { municipalityCode: string; municipalityName: string; prefecture: string; mode: string; isCorrect: boolean },
+  input: { municipalityCode: string; municipalityName: string; prefecture: string; mode: string; isCorrect: boolean; answerTimeMs?: number },
 ): Promise<void> {
   const now = new Date();
 
