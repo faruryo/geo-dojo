@@ -54,6 +54,7 @@ erDiagram
         text prefecture "【都道府県】 解答した都道府県名"
         text mode "【出題モード】 クイズ種別"
         boolean is_correct "【正解フラグ】 true(正解) / false(不正解)"
+        integer answer_time_ms "【解答時間】 問題表示から確定までの所要時間(ミリ秒)"
         timestamp answered_at "【回答日時】 クイズ回答タイムスタンプ"
     }
 ```
@@ -112,4 +113,5 @@ erDiagram
 | **都道府県** | `prefecture` | `text` | NOT NULL | 都道府県名 |
 | **出題モード** | `mode` | `text` | NOT NULL | クイズ種別 |
 | **正解フラグ** | `is_correct` | `boolean` | NOT NULL | 正解なら `true` / 不正解なら `false` |
+| **解答時間** | `answer_time_ms` | `integer` | NULL可 | 出題表示から確定までの経過時間 (ミリ秒) (例: `3420`) |
 | **回答日時** | `answered_at` | `timestamp` | NOT NULL | クイズ回答時のタイムスタンプ |
