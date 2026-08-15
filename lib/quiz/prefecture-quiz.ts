@@ -48,6 +48,7 @@ export function isNewBestTime(currentMs: number, bestMs: number | null | undefin
 
 /**
  * 都道府県クイズの出題配列を生成する純粋関数。
+ * weaknessFirst が有効な場合は苦手スコアが高い都道府県を前方に優先配置し、同スコア内のみシャッフルする。
  */
 export function buildPrefectureQuestions(
   settings: PrefectureQuizSettings,
@@ -56,23 +57,39 @@ export function buildPrefectureQuestions(
   const pool = getRegionsPrefectures(settings.regions);
   if (pool.length === 0) return [];
 
-  let candidates: string[] = [...pool];
-
   if (settings.weaknessFirst && weaknessMap && weaknessMap.size > 0) {
-    candidates.sort((a, b) => {
-      const scoreA = weaknessMap.get(a) ?? 0;
-      const scoreB = weaknessMap.get(b) ?? 0;
-      return scoreB - scoreA;
-    });
-  } else {
-    candidates = shuffle(candidates);
+    // 苦手スコアごとにグループ化
+    const scoreGroups = new Map<number, string[]>();
+    for (const pref of pool) {
+      const score = weaknessMap.get(pref) ?? 0;
+      const group = scoreGroups.get(score) ?? [];
+      group.push(pref);
+      scoreGroups.set(score, group);
+    }
+
+    // スコア降順（苦手度が高い順）にソートし、同スコア内のみシャッフルして結合
+    const sortedScores = Array.from(scoreGroups.keys()).sort((a, b) => b - a);
+    const orderedCandidates: string[] = [];
+    for (const score of sortedScores) {
+      const group = scoreGroups.get(score);
+      if (group) {
+        orderedCandidates.push(...shuffle(group));
+      }
+    }
+
+    const targetCount =
+      settings.count === 'all'
+        ? orderedCandidates.length
+        : Math.min(settings.count, orderedCandidates.length);
+
+    return orderedCandidates.slice(0, targetCount);
   }
 
+  const shuffled = shuffle(pool);
   const targetCount =
     settings.count === 'all'
-      ? candidates.length
-      : Math.min(settings.count, candidates.length);
+      ? shuffled.length
+      : Math.min(settings.count, shuffled.length);
 
-  const selected = candidates.slice(0, targetCount);
-  return shuffle(selected);
+  return shuffled.slice(0, targetCount);
 }

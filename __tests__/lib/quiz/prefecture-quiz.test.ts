@@ -83,22 +83,45 @@ describe('buildPrefectureQuestions', () => {
     expect(questions).toHaveLength(47);
   });
 
-  it('苦手優先が有効な場合、誤答率が高い都道府県が含まれる', () => {
+  it('苦手優先が有効な場合、誤答率が高い都道府県が前方に優先配置される', () => {
     const weaknessMap = new Map<string, number>([
-      ['青森県', 0.8],
-      ['岩手県', 0.6],
+      ['青森県', 0.9],
+      ['岩手県', 0.7],
+      ['秋田県', 0.5],
     ]);
 
     const settings: PrefectureQuizSettings = {
       regions: ['東北'],
-      count: 10,
+      count: 'all',
       type: 'normal',
       weaknessFirst: true,
     };
 
     const questions = buildPrefectureQuestions(settings, weaknessMap);
     expect(questions).toHaveLength(6);
-    expect(questions).toContain('青森県');
-    expect(questions).toContain('岩手県');
+    // スコア降順（青森 > 岩手 > 秋田 > 残り3県）で前方に並ぶこと
+    expect(questions[0]).toBe('青森県');
+    expect(questions[1]).toBe('岩手県');
+    expect(questions[2]).toBe('秋田県');
+  });
+
+  it('苦手優先で出題数制限がある場合、高スコアの都道府県から優先的に選定・配置される', () => {
+    const weaknessMap = new Map<string, number>([
+      ['東京都', 1.0],
+      ['大阪府', 0.9],
+    ]);
+
+    const settings: PrefectureQuizSettings = {
+      regions: ['全国'],
+      count: 10,
+      type: 'normal',
+      weaknessFirst: true,
+    };
+
+    const questions = buildPrefectureQuestions(settings, weaknessMap);
+    expect(questions).toHaveLength(10);
+    // 最初の2問は東京都・大阪府（同スコアグループ順）
+    expect(questions[0]).toBe('東京都');
+    expect(questions[1]).toBe('大阪府');
   });
 });
