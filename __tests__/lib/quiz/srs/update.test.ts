@@ -166,3 +166,72 @@ describe('computeSrsUpdate — 早期卒業（誤答なしなら通常閾値を�
     expect(a.repetition).toBe(3);
   });
 });
+
+describe('computeSrsUpdate — 解答時間（answerTimeMs）と速答判定 (B010 Phase 2/3)', () => {
+  const yesterday = (d: number) => new Date(NOW.getTime() - d * DAY_MS - 9 * 60 * 60 * 1000);
+
+  it('速答正解（5秒）の場合、quality=5 が適用されて EF が +0.1 増加する', () => {
+    const existing: ExistingSrs = {
+      easeFactor: 2.5,
+      repetition: 1,
+      interval: 1,
+      status: 'reviewing',
+      lastReviewedAt: yesterday(1),
+    };
+    const a = computeSrsUpdate(existing, true, NOW, true, 5_000);
+    expect(a.kind).toBe('upsert');
+    if (a.kind !== 'upsert') return;
+    expect(a.easeFactor).toBeCloseTo(2.6, 5);
+    expect(a.repetition).toBe(2);
+    expect(a.interval).toBe(6);
+  });
+
+  it('通常正解（15秒）の場合、quality=4 が適用されて EF は維持される', () => {
+    const existing: ExistingSrs = {
+      easeFactor: 2.5,
+      repetition: 1,
+      interval: 1,
+      status: 'reviewing',
+      lastReviewedAt: yesterday(1),
+    };
+    const a = computeSrsUpdate(existing, true, NOW, true, 15_000);
+    expect(a.kind).toBe('upsert');
+    if (a.kind !== 'upsert') return;
+    expect(a.easeFactor).toBeCloseTo(2.5, 5);
+  });
+
+  it('誤答履歴ありでも、速答（5秒）で3回目正解（rep=3, interval=17）に達すると早期卒業する', () => {
+    const existingRep2: ExistingSrs = {
+      easeFactor: 2.7,
+      repetition: 2,
+      interval: 6,
+      status: 'reviewing',
+      lastReviewedAt: yesterday(1),
+    };
+    // 誤答歴あり（everWrong = true）、5秒で速答
+    const a = computeSrsUpdate(existingRep2, true, NOW, true, 5_000);
+    expect(a.kind).toBe('upsert');
+    if (a.kind !== 'upsert') return;
+    expect(a.repetition).toBe(3);
+    expect(a.interval).toBe(17);
+    expect(a.status).toBe('graduated');
+  });
+
+  it('誤答履歴ありで、通常正解（15秒）の3回目正解では卒業しない（rep=3, interval=15, reviewing のまま）', () => {
+    const existingRep2: ExistingSrs = {
+      easeFactor: 2.5,
+      repetition: 2,
+      interval: 6,
+      status: 'reviewing',
+      lastReviewedAt: yesterday(1),
+    };
+    // 誤答歴あり（everWrong = true）、15秒で通常正解
+    const a = computeSrsUpdate(existingRep2, true, NOW, true, 15_000);
+    expect(a.kind).toBe('upsert');
+    if (a.kind !== 'upsert') return;
+    expect(a.repetition).toBe(3);
+    expect(a.interval).toBe(15);
+    expect(a.status).toBe('reviewing');
+  });
+});
+
