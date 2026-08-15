@@ -68,8 +68,13 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
   const [wrongCodes, setWrongCodes] = useState<string[]>([]);
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_SEC);
   const completedRef = useRef(false);
+  const questionStartTimeRef = useRef<number>(Date.now());
 
   const currentQuestion = questions[qIdx] ?? null;
+
+  useEffect(() => {
+    questionStartTimeRef.current = Date.now();
+  }, [qIdx]);
 
   // ── Advance to next question ──
   const advanceQuestion = useCallback((updatedResults: ResultEntry[]) => {
@@ -94,7 +99,10 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
   // ── Save result + advance ──
   // delayMs: フィードバック表示時間。A/D は地図確認のため長め(1500)、B/C は短め(1200)。
   const recordAndAdvance = useCallback(
-    async (entries: { municipality: Municipality; isCorrect: boolean; mode: GameMode }[], delayMs: number) => {
+    async (
+      entries: { municipality: Municipality; isCorrect: boolean; mode: GameMode; answerTimeMs?: number }[],
+      delayMs: number,
+    ) => {
       // 1回の呼び出し = 1問。保存件数で数えると複数県の同名市が二重カウントされ
       // 「19問なのに21完了」になるため、表示用の結果は toQuestionResult で1問1件に正規化する。
       const updatedResults = [...results, toQuestionResult(entries)];
@@ -107,6 +115,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
             prefecture: e.municipality.prefecture,
             mode: e.mode,
             isCorrect: e.isCorrect,
+            answerTimeMs: e.answerTimeMs,
           }),
         ),
       );
@@ -143,6 +152,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
   // ── Mode A: submit ──
   const handleModeASubmit = useCallback(async () => {
     if (!currentQuestion || currentQuestion.kind !== 'A') return;
+    const elapsedMs = Math.max(0, Date.now() - questionStartTimeRef.current);
     const { instances, correctPrefectures } = currentQuestion;
     const correct =
       selectedPrefectures.size === correctPrefectures.size &&
@@ -153,7 +163,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
     // 記録する（区数ぶんの多重カウントを防ぐ）。採点は correctPrefectures（県の Set）で実施済み。
     const reps = dedupeInstancesByPrefecture(instances);
     await recordAndAdvance(
-      reps.map((m) => ({ municipality: m, isCorrect: correct, mode: 'A' })),
+      reps.map((m) => ({ municipality: m, isCorrect: correct, mode: 'A', answerTimeMs: elapsedMs })),
       1500,
     );
   }, [currentQuestion, selectedPrefectures, recordAndAdvance]);
@@ -162,12 +172,13 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
   const handleBChoice = useCallback(
     async (choice: string) => {
       if (feedback !== 'idle' || !currentQuestion || currentQuestion.kind !== 'BCD') return;
+      const elapsedMs = Math.max(0, Date.now() - questionStartTimeRef.current);
       const { municipality } = currentQuestion;
       const correct = choice === municipality.prefecture;
       setSelectedChoice(choice);
       setFeedback(correct ? 'correct' : 'incorrect');
       playSe(correct ? 'correct' : 'incorrect');
-      await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'B' }], 1200);
+      await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'B', answerTimeMs: elapsedMs }], 1200);
     },
     [feedback, currentQuestion, recordAndAdvance],
   );
@@ -176,12 +187,13 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
   const handleCChoice = useCallback(
     async (choice: string) => {
       if (feedback !== 'idle' || !currentQuestion || currentQuestion.kind !== 'BCD') return;
+      const elapsedMs = Math.max(0, Date.now() - questionStartTimeRef.current);
       const { municipality } = currentQuestion;
       const correct = choice === municipality.name;
       setSelectedChoice(choice);
       setFeedback(correct ? 'correct' : 'incorrect');
       playSe(correct ? 'correct' : 'incorrect');
-      await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'C' }], 1200);
+      await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'C', answerTimeMs: elapsedMs }], 1200);
     },
     [feedback, currentQuestion, recordAndAdvance],
   );
@@ -190,6 +202,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
   const handleDTap = useCallback(
     async (code: string, tappedName: string) => {
       if (feedback !== 'idle' || !currentQuestion || currentQuestion.kind !== 'BCD') return;
+      const elapsedMs = Math.max(0, Date.now() - questionStartTimeRef.current);
       const { municipality } = currentQuestion;
       const correct = tappedName === municipality.name;
       const allCorrectCodes = allMunicipalities
@@ -203,7 +216,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
       }
       setFeedback(correct ? 'correct' : 'incorrect');
       playSe(correct ? 'correct' : 'incorrect');
-      await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'D' }], 1500);
+      await recordAndAdvance([{ municipality, isCorrect: correct, mode: 'D', answerTimeMs: elapsedMs }], 1500);
     },
     [feedback, currentQuestion, allMunicipalities, recordAndAdvance],
   );
@@ -221,7 +234,7 @@ export function QuizRunner({ questions, allMunicipalities, onAbort, onComplete }
       setCorrectCodes(allCorrectCodes);
       setFeedback('incorrect');
       playSe('incorrect');
-      await recordAndAdvance([{ municipality, isCorrect: false, mode: 'D' }], 1500);
+      await recordAndAdvance([{ municipality, isCorrect: false, mode: 'D', answerTimeMs: TIME_LIMIT_SEC * 1000 }], 1500);
     }
   }, [feedback, currentQuestion, modeDFailed, allMunicipalities, recordAndAdvance]);
 
