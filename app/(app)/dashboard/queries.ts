@@ -19,6 +19,7 @@ import {
   getJSTStartOfTomorrow,
 } from '@/lib/utils/date-jst';
 import { dueReviewCondition } from '@/lib/db/srs-due';
+import { calculateStreak } from '@/lib/utils/streak';
 
 const notSameNameSql = sql`NOT (REGEXP_REPLACE(${municipalityMaster.name}, '[市区町村]$', '') = REGEXP_REPLACE(${municipalityMaster.prefecture}, '[都道府県]$', ''))`;
 
@@ -699,35 +700,12 @@ export async function getStreakData(userId: string) {
     return d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
   });
   const today = getJSTToday();
-  const hasPlayedToday = dates.length > 0 && dates[0] === today;
-
-  let currentStreak = 0;
-  let maxStreak = 0;
-  let tempStreak = 0;
-  const expected = new Date(today);
-
-  if (dates.length > 0) {
-    if (!hasPlayedToday) {
-      expected.setDate(expected.getDate() - 1);
-    }
-
-    for (const dateStr of dates) {
-      const expStr = expected.toISOString().slice(0, 10);
-      if (dateStr === expStr) {
-        tempStreak++;
-        if (tempStreak > maxStreak) maxStreak = tempStreak;
-        expected.setDate(expected.getDate() - 1);
-      } else if (dateStr < expStr) {
-        break;
-      }
-    }
-    currentStreak = tempStreak;
-  }
+  const streakResult = calculateStreak(dates, today);
 
   return serialize({
-    currentStreak,
-    longestStreak: maxStreak,
-    hasPlayedToday,
+    currentStreak: streakResult.currentStreak,
+    longestStreak: streakResult.longestStreak,
+    hasPlayedToday: streakResult.hasPlayedToday,
   });
 }
 
