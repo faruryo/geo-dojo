@@ -59,11 +59,6 @@
     {
       "file": "app/(app)/quiz/prefecture/page.tsx",
       "rule": "security/detect-object-injection",
-      "count": 4
-    },
-    {
-      "file": "app/(app)/quiz/prefecture/page.tsx",
-      "rule": "sonarjs/pseudo-random",
       "count": 1
     },
     {
