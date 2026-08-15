@@ -221,7 +221,21 @@ export default function PrefectureQuizPage() {
   const handleTap = useCallback(
     (name: string) => {
       if (phase !== 'playing' || feedback !== 'none' || isTransitioningRef.current) return;
+      const tapTime = performance.now();
       isTransitioningRef.current = true;
+
+      const isFinalQuestion = currentIndex + 1 >= questions.length;
+      let recordedFinalTimeMs: number | null = null;
+
+      if (isFinalQuestion) {
+        recordedFinalTimeMs = Math.round(tapTime - startTimeRef.current);
+        setTotalClearTimeMs(recordedFinalTimeMs);
+        setElapsedMs(recordedFinalTimeMs);
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+          timerIntervalRef.current = null;
+        }
+      }
 
       const isCorrect = name === target;
       const updatedResults = [...results, { prefecture: target, correct: isCorrect }];
@@ -230,19 +244,6 @@ export default function PrefectureQuizPage() {
       playSe(isCorrect ? 'correct' : 'incorrect');
       setResults(updatedResults);
       updateWeaknessScore(target, isCorrect);
-
-      const isFinalQuestion = currentIndex + 1 >= questions.length;
-      let recordedFinalTimeMs: number | null = null;
-
-      if (isFinalQuestion) {
-        recordedFinalTimeMs = Math.round(performance.now() - startTimeRef.current);
-        setTotalClearTimeMs(recordedFinalTimeMs);
-        setElapsedMs(recordedFinalTimeMs);
-        if (timerIntervalRef.current) {
-          clearInterval(timerIntervalRef.current);
-          timerIntervalRef.current = null;
-        }
-      }
 
       const delayMs = getFeedbackDelay(settings.type, isCorrect);
 
