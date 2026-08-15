@@ -143,6 +143,7 @@ async function upsertSrsRecord(
     input.isCorrect,
     now,
     everWrong,
+    input.answerTimeMs,
   );
 
   if (action.kind === 'skip') return;

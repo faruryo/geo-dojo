@@ -92,4 +92,52 @@ describe('applySm2', () => {
     expect(result.graduated).toBe(false);
     expect(result.status).toBe('reviewing');
   });
+
+  describe('速答正解 (q=5 / B010 Phase 2)', () => {
+    it('速答(q=5): easeFactor が +0.1 増加する', () => {
+      const result = applySm2(initialState, 5);
+      expect(result.easeFactor).toBeCloseTo(2.6, 5);
+      expect(result.repetition).toBe(1);
+      expect(result.interval).toBe(1);
+    });
+
+    it('速答(q=5): 連続正解で interval が q=4 より早く拡大する', () => {
+      const state1 = applySm2(initialState, 5); // EF=2.6, rep=1, int=1
+      const state2 = applySm2(state1, 5); // EF=2.7, rep=2, int=6
+      const state3 = applySm2(state2, 5); // EF=2.8, rep=3, int=round(6 * 2.8) = 17
+      expect(state3.repetition).toBe(3);
+      expect(state3.interval).toBe(17);
+    });
+  });
+
+  describe('速答定着による早期卒業 (B010 Phase 3)', () => {
+    it('3回目の正解かつ q=5 かつ interval>=15 で graduated=true となる', () => {
+      const state2: SrsState = {
+        easeFactor: 2.7,
+        repetition: 2,
+        interval: 6,
+        status: 'reviewing',
+      };
+      const result = applySm2(state2, 5);
+      expect(result.repetition).toBe(3);
+      expect(result.interval).toBe(17);
+      expect(result.graduated).toBe(true);
+      expect(result.status).toBe('graduated');
+    });
+
+    it('3回目の正解でも q=4（通常正解）なら卒業しない（4回目の正解を待つ）', () => {
+      const state2: SrsState = {
+        easeFactor: 2.5,
+        repetition: 2,
+        interval: 6,
+        status: 'reviewing',
+      };
+      const result = applySm2(state2, 4);
+      expect(result.repetition).toBe(3);
+      expect(result.interval).toBe(15);
+      expect(result.graduated).toBe(false);
+      expect(result.status).toBe('reviewing');
+    });
+  });
 });
+

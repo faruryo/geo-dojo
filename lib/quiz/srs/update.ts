@@ -1,5 +1,6 @@
 import { applySm2 } from './sm2';
 import { alreadyAdvancedToday } from './scheduler';
+import { determineReviewQuality } from './quality';
 import type { SrsStatus } from './types';
 
 /** DB の srs_records 行のうち SM-2 判定に必要な部分 */
@@ -36,6 +37,7 @@ const DEFAULT_STATE = { easeFactor: 2.5, repetition: 0, interval: 0, status: 're
  *           さらに `everWrong=false`（誤答履歴なし）かつ新 repetition >= 2 なら、
  *           SM-2 の通常卒業条件（interval>=30 && rep>=4）を待たず早期卒業させる
  *           （easeFactor/interval/dueDate は SM-2 の計算値のまま、status のみ上書き）。
+ *           また、解答時間（answerTimeMs）が 10秒以内なら quality=5 となり EF 加速 & 早期卒業（rep>=3 && int>=15）が発火。
  * - 新規(existing=null): 既定状態から開始。
  */
 export function computeSrsUpdate(
@@ -43,6 +45,7 @@ export function computeSrsUpdate(
   isCorrect: boolean,
   now: Date,
   everWrong: boolean,
+  answerTimeMs?: number | null,
 ): SrsUpdateAction {
   // 正解の同日ガード（既存レコードのみ）
   if (isCorrect && existing && alreadyAdvancedToday(existing.lastReviewedAt, now)) {
@@ -58,7 +61,7 @@ export function computeSrsUpdate(
       }
     : DEFAULT_STATE;
 
-  const quality = isCorrect ? (4 as const) : (2 as const);
+  const quality = determineReviewQuality(isCorrect, answerTimeMs);
   const result = applySm2(state, quality);
   const dueDate = new Date(now.getTime() + result.dueInDays * DAY_MS);
   const status: SrsStatus =

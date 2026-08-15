@@ -1,4 +1,4 @@
-export type ReviewQuality = 2 | 4;
+export type ReviewQuality = 2 | 4 | 5;
 
 export type SrsStatus = 'reviewing' | 'graduated';
 
