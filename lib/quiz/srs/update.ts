@@ -9,6 +9,7 @@ export interface ExistingSrs {
   repetition: number;
   interval: number;
   status: SrsStatus;
+  dueDate: Date;
   lastReviewedAt: Date | null;
 }
 
@@ -32,7 +33,8 @@ const DEFAULT_STATE = { easeFactor: 2.5, repetition: 0, interval: 0, status: 're
  *
  * - 不正解: 常にリセット/復帰（同日ガードの対象外）。graduated でも reviewing に戻す。
  *           everWrong の値には影響されない。
- * - 正解  : JST 同日に既に前進済みなら skip（1日1回まで前進 / FR-005a）。
+ * - 正解  : JST 同日に既に前進済み（dueDate が明日以降）なら skip（1日1回まで前進 / FR-005a）。
+ *           期日到来中（dueDate が今日以前）なら同日回答履歴があっても前進。
  *           未前進なら SM-2 で前進し、閾値到達で graduated。
  *           さらに `everWrong=false`（誤答履歴なし）かつ新 repetition >= 2 なら、
  *           SM-2 の通常卒業条件（interval>=30 && rep>=4）を待たず早期卒業させる
@@ -47,8 +49,8 @@ export function computeSrsUpdate(
   everWrong: boolean,
   answerTimeMs?: number | null,
 ): SrsUpdateAction {
-  // 正解の同日ガード（既存レコードのみ）
-  if (isCorrect && existing && alreadyAdvancedToday(existing.lastReviewedAt, now)) {
+  // 正解の同日ガード（既存レコードかつ期日未到来で同日正解済みの場合にスキップ）
+  if (isCorrect && existing && alreadyAdvancedToday(existing, now)) {
     return { kind: 'skip' };
   }
 
