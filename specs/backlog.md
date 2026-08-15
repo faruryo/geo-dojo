@@ -14,10 +14,9 @@
   - 管理単位: (municipalityCode, mode) — モードごとに独立した学習状態
   - 既存誤答ログから初期バックフィル、全クイズ回答で SM-2 更新
 
-- [ ] B003 都道府県クイズ強化 + タイムアタック（spec-004 予定）
-  - 都道府県クイズの結果を DB 保存 + 苦手優先 + 復習モード対応
-  - 時間制限モード追加（タイムを記録・競える）
-  - 前提: 地図タップの操作性改善（現状のUIのイマイチな点を洗い出して改修）
+- [x] B003 都道府県クイズ強化 + タイムアタック → **020-prefecture-quiz-enhancement で実装完了**
+  - 実装: 設定画面（全国/地方別地域選択、出題数10/20/全問、通常/タイムアタックモード切替、苦手優先トグル）を追加。タイマー表示・クリアタイム計測・タイムアタック時の自己ベスト保存（localStorage）およびベスト更新バッジ表示を実装。過去の誤答データに基づく苦手優先出題に対応。
+  - 該当: `lib/quiz/prefecture-quiz.ts`（純粋関数）、`app/(app)/quiz/prefecture/page.tsx`（UI画面）、`__tests__/lib/quiz/prefecture-quiz.test.ts`
 
 - [x] B009 【バグ/UX・修正済】Mode A の全国地図がタッチ端末でピンチズームできない（iPhone Chrome で報告）
   - 修正: `components/map/JapanMap.tsx` で PointerEvent を pointerId ごとに Map で追跡し、2ポインタ時は距離比で `scale` を更新＋指の中点を不動点に保つよう `translate` を補正（2本指ドラッグのパンも同時に成立）。ピンチ→片指に戻ったらドラッグパンへシームレスに移行。ピンチ中は click 抑止（誤選択防止）
@@ -110,10 +109,9 @@
   - 補足: 同名複数区（政令市）や複数県（Mode A の同名グルーピング）は正解が複数 → 全体を含む領域にフィット。Mode A は全国地図が既に全体表示なので、ズーム可能化が前提（不可ならハイライト強調のみで可）
   - 関連: [[B004]]、B006（ズームパン）、詳細仕様・設計: [specs/016-map-autofocus/spec.md](file:///Users/faru/geo-dojo/specs/016-map-autofocus/spec.md)
 
-- [ ] B012 都道府県名と同一の市区町村を出題から除外するフィルタ
-  - 案: 「青森市（青森県）」や「秋田市（秋田県）」などのように、都道府県名と市区町村名（接尾辞を除く）が一致するものは、答えが自明（簡単すぎる）なため、テキストベースのクイズ（Mode Aなど）で出題から除外できるようにする。
-  - 考慮事項: 地図で位置を当てる問題（地図タップ系モードなど）は、名前が一致していても位置当て自体の難易度は下がらないため、除外対象外（出題してよい）とする。
-  - 対応: 出題選択ロジック（`lib/quiz/` や `buildQuestions`）において、モードに応じて `municipality.name` と `municipality.prefecture` の共通部分（例：「青森」）が一致するものを除外するフィルタを追加（設定でオンオフできるとより良い）。
+- [x] B012 都道府県名と同一の市区町村を出題から除外するフィルタ → **010-exclude-same-name (#22) で実装完了**
+  - 「青森市（青森県）」や「秋田市（秋田県）」などの都道府県名と市区町村名が一致する自明な問題をテキストモード（Mode A/B/C）の出題プール・ダッシュボード集計から除外。Mode D（位置当て地図タップ）では引き続き出題。
+  - 該当: `lib/quiz/municipality-data.ts`（`isSameNameMunicipality`, `filterSameName`, `filterTextModeMunicipalities`）、`app/(app)/dashboard/queries.ts`（`notSameNameSql`）、`__tests__/lib/quiz/same-name-exclusion.test.ts`
 
 - [x] B014 いい感じのSE（効果音）の追加 → **014-sound-effects で実装完了**
   - 実装: Web Audio APIによる動的シンセ生成（音声アセットなし）で正解・不正解・完了・全問正解の4種を再生。市区町村クイズ全モード・復習セッション・都道府県クイズに統合。ミュートはlocalStorage永続化（デフォルト音あり）。音量スライダーや専用設定画面は対象外（将来判断）。
