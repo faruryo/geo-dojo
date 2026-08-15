@@ -441,6 +441,11 @@ export default function MunicipalityQuizPage() {
             <Button onClick={handleStart} className="w-full">
               もう一度
             </Button>
+            <Link href="/?recommend=open">
+              <Button className="w-full" variant="outline">
+                ✨ 今日のおすすめクイズを試す
+              </Button>
+            </Link>
             <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
               設定に戻る
             </Button>

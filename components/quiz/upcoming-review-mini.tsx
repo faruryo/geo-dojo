@@ -6,9 +6,9 @@ import { getTomorrowReviewCount } from '@/lib/quiz/srs/schedule-helper';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function UpcomingReviewMini({ days = 7 }: Readonly<{ days?: number }>) {
-  const { data: schedule, isLoading } = useUpcomingReviewSchedule(days);
+  const { data: schedule, isLoading, isFetching } = useUpcomingReviewSchedule(days);
 
-  if (isLoading) {
+  if (isLoading || isFetching) {
     return <Skeleton className="h-28 w-full rounded-xl" />;
   }
 
