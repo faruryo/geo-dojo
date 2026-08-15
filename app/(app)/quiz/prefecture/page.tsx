@@ -158,13 +158,23 @@ export default function PrefectureQuizPage() {
 
   const startTimeRef = useRef<number>(0);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTransitioningRef = useRef(false);
+
+  const clearPendingTransition = useCallback(() => {
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current);
+      transitionTimeoutRef.current = null;
+    }
+    isTransitioningRef.current = false;
+  }, []);
 
   const target = questions[currentIndex] ?? '';
   const availablePool = useMemo(() => getRegionsPrefectures(settings.regions), [settings.regions]);
   const maxAvailableCount = availablePool.length;
 
   const handleStart = useCallback(() => {
+    clearPendingTransition();
     const weaknessMap = getStoredWeakness();
     const qs = buildPrefectureQuestions(settings, weaknessMap);
     if (qs.length === 0) return;
@@ -176,14 +186,13 @@ export default function PrefectureQuizPage() {
     setSelected(null);
     setElapsedMs(0);
     setIsBestUpdated(false);
-    isTransitioningRef.current = false;
 
     const bestKey = getBestTimeKey(settings);
     setPreviousBestMs(getStoredBestTime(bestKey));
 
     startTimeRef.current = performance.now();
     setPhase('playing');
-  }, [settings]);
+  }, [settings, clearPendingTransition]);
 
   // タイマー進行
   useEffect(() => {
@@ -197,6 +206,7 @@ export default function PrefectureQuizPage() {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
+      clearPendingTransition();
     }
 
     return () => {
@@ -204,8 +214,9 @@ export default function PrefectureQuizPage() {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
+      clearPendingTransition();
     };
-  }, [phase]);
+  }, [phase, clearPendingTransition]);
 
   const handleTap = useCallback(
     (name: string) => {
@@ -222,7 +233,8 @@ export default function PrefectureQuizPage() {
 
       const delayMs = getFeedbackDelay(settings.type, isCorrect);
 
-      setTimeout(() => {
+      transitionTimeoutRef.current = setTimeout(() => {
+        transitionTimeoutRef.current = null;
         const nextIndex = currentIndex + 1;
         if (nextIndex >= questions.length) {
           const finalTimeMs = Math.round(performance.now() - startTimeRef.current);

@@ -11,11 +11,17 @@ describe('formatClearTime', () => {
     expect(formatClearTime(24350)).toBe('24.35s');
     expect(formatClearTime(5120)).toBe('5.12s');
     expect(formatClearTime(0)).toBe('0.00s');
+    expect(formatClearTime(59990)).toBe('59.99s');
   });
 
   it('1分以上のタイムを分秒形式（M:SS.ss）で整形する', () => {
     expect(formatClearTime(65120)).toBe('1:05.12');
     expect(formatClearTime(125800)).toBe('2:05.80');
+  });
+
+  it('分境界の繰り上がり（59999ms -> 1:00.00, 119999ms -> 2:00.00）を正しく処理する', () => {
+    expect(formatClearTime(59999)).toBe('1:00.00');
+    expect(formatClearTime(119999)).toBe('2:00.00');
   });
 });
 

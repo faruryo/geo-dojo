@@ -24,9 +24,11 @@ export interface PrefectureQuizResultEntry {
  * ミリ秒を "M:SS.ss" または "SS.ss" 形式にフォーマットする純粋関数。
  */
 export function formatClearTime(ms: number): string {
-  const totalSeconds = Math.max(0, ms) / 1000;
+  // 小数第2位で四捨五入した総秒数から分と秒を算出（59.999s -> 60.00s -> 1分00.00秒への繰り上がりを保証）
+  const totalHundredths = Math.round(Math.max(0, ms) / 10);
+  const totalSeconds = totalHundredths / 100;
   const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
+  const seconds = (totalHundredths % 6000) / 100;
 
   if (minutes > 0) {
     const secStr = seconds < 10 ? `0${seconds.toFixed(2)}` : seconds.toFixed(2);
