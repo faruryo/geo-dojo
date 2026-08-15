@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getTomorrowReviewCount, type ScheduleItem } from '@/lib/quiz/srs/schedule-helper';
+import { getTomorrowReviewCount, fillUpcomingDays, type ScheduleItem } from '@/lib/quiz/srs/schedule-helper';
 
 describe('getTomorrowReviewCount', () => {
   it('明日の日付に一致するスケジュールの件数を返す', () => {
@@ -39,5 +39,38 @@ describe('getTomorrowReviewCount', () => {
     ];
 
     expect(getTomorrowReviewCount(schedule, now)).toBe(20);
+  });
+});
+
+describe('fillUpcomingDays', () => {
+  it('抜けている日付を 0 件で埋めて指定日数の配列を返す', () => {
+    // 2026-08-15 JST 19:00 -> 明日(8/16)から7日間: 8/16 ~ 8/22
+    const now = new Date('2026-08-15T10:00:00Z');
+    const schedule: ScheduleItem[] = [
+      { date: '2026-08-16', count: 10 },
+      { date: '2026-08-18', count: 5 },
+    ];
+
+    const result = fillUpcomingDays(schedule, 7, now);
+    expect(result).toHaveLength(7);
+    expect(result).toEqual([
+      { date: '2026-08-16', count: 10 },
+      { date: '2026-08-17', count: 0 },
+      { date: '2026-08-18', count: 5 },
+      { date: '2026-08-19', count: 0 },
+      { date: '2026-08-20', count: 0 },
+      { date: '2026-08-21', count: 0 },
+      { date: '2026-08-22', count: 0 },
+    ]);
+  });
+
+  it('schedule が空または null の場合でも全日 0 件で生成する', () => {
+    const now = new Date('2026-08-15T10:00:00Z');
+    const result = fillUpcomingDays([], 3, now);
+    expect(result).toEqual([
+      { date: '2026-08-16', count: 0 },
+      { date: '2026-08-17', count: 0 },
+      { date: '2026-08-18', count: 0 },
+    ]);
   });
 });
