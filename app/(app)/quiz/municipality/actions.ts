@@ -113,7 +113,7 @@ async function upsertSrsRecord(
 
   // 早期卒業判定用: 誤答履歴（isCorrect=false）が1件でもあるか。正解時のみ照会すれば十分
   // （不正解経路は everWrong の値に依存しないため）。
-  let everWrong = true;
+  let everWrong = false;
   if (input.isCorrect) {
     const [wrongRow] = await db
       .select({ one: sql<number>`1` })
@@ -127,7 +127,7 @@ async function upsertSrsRecord(
         ),
       )
       .limit(1);
-    everWrong = !!wrongRow;
+    everWrong = Boolean(wrongRow);
   }
 
   const action = computeSrsUpdate(
@@ -137,6 +137,7 @@ async function upsertSrsRecord(
           repetition: existing.repetition,
           interval: existing.interval,
           status: existing.status as SrsStatus,
+          dueDate: existing.dueDate,
           lastReviewedAt: existing.lastReviewedAt,
         }
       : null,

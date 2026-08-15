@@ -28,16 +28,16 @@ export function getJSTDateRange(period: '7d' | '30d' | 'all'): Date | null {
   return new Date(jstStart.getTime() - JST_OFFSET_MS);
 }
 
-export function getJSTStartOfToday(): Date {
-  const jstNow = toJSTDate(new Date());
+export function getJSTStartOfToday(base: Date = new Date()): Date {
+  const jstNow = toJSTDate(base);
   const jstMidnight = new Date(
     Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate()),
   );
   return new Date(jstMidnight.getTime() - JST_OFFSET_MS);
 }
 
-export function getJSTStartOfTomorrow(): Date {
-  return new Date(getJSTStartOfToday().getTime() + 24 * 60 * 60 * 1000);
+export function getJSTStartOfTomorrow(base: Date = new Date()): Date {
+  return new Date(getJSTStartOfToday(base).getTime() + 24 * 60 * 60 * 1000);
 }
 
 // JST の暦日単位での日数差（ミリ秒差の切り上げだと「数分後」が「明日」判定になるため）。

@@ -32,21 +32,42 @@ describe('computeSrsUpdate — 新規（未登録）', () => {
 });
 
 describe('computeSrsUpdate — 同日ガード（FR-005a / R3）', () => {
-  const reviewedToday: ExistingSrs = {
+  const reviewedTodayAdvanced: ExistingSrs = {
     easeFactor: 2.5,
     repetition: 1,
     interval: 1,
     status: 'reviewing',
+    dueDate: new Date('2026-06-02T10:00:00Z'), // 明日以降（すでに前進済み）
     lastReviewedAt: new Date('2026-06-01T01:00:00Z'), // 同 JST 日
   };
 
+  const reviewedTodayDue: ExistingSrs = {
+    easeFactor: 2.5,
+    repetition: 0,
+    interval: 0,
+    status: 'reviewing',
+    dueDate: new Date('2026-06-01T00:00:00Z'), // 今日以前（期日到来中・復習対象）
+    lastReviewedAt: new Date('2026-06-01T01:00:00Z'), // 同 JST 日に回答ログあり
+  };
+
   it('今日すでに前進済みのアイテムに正解 → skip（前進しない・誤答履歴なしでも同日ガードは不変）', () => {
-    const a = computeSrsUpdate(reviewedToday, true, NOW, false);
+    const a = computeSrsUpdate(reviewedTodayAdvanced, true, NOW, false);
     expect(a.kind).toBe('skip');
   });
 
+  it('同日に回答ログがあっても期日到来中（dueDate が今日以前）なら正解で前進する（復習ループ防止回帰）', () => {
+    const a = computeSrsUpdate(reviewedTodayDue, true, NOW, true);
+    expect(a.kind).toBe('upsert');
+    if (a.kind !== 'upsert') return;
+    expect(a.status).toBe('reviewing');
+    expect(a.repetition).toBe(1);
+    expect(a.interval).toBe(1);
+    expect(daysFromNow(a.dueDate)).toBe(1); // 翌日
+    expect(a.lastReviewedAt).toEqual(NOW);
+  });
+
   it('今日すでに前進済みでも、不正解は常に処理される（リセット・everWrong に無関係）', () => {
-    const a = computeSrsUpdate(reviewedToday, false, NOW, false);
+    const a = computeSrsUpdate(reviewedTodayAdvanced, false, NOW, false);
     expect(a.kind).toBe('upsert');
     if (a.kind !== 'upsert') return;
     expect(a.status).toBe('reviewing');
@@ -56,7 +77,8 @@ describe('computeSrsUpdate — 同日ガード（FR-005a / R3）', () => {
 
   it('前回復習が昨日（JST別日）なら正解で前進し、誤答履歴なしなら即卒業する', () => {
     const reviewedYesterday: ExistingSrs = {
-      ...reviewedToday,
+      ...reviewedTodayAdvanced,
+      dueDate: new Date('2026-06-01T01:00:00Z'), // 今日期日
       lastReviewedAt: new Date('2026-05-31T01:00:00Z'),
     };
     const a = computeSrsUpdate(reviewedYesterday, true, NOW, false);
@@ -74,6 +96,7 @@ describe('computeSrsUpdate — 同日ガード（FR-005a / R3）', () => {
       repetition: 0,
       interval: 0,
       status: 'reviewing',
+      dueDate: new Date('2026-06-01T00:00:00Z'),
       lastReviewedAt: null,
     };
     const a = computeSrsUpdate(backfilled, true, NOW, true);
@@ -89,7 +112,7 @@ describe('computeSrsUpdate — 連続正解で間隔が伸びる', () => {
     const yesterday = (d: number) => new Date(NOW.getTime() - d * DAY_MS - 9 * 60 * 60 * 1000);
     // rep2, interval6 の状態から、別日に正解 → rep3, interval round(6*2.5)=15
     const a = computeSrsUpdate(
-      { easeFactor: 2.5, repetition: 2, interval: 6, status: 'reviewing', lastReviewedAt: yesterday(1) },
+      { easeFactor: 2.5, repetition: 2, interval: 6, status: 'reviewing', dueDate: NOW, lastReviewedAt: yesterday(1) },
       true,
       NOW,
       true, // 誤答履歴あり: 通常コースのまま進む（早期卒業は発火しない）
@@ -107,7 +130,7 @@ describe('computeSrsUpdate — 卒業と復帰（FR-018/019）', () => {
   it('閾値到達で graduated（誤答履歴ありでも通常コースの卒業条件で卒業）', () => {
     // rep3, interval12 → 正解で rep4, interval=round(12*2.5)=30 → 卒業
     const a = computeSrsUpdate(
-      { easeFactor: 2.5, repetition: 3, interval: 12, status: 'reviewing', lastReviewedAt: null },
+      { easeFactor: 2.5, repetition: 3, interval: 12, status: 'reviewing', dueDate: NOW, lastReviewedAt: null },
       true,
       NOW,
       true,
@@ -124,6 +147,7 @@ describe('computeSrsUpdate — 卒業と復帰（FR-018/019）', () => {
       repetition: 5,
       interval: 60,
       status: 'graduated',
+      dueDate: new Date('2026-07-01T00:00:00Z'),
       lastReviewedAt: new Date('2026-06-01T02:00:00Z'), // 今日でも不正解は処理される
     };
     const a = computeSrsUpdate(graduated, false, NOW, true);
@@ -142,6 +166,7 @@ describe('computeSrsUpdate — 早期卒業（誤答なしなら通常閾値を�
       repetition: 1,
       interval: 1,
       status: 'reviewing',
+      dueDate: NOW,
       lastReviewedAt: new Date('2026-05-31T01:00:00Z'), // 昨日
     };
     const a = computeSrsUpdate(existingRep1, true, NOW, true);
@@ -151,12 +176,29 @@ describe('computeSrsUpdate — 早期卒業（誤答なしなら通常閾値を�
     expect(a.repetition).toBe(2);
   });
 
+  it('誤答履歴なし・rep1→rep2で早期卒業する（新 repetition >= 2 で即 graduated）', () => {
+    const existingRep1: ExistingSrs = {
+      easeFactor: 2.5,
+      repetition: 1,
+      interval: 1,
+      status: 'reviewing',
+      dueDate: NOW,
+      lastReviewedAt: new Date('2026-05-31T01:00:00Z'), // 昨日
+    };
+    const a = computeSrsUpdate(existingRep1, true, NOW, false);
+    expect(a.kind).toBe('upsert');
+    if (a.kind !== 'upsert') return;
+    expect(a.status).toBe('graduated');
+    expect(a.repetition).toBe(2);
+  });
+
   it('誤答履歴なし・rep2→rep3も卒業（早期卒業の閾値は新 repetition >= 2 のみ）', () => {
     const existingRep2: ExistingSrs = {
       easeFactor: 2.5,
       repetition: 2,
       interval: 6,
       status: 'reviewing',
+      dueDate: NOW,
       lastReviewedAt: new Date('2026-05-31T01:00:00Z'), // 昨日
     };
     const a = computeSrsUpdate(existingRep2, true, NOW, false);
@@ -176,6 +218,7 @@ describe('computeSrsUpdate — 解答時間（answerTimeMs）と速答判定 (B0
       repetition: 1,
       interval: 1,
       status: 'reviewing',
+      dueDate: NOW,
       lastReviewedAt: yesterday(1),
     };
     const a = computeSrsUpdate(existing, true, NOW, true, 5_000);
@@ -192,6 +235,7 @@ describe('computeSrsUpdate — 解答時間（answerTimeMs）と速答判定 (B0
       repetition: 1,
       interval: 1,
       status: 'reviewing',
+      dueDate: NOW,
       lastReviewedAt: yesterday(1),
     };
     const a = computeSrsUpdate(existing, true, NOW, true, 15_000);
@@ -206,6 +250,7 @@ describe('computeSrsUpdate — 解答時間（answerTimeMs）と速答判定 (B0
       repetition: 2,
       interval: 6,
       status: 'reviewing',
+      dueDate: NOW,
       lastReviewedAt: yesterday(1),
     };
     // 誤答歴あり（everWrong = true）、5秒で速答
@@ -223,6 +268,7 @@ describe('computeSrsUpdate — 解答時間（answerTimeMs）と速答判定 (B0
       repetition: 2,
       interval: 6,
       status: 'reviewing',
+      dueDate: NOW,
       lastReviewedAt: yesterday(1),
     };
     // 誤答歴あり（everWrong = true）、15秒で通常正解

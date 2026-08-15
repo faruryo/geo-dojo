@@ -38,27 +38,41 @@ describe('shouldGraduate', () => {
 });
 
 describe('alreadyAdvancedToday', () => {
-  it('lastReviewedAt が null なら false', () => {
+  const futureDue = new Date('2026-06-02T10:00:00Z'); // 明日以降
+  const pastDue = new Date('2026-06-01T02:00:00Z');   // 今日以前（due中）
+
+  it('existing が null なら false', () => {
     expect(alreadyAdvancedToday(null, new Date())).toBe(false);
   });
 
-  it('JST 同日なら true', () => {
-    // JST 2026-06-01 12:00 (UTC 2026-06-01 03:00)
-    const lastReviewed = new Date('2026-06-01T03:00:00Z');
-    const now = new Date('2026-06-01T10:00:00Z'); // 同日 JST
-    expect(alreadyAdvancedToday(lastReviewed, now)).toBe(true);
+  it('lastReviewedAt が null なら false', () => {
+    expect(alreadyAdvancedToday({ lastReviewedAt: null, dueDate: futureDue }, new Date())).toBe(false);
   });
 
-  it('JST 日付が違えば false', () => {
+  it('JST 同日かつ期日が明日以降（すでに前進済み）なら true', () => {
+    // JST 2026-06-01 12:00 (UTC 2026-06-01 03:00)
+    const lastReviewed = new Date('2026-06-01T03:00:00Z');
+    const now = new Date('2026-06-01T10:00:00Z'); // 同日 JST (19:00 JST)
+    const dueDate = new Date('2026-06-02T10:00:00Z'); // 翌日以降
+    expect(alreadyAdvancedToday({ lastReviewedAt: lastReviewed, dueDate }, now)).toBe(true);
+  });
+
+  it('JST 同日であっても期日到来中（dueDate が今日以前）なら false（復習正解で前進を許可）', () => {
+    const lastReviewed = new Date('2026-06-01T03:00:00Z');
+    const now = new Date('2026-06-01T10:00:00Z');
+    expect(alreadyAdvancedToday({ lastReviewedAt: lastReviewed, dueDate: pastDue }, now)).toBe(false);
+  });
+
+  it('JST 日付が違えば dueDate に関わらず false', () => {
     const yesterday = new Date('2026-05-31T03:00:00Z'); // JST 2026-05-31
     const now = new Date('2026-06-01T03:00:00Z');        // JST 2026-06-01
-    expect(alreadyAdvancedToday(yesterday, now)).toBe(false);
+    expect(alreadyAdvancedToday({ lastReviewedAt: yesterday, dueDate: futureDue }, now)).toBe(false);
   });
 
   it('JST 日付跨ぎ（UTC は同日でも JST で翌日）なら false', () => {
     // UTC 2026-06-01 15:00 = JST 2026-06-02 00:00
     const lastReviewed = new Date('2026-06-01T14:00:00Z'); // JST 2026-06-01 23:00
     const now = new Date('2026-06-01T15:00:00Z');           // JST 2026-06-02 00:00
-    expect(alreadyAdvancedToday(lastReviewed, now)).toBe(false);
+    expect(alreadyAdvancedToday({ lastReviewedAt: lastReviewed, dueDate: futureDue }, now)).toBe(false);
   });
 });
