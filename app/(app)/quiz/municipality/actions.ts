@@ -189,8 +189,7 @@ export async function getMunicipalityWeakness(): Promise<
       municipalityCode: municipalityQuizResults.municipalityCode,
       municipalityName: municipalityQuizResults.municipalityName,
       prefecture: municipalityQuizResults.prefecture,
-      total: sql<number>`CAST(COUNT(*) AS int)`,
-      wrong: sql<number>`CAST(COUNT(*) FILTER (WHERE NOT ${municipalityQuizResults.isCorrect}) AS int)`,
+      errorRate: sql<number>`CAST(COUNT(*) FILTER (WHERE NOT ${municipalityQuizResults.isCorrect}) AS float) / COUNT(*)`,
     })
     .from(municipalityQuizResults)
     .where(eq(municipalityQuizResults.userId, user.id))
@@ -199,18 +198,21 @@ export async function getMunicipalityWeakness(): Promise<
       municipalityQuizResults.municipalityName,
       municipalityQuizResults.prefecture,
     )
-    .limit(200);
+    .having(
+      sql`COUNT(*) FILTER (WHERE NOT ${municipalityQuizResults.isCorrect}) > 0`,
+    )
+    .orderBy(
+      sql`CAST(COUNT(*) FILTER (WHERE NOT ${municipalityQuizResults.isCorrect}) AS float) / COUNT(*) DESC`,
+      sql`COUNT(*) DESC`,
+    )
+    .limit(100);
 
-  return rows
-    .map((r) => ({
-      municipalityCode: r.municipalityCode,
-      municipalityName: r.municipalityName,
-      prefecture: r.prefecture,
-      errorRate: r.total > 0 ? r.wrong / r.total : 0,
-    }))
-    .filter((r) => r.errorRate > 0)
-    .sort((a, b) => b.errorRate - a.errorRate)
-    .slice(0, 100);
+  return rows.map((r) => ({
+    municipalityCode: r.municipalityCode,
+    municipalityName: r.municipalityName,
+    prefecture: r.prefecture,
+    errorRate: Number(r.errorRate),
+  }));
 }
 
 export async function getMunicipalityMaster(): Promise<MunicipalityMaster[]> {
