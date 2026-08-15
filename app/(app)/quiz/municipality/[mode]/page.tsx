@@ -4,10 +4,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { notFound, useParams, useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useMunicipalityWeakness } from '@/lib/hooks/useMunicipalityWeakness';
 import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
 import { RecommendReplayButton } from '@/components/recommend/recommend-replay-button';
+import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
 import type { Question } from '@/components/quiz/quiz-runner';
 import { LAST_SELECTED_MODE_KEY, parseGameMode } from '@/lib/quiz/last-selected-mode';
@@ -146,6 +148,7 @@ export default function MunicipalityQuizPage() {
       ? [initDifficulty]
       : null;
 
+  const queryClient = useQueryClient();
   const [phase, setPhase] = useState<Phase>('setup');
   const [settings, setSettings] = useState<Settings>({
     mode: modeFromUrl,
@@ -419,13 +422,30 @@ export default function MunicipalityQuizPage() {
           </div>
         )}
 
-        {isRecommendSource && <RecommendReplayButton />}
-        <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
-          設定に戻る
-        </Button>
-        <Button onClick={handleStart} className="w-full">
-          もう一度
-        </Button>
+        {/* 復習予定ミニカード */}
+        <UpcomingReviewMini days={7} />
+
+        {/* アクションボタン群 */}
+        {isRecommendSource ? (
+          <>
+            <RecommendReplayButton />
+            <Button onClick={handleStart} variant="outline" className="w-full">
+              同じ設定でもう一度
+            </Button>
+            <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
+              設定に戻る
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button onClick={handleStart} className="w-full">
+              もう一度
+            </Button>
+            <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
+              設定に戻る
+            </Button>
+          </>
+        )}
       </div>
     );
   }
@@ -440,6 +460,7 @@ export default function MunicipalityQuizPage() {
       onComplete={(completedResults) => {
         setResults(completedResults);
         setPhase('result');
+        void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       }}
     />
   );

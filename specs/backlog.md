@@ -128,10 +128,7 @@
   - `components/recommend/recommend-override.tsx` で地方単位のポジティブ選択トグルUI（`targetRegions`）が実装済み。`localStorage`（`geodojo-recommend-region-filters`）に永続化
   - 都道府県単位の絞り込みは未対応（地方単位のみ）だが、当初の主眼だった「ポジティブ選択」は満たしている
 
-- [ ] B019 【UX改善】「今日のおすすめクイズ」完了画面での復習予定（明日の件数）表示と即時ループPlay導線
-  - 動機（ユーザー報告）: 「明日の復習予定件数が20件を超えないように調整しながら『今日のおすすめクイズ』を実施し、復習ダッシュボードで件数を確認する」というサイクルを繰り返している。クイズが終わった後にトップダッシュボードへ戻らず、その場で明日の復習予定件数を確認して「今日のおすすめクイズ」を連奏できるようにしたい。
-  - 案（段階実装）:
-    - Phase 1: 「今日のおすすめクイズ」および復習クイズ等の完了画面に、最新の「明日の復習予定件数」（および今後7日間の復習スケジュールミニ表示）を表示し、完了画面からワンタップで直接「✨ 今日のおすすめクイズ」を再起動できるようにする。
-    - Phase 2（将来検討）: ユーザー自身で「明日の復習上限（例: 20件）」などの目標キャパシティを設定可能にし、「明日の復習予定: 14/20件」といったペースメーカーインジケーターを表示する。
-  - 関連: `components/quiz/quiz-runner.tsx`、`components/recommend/`、`app/(app)/quiz/` 関連完了画面、`ReviewCard`
+- [x] B019 【UX改善】「今日のおすすめクイズ」完了画面での復習予定（明日の件数）表示と即時ループPlay導線 → **019-recommend-complete-loop で実装完了**
+  - 実装: クイズ完了画面（市区町村クイズ全モードおよび復習クイズ）に `UpcomingReviewMini` コンポーネントを配置し、最新の「明日の復習予定件数」と今後7日間のミニスケジュールを表示。結果フェーズ遷移時に `queryClient.invalidateQueries` で最新状態を即時反映。おすすめ経由時は `RecommendReplayButton` を最優先アクションとして配置し、ダッシュボードに戻ることなく即時ループプレイが可能。
+  - 該当: `lib/quiz/srs/schedule-helper.ts`（明日件数抽出）、`components/quiz/upcoming-review-mini.tsx`（ミニカード）、`app/(app)/quiz/municipality/[mode]/page.tsx`、`app/(app)/quiz/review/page.tsx`
 

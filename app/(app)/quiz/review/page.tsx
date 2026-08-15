@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
 import { useDueReviewSummary } from '@/lib/hooks/useDueReviewSummary';
+import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
 import { getDueReviewItems } from './actions';
 import { buildReviewQuestions } from '@/lib/quiz/review-questions';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
@@ -151,6 +152,9 @@ export default function ReviewPage() {
           </div>
         )}
 
+        {/* 復習予定ミニカード */}
+        <UpcomingReviewMini days={7} />
+
         {showContinueButton && (
           <Button
             className="w-full"
@@ -180,7 +184,7 @@ export default function ReviewPage() {
       onAbort={() => setPhase('empty')}
       onComplete={async (completedResults) => {
         setResults(completedResults);
-        await queryClient.invalidateQueries({ queryKey: ['dashboard', 'srs-summary'] });
+        await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
         setPhase('result');
       }}
     />
