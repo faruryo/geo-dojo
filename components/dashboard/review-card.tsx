@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { diffJSTCalendarDays } from '@/lib/utils/date-jst';
+import { fillUpcomingDays } from '@/lib/quiz/srs/schedule-helper';
 
 function formatNextDue(isoDate: string): string {
   const days = diffJSTCalendarDays(new Date(isoDate));
@@ -91,33 +92,36 @@ export function ReviewCard() {
                 </div>
               </div>
 
-              {schedule && schedule.length > 0 && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">今後7日間の予定</p>
-                  <div className="flex gap-1 items-end">
-                    {schedule.map((day) => {
-                      const max = Math.max(...schedule.map((d) => d.count), 1);
-                      const height = Math.round((day.count / max) * 100);
-                      const label = day.date.slice(5); // MM-DD
-                      return (
-                        <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
-                          <span className="text-[9px] font-medium text-foreground leading-none tabular-nums">
-                            {day.count}
-                          </span>
-                          {/* h-10 の確定高トラックに対して棒の % が解決される（親が未確定だと潰れる） */}
-                          <div className="flex w-full h-10 items-end" title={`${day.count}件`}>
-                            <div
-                              className="w-full rounded-sm bg-primary/60"
-                              style={{ height: `${height}%`, minHeight: day.count > 0 ? '4px' : '0' }}
-                            />
+              {(() => {
+                const filledSchedule = fillUpcomingDays(schedule, 7);
+                const maxCount = Math.max(...filledSchedule.map((d) => d.count), 1);
+                return (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">今後7日間の予定</p>
+                    <div className="flex gap-1 items-end">
+                      {filledSchedule.map((day) => {
+                        const height = Math.round((day.count / maxCount) * 100);
+                        const label = day.date.slice(5); // MM-DD
+                        return (
+                          <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                            <span className="text-[9px] font-medium text-foreground leading-none tabular-nums">
+                              {day.count}
+                            </span>
+                            {/* h-10 の確定高トラックに対して棒の % が解決される（親が未確定だと潰れる） */}
+                            <div className="flex w-full h-10 items-end" title={`${day.date}: ${day.count}件`}>
+                              <div
+                                className="w-full rounded-sm bg-primary/60"
+                                style={{ height: `${height}%`, minHeight: day.count > 0 ? '4px' : '0' }}
+                              />
+                            </div>
+                            <span className="text-[9px] text-muted-foreground leading-none">{label}</span>
                           </div>
-                          <span className="text-[9px] text-muted-foreground leading-none">{label}</span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {reviewingCount > 0 && (
                 <Link
