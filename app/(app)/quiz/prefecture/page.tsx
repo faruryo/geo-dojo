@@ -231,28 +231,38 @@ export default function PrefectureQuizPage() {
       setResults(updatedResults);
       updateWeaknessScore(target, isCorrect);
 
+      const isFinalQuestion = currentIndex + 1 >= questions.length;
+      let recordedFinalTimeMs: number | null = null;
+
+      if (isFinalQuestion) {
+        recordedFinalTimeMs = Math.round(performance.now() - startTimeRef.current);
+        setTotalClearTimeMs(recordedFinalTimeMs);
+        setElapsedMs(recordedFinalTimeMs);
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+          timerIntervalRef.current = null;
+        }
+      }
+
       const delayMs = getFeedbackDelay(settings.type, isCorrect);
 
       transitionTimeoutRef.current = setTimeout(() => {
         transitionTimeoutRef.current = null;
-        const nextIndex = currentIndex + 1;
-        if (nextIndex >= questions.length) {
-          const finalTimeMs = Math.round(performance.now() - startTimeRef.current);
-          setTotalClearTimeMs(finalTimeMs);
+        if (isFinalQuestion && recordedFinalTimeMs !== null) {
           playSe(completionSeEvent(updatedResults));
 
           if (settings.type === 'timeAttack') {
             const bestKey = getBestTimeKey(settings);
             const currentBest = getStoredBestTime(bestKey);
-            if (isNewBestTime(finalTimeMs, currentBest)) {
-              saveBestTime(bestKey, finalTimeMs);
+            if (isNewBestTime(recordedFinalTimeMs, currentBest)) {
+              saveBestTime(bestKey, recordedFinalTimeMs);
               setIsBestUpdated(true);
             }
           }
 
           setPhase('result');
         } else {
-          setCurrentIndex(nextIndex);
+          setCurrentIndex((prev) => prev + 1);
           setSelected(null);
           setFeedback('none');
           isTransitioningRef.current = false;
