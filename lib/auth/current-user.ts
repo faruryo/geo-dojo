@@ -20,3 +20,13 @@ export async function getCurrentUserId(): Promise<string | null> {
   } = await supabase.auth.getUser();
   return user?.id ?? null;
 }
+
+/**
+ * 認証必須 Server Action 用ヘルパ。未認証の場合は 'Unauthorized' を投げる。
+ */
+export async function requireUserId(): Promise<string> {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Unauthorized');
+  return userId;
+}
+

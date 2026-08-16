@@ -1,9 +1,6 @@
 'use server';
 
-import { db } from '@/lib/db';
-import { srsRecords, municipalityMaster } from '@/lib/db/schema';
-import { eq, and, count, asc } from 'drizzle-orm';
-import { getCurrentUserId } from '@/lib/auth/current-user';
+import { requireUserId } from '@/lib/auth/current-user';
 import {
   getDashboardSummaryData,
   getAccuracyTrendData,
@@ -14,17 +11,18 @@ import {
   getCompletionByModeData,
   getDueReviewSummaryData,
   getUpcomingReviewScheduleData,
-  getItemAccuracyData,
+  getReviewItemListData,
+  getReviewModeBreakdownData,
   type QuizModeFilter,
+  type ReviewItemFilterOpts,
+  type ReviewItem,
+  type ReviewItemListResult,
+  type ReviewModeBreakdownEntry,
 } from './queries';
 
-async function requireUserId(): Promise<string> {
-  const userId = await getCurrentUserId();
-  if (!userId) throw new Error('Unauthorized');
-  return userId;
-}
+export type { ReviewItemFilterOpts, ReviewItem, ReviewItemListResult, ReviewModeBreakdownEntry };
 
-// 以下の read 系 Server Action は、認証非依存の純粋クエリ（./queries.ts）への
+// 以下の read 系 Server Action は、認証非依存の純粋クエリ（lib/db/queries）への
 // 薄いラッパ。フィルタ変更・手動更新のオンデマンド取得経路として維持しつつ、
 // 初回表示は lib/dashboard/prefetch.ts が認証1回＋Promise.all で同じ関数を呼ぶ。
 
@@ -96,116 +94,16 @@ export async function getUpcomingReviewSchedule(days = 7) {
   return getUpcomingReviewScheduleData(userId, days);
 }
 
-// ──────────────────────────────────────────────────────
-export interface ReviewItemFilterOpts {
-  mode?: 'A' | 'B' | 'C' | 'D';
-  limit?: number;
-  offset?: number;
-}
-
-export interface ReviewItem {
-  municipalityCode: string;
-  municipalityName: string;
-  mode: string;
-  dueDate: string;
-  repetition: number;
-  interval: number;
-  accuracy?: { correct: number; total: number };
-  kana?: string;
-}
-
-export interface ReviewItemListResult {
-  items: ReviewItem[];
-  total: number;
-}
-
 // 9. getReviewItemList — 復習中（学習途中）のアイテム一覧（ページング+モードフィルタ）
 export async function getReviewItemList(
   opts?: ReviewItemFilterOpts,
 ): Promise<ReviewItemListResult> {
   const userId = await requireUserId();
-  const limit = opts?.limit ?? 25;
-  const offset = opts?.offset ?? 0;
-
-  const where = and(
-    eq(srsRecords.userId, userId),
-    eq(srsRecords.status, 'reviewing'),
-    opts?.mode ? eq(srsRecords.mode, opts.mode) : undefined,
-  );
-
-  const [rows, totalRow] = await Promise.all([
-    db
-      .select({
-        municipalityCode: srsRecords.municipalityCode,
-        municipalityName: srsRecords.municipalityName,
-        mode: srsRecords.mode,
-        dueDate: srsRecords.dueDate,
-        repetition: srsRecords.repetition,
-        interval: srsRecords.interval,
-        kana: municipalityMaster.kana,
-      })
-      .from(srsRecords)
-      .leftJoin(municipalityMaster, eq(srsRecords.municipalityCode, municipalityMaster.code))
-      .where(where)
-      .orderBy(asc(srsRecords.dueDate))
-      .limit(limit)
-      .offset(offset),
-    db.select({ value: count() }).from(srsRecords).where(where),
-  ]);
-
-  let accuracyMap = new Map<string, { correct: number; total: number }>();
-  try {
-    const pairs = rows.map((r) => ({ municipalityCode: r.municipalityCode, mode: r.mode }));
-    accuracyMap = await getItemAccuracyData(userId, pairs);
-  } catch (error) {
-    console.error('getReviewItemList: failed to fetch item accuracy data', error);
-  }
-
-  return {
-    items: rows.map((r) => ({
-      municipalityCode: r.municipalityCode,
-      municipalityName: r.municipalityName,
-      mode: r.mode,
-      dueDate: r.dueDate instanceof Date ? r.dueDate.toISOString() : String(r.dueDate),
-      repetition: r.repetition,
-      interval: r.interval,
-      accuracy: accuracyMap.get(`${r.municipalityCode}|${r.mode}`),
-      kana: r.kana ?? undefined,
-    })),
-    total: totalRow[0]?.value ?? 0,
-  };
+  return getReviewItemListData(userId, opts);
 }
 
-// ──────────────────────────────────────────────────────
 // 10. getReviewModeBreakdown — モード別の復習中/定着済み件数（glanceable サマリ）
-//     ※ 初回ダッシュボード描画には載らない（オンデマンド専用）ため SA に残す。
-// ──────────────────────────────────────────────────────
-export async function getReviewModeBreakdown(): Promise<
-  Array<{ mode: 'A' | 'B' | 'C' | 'D'; reviewing: number; graduated: number }>
-> {
+export async function getReviewModeBreakdown(): Promise<ReviewModeBreakdownEntry[]> {
   const userId = await requireUserId();
-
-  const rows = await db
-    .select({
-      mode: srsRecords.mode,
-      status: srsRecords.status,
-      value: count(),
-    })
-    .from(srsRecords)
-    .where(eq(srsRecords.userId, userId))
-    .groupBy(srsRecords.mode, srsRecords.status);
-
-  const map = new Map<string, { reviewing: number; graduated: number }>();
-  for (const m of ['A', 'B', 'C', 'D']) map.set(m, { reviewing: 0, graduated: 0 });
-  for (const r of rows) {
-    const e = map.get(r.mode) ?? { reviewing: 0, graduated: 0 };
-    if (r.status === 'graduated') e.graduated = Number(r.value);
-    else if (r.status === 'reviewing') e.reviewing = Number(r.value);
-    map.set(r.mode, e);
-  }
-
-  return (['A', 'B', 'C', 'D'] as const).map((mode) => ({
-    mode,
-    ...(map.get(mode) ?? { reviewing: 0, graduated: 0 }),
-  }));
+  return getReviewModeBreakdownData(userId);
 }

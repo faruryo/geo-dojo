@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
 import { useDueReviewSummary } from '@/lib/hooks/useDueReviewSummary';
+import { queryKeys } from '@/lib/query-keys';
 import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
+import { QuizResultCard } from '@/components/quiz/quiz-result-card';
 import { getDueReviewItems } from './actions';
 import { buildReviewQuestions } from '@/lib/quiz/review-questions';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
@@ -24,6 +27,7 @@ interface ResultEntry {
 type Phase = 'loading' | 'empty' | 'playing' | 'result';
 
 export default function ReviewPage() {
+  const router = useRouter();
   const [phase, setPhase] = useState<Phase>('loading');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [results, setResults] = useState<ResultEntry[]>([]);
@@ -113,48 +117,23 @@ export default function ReviewPage() {
   if (phase === 'result') {
     const correct = results.filter((r) => r.correct).length;
     const wrong = results.filter((r) => !r.correct);
-    const accuracy = results.length > 0 ? Math.round((correct / results.length) * 100) : 0;
 
     const dueCount = dueSummaryData?.dueCount;
-    const showContinueButton = !dueSummaryLoading && (dueSummaryData === undefined || (typeof dueCount === 'number' && dueCount > 0));
+    const showContinueButton =
+      !dueSummaryLoading &&
+      (dueSummaryData === undefined || (typeof dueCount === 'number' && dueCount > 0));
     const continueLabel =
-      typeof dueCount === 'number' && dueCount > 0 ? `続けて復習する（残り${dueCount}件）` : '続けて復習する';
+      typeof dueCount === 'number' && dueCount > 0
+        ? `続けて復習する（残り${dueCount}件）`
+        : '続けて復習する';
 
-    return (
-      <div className="flex flex-col gap-4 p-4 max-w-md mx-auto">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ChevronLeft size={14} />
-          ダッシュボードに戻る
-        </Link>
-        <h2 className="text-xl font-semibold text-center">復習完了</h2>
-        <div className="text-center text-4xl font-bold text-primary">
-          {correct} / {results.length}
-        </div>
-        <p className="text-center text-muted-foreground text-sm">正答率 {accuracy}%</p>
+    const wrongItems = wrong.map((r) => ({
+      name: r.name,
+      detail: r.kana ? `${r.kana} / ${r.prefecture}` : r.prefecture,
+    }));
 
-        {wrong.length > 0 && (
-          <div className="rounded-xl bg-card p-4">
-            <p className="text-sm font-medium mb-2">まだ苦手な市区町村：</p>
-            <div className="flex flex-wrap gap-1.5">
-              {wrong.map((r, i) => (
-                <span
-                  key={i}
-                  className="text-xs px-2 py-0.5 rounded-full bg-destructive/20 text-destructive"
-                >
-                  {r.name}
-                  {r.kana && `（${r.kana}）`}（{r.prefecture}）
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 復習予定ミニカード */}
-        <UpcomingReviewMini days={7} />
-
+    const actions = (
+      <>
         {showContinueButton && (
           <Button
             className="w-full"
@@ -171,7 +150,21 @@ export default function ReviewPage() {
         <Link href="/">
           <Button className="w-full" variant="outline">ダッシュボードへ</Button>
         </Link>
-      </div>
+      </>
+    );
+
+    return (
+      <QuizResultCard
+        correctCount={correct}
+        totalCount={results.length}
+        backHref="/"
+        backLabel="ダッシュボードに戻る"
+        weakItems={wrongItems}
+        weakTitle="まだ苦手な市区町村："
+        actions={actions}
+      >
+        <UpcomingReviewMini days={7} />
+      </QuizResultCard>
     );
   }
 
@@ -181,10 +174,10 @@ export default function ReviewPage() {
     <QuizRunner
       questions={questions}
       allMunicipalities={allMunicipalities}
-      onAbort={() => setPhase('empty')}
+      onAbort={() => router.replace('/')}
       onComplete={async (completedResults) => {
         setResults(completedResults);
-        await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
         setPhase('result');
       }}
     />

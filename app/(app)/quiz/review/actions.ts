@@ -1,6 +1,6 @@
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
+import { requireUserId } from '@/lib/auth/current-user';
 import { db } from '@/lib/db';
 import { srsRecords, municipalityMaster } from '@/lib/db/schema';
 import { sql, eq } from 'drizzle-orm';
@@ -18,10 +18,7 @@ export type DueReviewItem = {
 
 export async function getDueReviewItems(opts?: { limit?: number }): Promise<DueReviewItem[]> {
   const limit = opts?.limit ?? 20;
-
-  const supabase = await createServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized');
+  const userId = await requireUserId();
 
   const rows = await db
     .select({
@@ -39,7 +36,7 @@ export async function getDueReviewItems(opts?: { limit?: number }): Promise<DueR
     .leftJoin(municipalityMaster, eq(srsRecords.municipalityCode, municipalityMaster.code))
     // due 判定は JST の暦日単位（B013）。ダッシュボードの dueCount と揃えるため、
     // getDueReviewSummaryData（app/(app)/dashboard/queries.ts）と同じ境界を共通関数で使う。
-    .where(dueReviewCondition(user.id))
+    .where(dueReviewCondition(userId))
     // due 集合から均等ランダムに選定し、出題順もランダム化する（spec 007）。
     // 復習頻度の調整は SM-2 が dueDate で担うため、due 集合内の優先度付けは行わない。
     .orderBy(sql`random()`)

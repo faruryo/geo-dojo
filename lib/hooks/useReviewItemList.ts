@@ -2,6 +2,7 @@
 
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { getReviewItemList } from '@/app/(app)/dashboard/actions';
+import { queryKeys } from '@/lib/query-keys';
 
 export function useReviewItemList(opts: {
   mode?: 'A' | 'B' | 'C' | 'D';
@@ -9,7 +10,7 @@ export function useReviewItemList(opts: {
   pageSize: number;
 }) {
   return useQuery({
-    queryKey: ['dashboard', 'srs-list', opts.mode ?? 'all', opts.page, opts.pageSize],
+    queryKey: queryKeys.dashboard.srsList(opts.mode ?? 'all', opts.page, opts.pageSize),
     queryFn: () =>
       getReviewItemList({
         mode: opts.mode,

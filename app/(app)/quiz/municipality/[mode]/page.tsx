@@ -8,9 +8,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useMunicipalityWeakness } from '@/lib/hooks/useMunicipalityWeakness';
 import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
+import { usePopstateGuard } from '@/lib/hooks/usePopstateGuard';
+import { queryKeys } from '@/lib/query-keys';
 import { RecommendReplayButton } from '@/components/recommend/recommend-replay-button';
 import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
+import { SessionCountSelector } from '@/components/quiz/session-count-selector';
+import { QuizResultCard } from '@/components/quiz/quiz-result-card';
 import type { Question } from '@/components/quiz/quiz-runner';
 import { LAST_SELECTED_MODE_KEY, parseGameMode } from '@/lib/quiz/last-selected-mode';
 import {
@@ -189,13 +193,7 @@ export default function MunicipalityQuizPage() {
   }, [modeFromUrl]);
 
   // ── Back-button interception during play ──
-  useEffect(() => {
-    if (phase !== 'playing') return;
-    window.history.pushState(null, '');
-    function handlePopState() { setPhase('setup'); }
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [phase]);
+  usePopstateGuard(phase === 'playing', () => setPhase('setup'));
 
   // ── Start ──
   function handleStart() {
@@ -314,24 +312,12 @@ export default function MunicipalityQuizPage() {
           )}
         </div>
 
-        <div>
-          <p className="text-sm font-medium mb-2">問題数</p>
-          <div className="flex gap-2">
-            {SESSION_COUNTS.map((c) => (
-              <button
-                key={c}
-                onClick={() => setSettings((s) => ({ ...s, count: c }))}
-                className={`flex-1 rounded-xl border py-2 text-sm transition-colors ${
-                  settings.count === c
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border hover:border-primary/50'
-                }`}
-              >
-                {c}問
-              </button>
-            ))}
-          </div>
-        </div>
+        <SessionCountSelector
+          title="問題数"
+          selectedValue={settings.count}
+          options={SESSION_COUNTS.map((c) => ({ label: `${c}問`, value: c }))}
+          onSelect={(count) => setSettings((s) => ({ ...s, count }))}
+        />
 
         <div>
           <p className="text-sm font-medium mb-2">難易度</p>
@@ -389,69 +375,48 @@ export default function MunicipalityQuizPage() {
 
   if (phase === 'result') {
     const correct = results.filter((r) => r.correct).length;
-    const wrong = results.filter((r) => !r.correct);
-    const accuracy = results.length > 0 ? Math.round((correct / results.length) * 100) : 0;
-    return (
-      <div className="flex flex-col gap-4 p-4 max-w-md mx-auto">
-        <Link
-          href={`/quiz/municipality?mode=${modeFromUrl}`}
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ChevronLeft size={14} />
-          モード選択に戻る
+    const wrongItems = results
+      .filter((r) => !r.correct)
+      .map((r) => ({ name: r.name, detail: r.prefecture }));
+
+    const actions = isRecommendSource ? (
+      <>
+        <RecommendReplayButton />
+        <Button onClick={handleStart} variant="outline" className="w-full">
+          同じ設定でもう一度
+        </Button>
+        <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
+          設定に戻る
+        </Button>
+      </>
+    ) : (
+      <>
+        <Button onClick={handleStart} className="w-full">
+          もう一度
+        </Button>
+        <Link href="/?recommend=open">
+          <Button className="w-full" variant="outline">
+            ✨ 今日のおすすめクイズを試す
+          </Button>
         </Link>
-        <h2 className="text-xl font-semibold text-center">結果</h2>
-        <div className="text-center text-4xl font-bold text-primary">
-          {correct} / {results.length}
-        </div>
-        <p className="text-center text-muted-foreground text-sm">正答率 {accuracy}%</p>
+        <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
+          設定に戻る
+        </Button>
+      </>
+    );
 
-        {wrong.length > 0 && (
-          <div className="rounded-xl bg-card p-4">
-            <p className="text-sm font-medium mb-2">苦手な市区町村：</p>
-            <div className="flex flex-wrap gap-1.5">
-              {wrong.map((r, i) => (
-                <span
-                  key={i}
-                  className="text-xs px-2 py-0.5 rounded-full bg-destructive/20 text-destructive"
-                >
-                  {r.name}（{r.prefecture}）
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 復習予定ミニカード */}
+    return (
+      <QuizResultCard
+        correctCount={correct}
+        totalCount={results.length}
+        backHref={`/quiz/municipality?mode=${modeFromUrl}`}
+        backLabel="モード選択に戻る"
+        weakItems={wrongItems}
+        weakTitle="苦手な市区町村："
+        actions={actions}
+      >
         <UpcomingReviewMini days={7} />
-
-        {/* アクションボタン群 */}
-        {isRecommendSource ? (
-          <>
-            <RecommendReplayButton />
-            <Button onClick={handleStart} variant="outline" className="w-full">
-              同じ設定でもう一度
-            </Button>
-            <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
-              設定に戻る
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button onClick={handleStart} className="w-full">
-              もう一度
-            </Button>
-            <Link href="/?recommend=open">
-              <Button className="w-full" variant="outline">
-                ✨ 今日のおすすめクイズを試す
-              </Button>
-            </Link>
-            <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
-              設定に戻る
-            </Button>
-          </>
-        )}
-      </div>
+      </QuizResultCard>
     );
   }
 
@@ -465,7 +430,7 @@ export default function MunicipalityQuizPage() {
       onComplete={(completedResults) => {
         setResults(completedResults);
         setPhase('result');
-        void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       }}
     />
   );

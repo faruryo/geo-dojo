@@ -2,6 +2,7 @@ import 'server-only';
 import { dehydrate, type DehydratedState } from '@tanstack/react-query';
 import { getCurrentUserId } from '@/lib/auth/current-user';
 import { getQueryClient } from '@/lib/get-query-client';
+import { queryKeys } from '@/lib/query-keys';
 import {
   getDashboardSummaryData,
   getAccuracyTrendData,
@@ -10,9 +11,11 @@ import {
   getDifficultyProgressData,
   getWeaknessRankingData,
   getStreakData,
+} from '@/lib/db/queries/dashboard';
+import {
   getDueReviewSummaryData,
   getUpcomingReviewScheduleData,
-} from '@/app/(app)/dashboard/queries';
+} from '@/lib/db/queries/srs';
 
 /**
  * ダッシュボード初回表示の read を「認証1回 ＋ Promise.all」で取得し dehydrate する。
@@ -38,43 +41,43 @@ export async function getDashboardDehydratedState(): Promise<DehydratedState | n
 
   const prefetchAll = Promise.all([
     queryClient.prefetchQuery({
-      queryKey: ['dashboard', 'summary'],
+      queryKey: queryKeys.dashboard.summary(),
       queryFn: () => getDashboardSummaryData(userId),
     }),
     queryClient.prefetchQuery({
-      queryKey: ['dashboard', 'trend', '7d', 'all', '全国'],
+      queryKey: queryKeys.dashboard.trend('7d', 'all', '全国'),
       queryFn: () =>
         getAccuracyTrendData(userId, { period: '7d', mode: 'all', region: '全国' }),
     }),
     queryClient.prefetchQuery({
-      queryKey: ['dashboard', 'completionTrend', 'all', 'all', '全国'],
+      queryKey: queryKeys.dashboard.completionTrend('all', 'all', '全国'),
       queryFn: () =>
         getCompletionTrendData(userId, { period: 'all', mode: 'all', region: '全国' }),
     }),
     queryClient.prefetchQuery({
-      queryKey: ['dashboard', 'completion', 'all', '全国'],
+      queryKey: queryKeys.dashboard.completion('all', '全国'),
       queryFn: () =>
         getCompletionByModeData(userId, { mode: 'all', region: '全国' }),
     }),
     queryClient.prefetchQuery({
-      queryKey: ['dashboard', 'difficulty', 'all', '全国'],
+      queryKey: queryKeys.dashboard.difficulty('all', '全国'),
       queryFn: () =>
         getDifficultyProgressData(userId, { mode: 'all', region: '全国' }),
     }),
     queryClient.prefetchQuery({
-      queryKey: ['dashboard', 'weakness'],
+      queryKey: queryKeys.dashboard.weakness(),
       queryFn: () => getWeaknessRankingData(userId),
     }),
     queryClient.prefetchQuery({
-      queryKey: ['dashboard', 'streak'],
+      queryKey: queryKeys.dashboard.streak(),
       queryFn: () => getStreakData(userId),
     }),
     queryClient.prefetchQuery({
-      queryKey: ['dashboard', 'srs-summary'],
+      queryKey: queryKeys.dashboard.srsSummary(),
       queryFn: () => getDueReviewSummaryData(userId),
     }),
     queryClient.prefetchQuery({
-      queryKey: ['dashboard', 'srs-schedule', 7],
+      queryKey: queryKeys.dashboard.srsSchedule(7),
       queryFn: () => getUpcomingReviewScheduleData(userId, 7),
     }),
   ]);

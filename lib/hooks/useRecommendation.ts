@@ -3,10 +3,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRecommendation } from '@/app/(app)/quiz/municipality/actions';
 import { readRecommendationHistory } from '@/lib/quiz/recommendation/history-cache';
+import { queryKeys } from '@/lib/query-keys';
 
 export function useRecommendation() {
   return useQuery({
-    queryKey: ['recommendation'],
+    queryKey: queryKeys.recommendation(),
     queryFn: async () => {
       const history = readRecommendationHistory();
       return await getRecommendation({
