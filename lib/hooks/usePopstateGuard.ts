@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * プレイ中のブラウザ戻るボタン誤操作を防止するポップステートガードフック。
@@ -9,13 +9,18 @@ import { useEffect } from 'react';
  * @param onPopState 戻る操作時に実行するコールバック（例: setPhase('setup')）
  */
 export function usePopstateGuard(enabled: boolean, onPopState: () => void) {
+  const onPopStateRef = useRef(onPopState);
+  useEffect(() => {
+    onPopStateRef.current = onPopState;
+  });
+
   useEffect(() => {
     if (!enabled) return;
     window.history.pushState(null, '');
     function handlePopState() {
-      onPopState();
+      onPopStateRef.current();
     }
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [enabled, onPopState]);
+  }, [enabled]);
 }

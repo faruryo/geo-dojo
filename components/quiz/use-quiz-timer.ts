@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FeedbackState, Question } from './use-quiz-session';
 
 export const TIME_LIMIT_SEC = 30;
@@ -21,6 +21,11 @@ export function useQuizTimer({
   onTimeout,
 }: Readonly<UseQuizTimerProps>) {
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_SEC);
+  const onTimeoutRef = useRef(onTimeout);
+
+  useEffect(() => {
+    onTimeoutRef.current = onTimeout;
+  });
 
   useEffect(() => {
     if (feedback !== 'idle' || !currentQuestion) return;
@@ -34,13 +39,13 @@ export function useQuizTimer({
       if (remaining <= 0) {
         clearInterval(interval);
         setTimeLeft(0);
-        onTimeout();
+        onTimeoutRef.current();
       } else {
         setTimeLeft(remaining);
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [feedback, qIdx, currentQuestion, modeDFailed, onTimeout]);
+  }, [feedback, qIdx, currentQuestion, modeDFailed]);
 
   return { timeLeft };
 }

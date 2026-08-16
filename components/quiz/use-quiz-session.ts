@@ -62,14 +62,16 @@ export function useQuizSession({
 
   const handleModeDFallback = useCallback(() => state.setModeDFailed(true), [state]);
 
+  const handleTimeoutCallback = useCallback(() => {
+    void handleTimeout();
+  }, [handleTimeout]);
+
   const { timeLeft } = useQuizTimer({
     currentQuestion,
     feedback: state.feedback,
     modeDFailed: state.modeDFailed,
     qIdx: state.qIdx,
-    onTimeout: () => {
-      void handleTimeout();
-    },
+    onTimeout: handleTimeoutCallback,
   });
 
   return {
