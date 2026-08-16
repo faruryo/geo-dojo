@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ interface ResultEntry {
 type Phase = 'loading' | 'empty' | 'playing' | 'result';
 
 export default function ReviewPage() {
+  const router = useRouter();
   const [phase, setPhase] = useState<Phase>('loading');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [results, setResults] = useState<ResultEntry[]>([]);
@@ -75,7 +77,7 @@ export default function ReviewPage() {
   }, [masterLoading, allMunicipalities, phase, loadBatch]);
 
   // ── Back-button interception during play ──
-  usePopstateGuard(phase === 'playing', () => setPhase('empty'));
+  usePopstateGuard(phase === 'playing', () => router.replace('/'));
 
   // ─── Loading ──────────────────────────────────────────────────────
 
@@ -176,7 +178,13 @@ export default function ReviewPage() {
     <QuizRunner
       questions={questions}
       allMunicipalities={allMunicipalities}
-      onAbort={() => setPhase('empty')}
+      onAbort={() => {
+        if (typeof window !== 'undefined') {
+          window.history.back();
+        } else {
+          router.replace('/');
+        }
+      }}
       onComplete={async (completedResults) => {
         setResults(completedResults);
         await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
