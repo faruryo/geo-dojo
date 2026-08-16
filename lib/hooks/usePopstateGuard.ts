@@ -10,16 +10,19 @@ import { useEffect, useRef } from 'react';
  */
 export function usePopstateGuard(enabled: boolean, onPopState: () => void) {
   const onPopStateRef = useRef(onPopState);
+
   useEffect(() => {
     onPopStateRef.current = onPopState;
   });
 
   useEffect(() => {
     if (!enabled) return;
+
     window.history.pushState(null, '');
     function handlePopState() {
       onPopStateRef.current();
     }
+
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [enabled]);

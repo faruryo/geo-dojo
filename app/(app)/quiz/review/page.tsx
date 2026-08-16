@@ -8,7 +8,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
 import { useDueReviewSummary } from '@/lib/hooks/useDueReviewSummary';
-import { usePopstateGuard } from '@/lib/hooks/usePopstateGuard';
 import { queryKeys } from '@/lib/query-keys';
 import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
 import { QuizResultCard } from '@/components/quiz/quiz-result-card';
@@ -75,9 +74,6 @@ export default function ReviewPage() {
     if (masterLoading || allMunicipalities.length === 0 || phase !== 'loading') return;
     void loadBatch();
   }, [masterLoading, allMunicipalities, phase, loadBatch]);
-
-  // ── Back-button interception during play ──
-  usePopstateGuard(phase === 'playing', () => router.replace('/'));
 
   // ─── Loading ──────────────────────────────────────────────────────
 
@@ -178,13 +174,7 @@ export default function ReviewPage() {
     <QuizRunner
       questions={questions}
       allMunicipalities={allMunicipalities}
-      onAbort={() => {
-        if (typeof window !== 'undefined') {
-          window.history.back();
-        } else {
-          router.replace('/');
-        }
-      }}
+      onAbort={() => router.replace('/')}
       onComplete={async (completedResults) => {
         setResults(completedResults);
         await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
