@@ -1,7 +1,7 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
-import type { Difficulty } from '@/lib/quiz/municipality-data';
+import { DIFFICULTY_LABEL, type Difficulty } from '@/lib/quiz/municipality-data';
 import type { FeedbackState } from './use-quiz-session';
 
 interface QuizQuestionCardProps {
@@ -19,16 +19,16 @@ function getDifficultyBadge(difficulty?: Difficulty) {
   let label = '';
   switch (difficulty) {
     case 'easy':
-      label = '初級';
+      label = DIFFICULTY_LABEL.easy;
       break;
     case 'medium':
-      label = '中級';
+      label = DIFFICULTY_LABEL.medium;
       break;
     case 'hard':
-      label = '上級';
+      label = DIFFICULTY_LABEL.hard;
       break;
     case 'expert':
-      label = '超級';
+      label = DIFFICULTY_LABEL.expert;
       break;
   }
   return (

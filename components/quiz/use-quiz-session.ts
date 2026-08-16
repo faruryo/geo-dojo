@@ -47,20 +47,22 @@ export function useQuizSession({
     state,
   });
 
+  const { setSelectedPrefectures, setModeDFailed, feedback } = state;
+
   const handlePrefectureTap = useCallback(
     (name: string) => {
-      if (state.feedback !== 'idle') return;
-      state.setSelectedPrefectures((prev) => {
+      if (feedback !== 'idle') return;
+      setSelectedPrefectures((prev) => {
         const next = new Set(prev);
         if (next.has(name)) next.delete(name);
         else next.add(name);
         return next;
       });
     },
-    [state],
+    [feedback, setSelectedPrefectures],
   );
 
-  const handleModeDFallback = useCallback(() => state.setModeDFailed(true), [state]);
+  const handleModeDFallback = useCallback(() => setModeDFailed(true), [setModeDFailed]);
 
   const handleTimeoutCallback = useCallback(() => {
     void handleTimeout();
