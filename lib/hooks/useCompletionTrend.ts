@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getCompletionTrend } from '@/app/(app)/dashboard/actions';
+import { queryKeys } from '@/lib/query-keys';
 
 export function useCompletionTrend(
   period: '7d' | '30d' | 'all',
@@ -9,7 +10,7 @@ export function useCompletionTrend(
   region: string = '全国',
 ) {
   return useQuery({
-    queryKey: ['dashboard', 'completionTrend', period, mode, region],
+    queryKey: queryKeys.dashboard.completionTrend(period, mode, region),
     queryFn: () => getCompletionTrend({ period, mode, region }),
     staleTime: 60_000,
   });

@@ -1,48 +1,16 @@
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
+import { requireUserId } from '@/lib/auth/current-user';
 import { db } from '@/lib/db';
-import { municipalityQuizResults, municipalityMaster, srsRecords, type MunicipalityMaster } from '@/lib/db/schema';
-import { eq, sql, and } from 'drizzle-orm';
-import { computeSrsUpdate } from '@/lib/quiz/srs/update';
-import type { SrsStatus } from '@/lib/quiz/srs/types';
-import { inferSessions, computeCellAccuracies, computeCellCoverages } from '@/lib/quiz/recommendation/cell-stats';
-import { extractFitZone } from '@/lib/quiz/recommendation/fit-zone';
+import { municipalityQuizResults, municipalityMaster, type MunicipalityMaster } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
+import { checkRateLimit } from '@/lib/quiz/rate-limit';
+import { getValidCodes } from '@/lib/quiz/validation';
+import { upsertSrsRecord } from '@/lib/quiz/srs/record-service';
+import { buildLearnerState } from '@/lib/quiz/recommendation/state-builder';
 import { generateRecommendation } from '@/lib/quiz/recommendation/engine';
 import { normalizeAnswerTimeMs } from '@/lib/quiz/answer-time';
-import type { LearnerState, Recommendation, GameMode } from '@/lib/quiz/recommendation/types';
-
-// Lazy-loaded municipality validation set (loaded once, reused across warm invocations).
-// NOTE: 以前は public/municipalities.json を fs で読んでいたが、Vercel の serverless
-// 関数バンドル(/var/task)に public/ の静的アセットは含まれず ENOENT で全保存が 500 に
-// なっていた。DB の municipality_master（クライアントの出題元と同一の信頼できる情報源）を
-// 参照することで実行時のファイル依存を排除する。
-let _validCodes: Set<string> | null = null;
-
-async function getValidCodes(): Promise<Set<string>> {
-  if (_validCodes) return _validCodes;
-  const rows = await db.select({ code: municipalityMaster.code }).from(municipalityMaster);
-  _validCodes = new Set(rows.map((m) => m.code));
-  return _validCodes;
-}
-
-// In-memory rate limiter: 60 req/min per user
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + 60_000 });
-    return true;
-  }
-  if (entry.count >= 60) {
-    console.warn('[rate-limit] municipality quiz rate exceeded', { userId });
-    return false;
-  }
-  entry.count++;
-  return true;
-}
+import type { Recommendation } from '@/lib/quiz/recommendation/types';
 
 export async function saveMunicipalityQuizResult(input: {
   municipalityCode: string;
@@ -55,11 +23,9 @@ export async function saveMunicipalityQuizResult(input: {
   // 本番では Next.js が server action の throw を digest に隠すため、原因を必ず明示ログしてから
   // 再 throw する。クライアントは Promise.allSettled で握り潰すので、ここが唯一の検知点になる。
   try {
-    const supabase = await createServerClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) throw new Error('Unauthorized');
+    const userId = await requireUserId();
 
-    if (!checkRateLimit(user.id)) throw new Error('Rate limit exceeded');
+    if (!checkRateLimit(userId)) throw new Error('Rate limit exceeded');
 
     // Whitelist validate mode
     if (!['A', 'B', 'C', 'D'].includes(input.mode)) throw new Error('Invalid mode');
@@ -71,7 +37,7 @@ export async function saveMunicipalityQuizResult(input: {
     if (typeof input.isCorrect !== 'boolean') throw new Error('Invalid isCorrect');
 
     await db.insert(municipalityQuizResults).values({
-      userId: user.id,
+      userId,
       municipalityCode: input.municipalityCode,
       municipalityName: input.municipalityName,
       prefecture: input.prefecture,
@@ -81,7 +47,8 @@ export async function saveMunicipalityQuizResult(input: {
     });
 
     // SM-2 更新（全クイズ共通: 復習セッション・通常クイズ双方）
-    await upsertSrsRecord(user.id, input);
+    // 逐次書き込みを維持（quiz 保存成功後に SRS 更新を実行し、失敗時は再 throw）
+    await upsertSrsRecord(userId, input);
   } catch (e) {
     console.error('[saveMunicipalityQuizResult] failed', {
       code: input.municipalityCode,
@@ -93,96 +60,10 @@ export async function saveMunicipalityQuizResult(input: {
   }
 }
 
-async function upsertSrsRecord(
-  userId: string,
-  input: { municipalityCode: string; municipalityName: string; prefecture: string; mode: string; isCorrect: boolean; answerTimeMs?: number },
-): Promise<void> {
-  const now = new Date();
-
-  const [existing] = await db
-    .select()
-    .from(srsRecords)
-    .where(
-      and(
-        eq(srsRecords.userId, userId),
-        eq(srsRecords.municipalityCode, input.municipalityCode),
-        eq(srsRecords.mode, input.mode),
-      ),
-    )
-    .limit(1);
-
-  // 早期卒業判定用: 誤答履歴（isCorrect=false）が1件でもあるか。正解時のみ照会すれば十分
-  // （不正解経路は everWrong の値に依存しないため）。
-  let everWrong = false;
-  if (input.isCorrect) {
-    const [wrongRow] = await db
-      .select({ one: sql<number>`1` })
-      .from(municipalityQuizResults)
-      .where(
-        and(
-          eq(municipalityQuizResults.userId, userId),
-          eq(municipalityQuizResults.municipalityCode, input.municipalityCode),
-          eq(municipalityQuizResults.mode, input.mode),
-          eq(municipalityQuizResults.isCorrect, false),
-        ),
-      )
-      .limit(1);
-    everWrong = Boolean(wrongRow);
-  }
-
-  const action = computeSrsUpdate(
-    existing
-      ? {
-          easeFactor: existing.easeFactor,
-          repetition: existing.repetition,
-          interval: existing.interval,
-          status: existing.status as SrsStatus,
-          dueDate: existing.dueDate,
-          lastReviewedAt: existing.lastReviewedAt,
-        }
-      : null,
-    input.isCorrect,
-    now,
-    everWrong,
-    input.answerTimeMs,
-  );
-
-  if (action.kind === 'skip') return;
-
-  await db
-    .insert(srsRecords)
-    .values({
-      userId,
-      municipalityCode: input.municipalityCode,
-      municipalityName: input.municipalityName,
-      prefecture: input.prefecture,
-      mode: input.mode,
-      easeFactor: action.easeFactor,
-      repetition: action.repetition,
-      interval: action.interval,
-      dueDate: action.dueDate,
-      lastReviewedAt: action.lastReviewedAt,
-      status: action.status,
-    })
-    .onConflictDoUpdate({
-      target: [srsRecords.userId, srsRecords.municipalityCode, srsRecords.mode],
-      set: {
-        easeFactor: action.easeFactor,
-        repetition: action.repetition,
-        interval: action.interval,
-        dueDate: action.dueDate,
-        lastReviewedAt: action.lastReviewedAt,
-        status: action.status,
-      },
-    });
-}
-
 export async function getMunicipalityWeakness(): Promise<
   Array<{ municipalityCode: string; municipalityName: string; prefecture: string; errorRate: number }>
 > {
-  const supabase = await createServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized');
+  const userId = await requireUserId();
 
   const rows = await db
     .select({
@@ -192,7 +73,7 @@ export async function getMunicipalityWeakness(): Promise<
       errorRate: sql<number>`CAST(COUNT(*) FILTER (WHERE NOT ${municipalityQuizResults.isCorrect}) AS float) / COUNT(*)`,
     })
     .from(municipalityQuizResults)
-    .where(eq(municipalityQuizResults.userId, user.id))
+    .where(eq(municipalityQuizResults.userId, userId))
     .groupBy(
       municipalityQuizResults.municipalityCode,
       municipalityQuizResults.municipalityName,
@@ -216,10 +97,7 @@ export async function getMunicipalityWeakness(): Promise<
 }
 
 export async function getMunicipalityMaster(): Promise<MunicipalityMaster[]> {
-  const supabase = await createServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized');
-
+  await requireUserId();
   return db.select().from(municipalityMaster);
 }
 
@@ -228,122 +106,13 @@ type GetRecommendationInput = {
   clientNowIso?: string;
 };
 
-async function buildLearnerState(userId: string): Promise<{
-  state: LearnerState;
-  allMaster: Array<{ code: string; name: string; prefecture: string; region: string; difficulty: string }>;
-}> {
-  const [allResults, allMasterRows, crowdRows] = await Promise.all([
-    db
-      .select()
-      .from(municipalityQuizResults)
-      .where(eq(municipalityQuizResults.userId, userId))
-      .orderBy(municipalityQuizResults.answeredAt),
-    db.select().from(municipalityMaster),
-    db
-      .select({
-        difficulty: municipalityMaster.difficulty,
-        correctCount: sql<number>`CAST(COUNT(*) FILTER (WHERE ${municipalityQuizResults.isCorrect}) AS int)`,
-        totalCount: sql<number>`CAST(COUNT(*) AS int)`,
-      })
-      .from(municipalityQuizResults)
-      .innerJoin(municipalityMaster, eq(municipalityQuizResults.municipalityCode, municipalityMaster.code))
-      .groupBy(municipalityMaster.difficulty),
-  ]);
-
-  const masterMap = new Map(allMasterRows.map((m) => [m.code, m]));
-
-  const crowdAccuracyByDifficulty: Record<string, number> = {
-    easy: 0.6, medium: 0.55, hard: 0.5, expert: 0.45,
-  };
-  for (const row of crowdRows) {
-    if (row.totalCount > 0) {
-      crowdAccuracyByDifficulty[row.difficulty] = row.correctCount / row.totalCount;
-    }
-  }
-
-  const sessions = inferSessions(allResults.map((r) => ({
-    municipalityCode: r.municipalityCode,
-    municipalityName: r.municipalityName,
-    prefecture: r.prefecture,
-    mode: r.mode,
-    isCorrect: r.isCorrect,
-    answeredAt: r.answeredAt,
-  })));
-
-  const cellAccuracies = computeCellAccuracies(sessions, masterMap, crowdAccuracyByDifficulty);
-  const fitZone = extractFitZone(cellAccuracies);
-
-  const correctCodesByUser = new Set(
-    allResults.filter((r) => r.isCorrect).map((r) => r.municipalityCode),
-  );
-  const cellCoverages = computeCellCoverages(allMasterRows, correctCodesByUser);
-
-  // Weakness map: municipalityCode → errorRate
-  const weaknessByMunicipality = new Map<string, number>();
-  const codeStats = new Map<string, { total: number; wrong: number }>();
-  for (const r of allResults) {
-    const s = codeStats.get(r.municipalityCode) ?? { total: 0, wrong: 0 };
-    s.total++;
-    if (!r.isCorrect) s.wrong++;
-    codeStats.set(r.municipalityCode, s);
-  }
-  for (const [code, { total, wrong }] of codeStats) {
-    if (total > 0) weaknessByMunicipality.set(code, wrong / total);
-  }
-
-  // Last session accuracy
-  const lastSession = sessions[sessions.length - 1] ?? null;
-  const lastSessionAccuracy = lastSession?.accuracy ?? null;
-
-  // Recent question counts (last 10 sessions)
-  const recentSessions = sessions.slice(-10);
-  const recentQuestionCounts = recentSessions.map((s) => s.count);
-
-  // Codes played within the last 30 days — used by the coverage axis to avoid
-  // re-surfacing recently seen municipalities when the unplayed pool is exhausted.
-  const now = Date.now();
-  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-  const recentlyPlayedCodes = new Set<string>();
-  for (const r of allResults) {
-    if (now - r.answeredAt.getTime() <= THIRTY_DAYS_MS) {
-      recentlyPlayedCodes.add(r.municipalityCode);
-    }
-  }
-
-  // Modes ever answered, from raw rows (not inferSessions) so mixed-mode review
-  // answers still mark a mode as tried.
-  const playedModes = new Set<GameMode>();
-  for (const r of allResults) {
-    playedModes.add(r.mode as GameMode);
-  }
-
-  const state: LearnerState = {
-    userId,
-    totalSessions: sessions.length,
-    totalAnswers: allResults.length,
-    cellAccuracies,
-    cellCoverages,
-    fitZone,
-    weaknessByMunicipality,
-    lastSessionAccuracy,
-    recentQuestionCounts,
-    recentlyPlayedCodes,
-    playedModes,
-    crowdAccuracyByDifficulty: crowdAccuracyByDifficulty,
-  };
-
-  return { state, allMaster: allMasterRows };
-}
-
 export async function getRecommendation(
   input: GetRecommendationInput = {},
 ): Promise<Recommendation & { flags: { isColdStart: boolean; isRegressionGuarded: boolean; isProgressionFired: boolean; isDifficultyCapped: boolean }; notes: string[] }> {
-  const supabase = await createServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized');
-  if (!checkRateLimit(user.id)) throw new Error('Rate limit exceeded');
+  const userId = await requireUserId();
+  if (!checkRateLimit(userId)) throw new Error('Rate limit exceeded');
 
-  const { state, allMaster } = await buildLearnerState(user.id);
+  const { state, allMaster } = await buildLearnerState(userId);
   const recommendation = generateRecommendation(state, input.excludeCodes ?? [], allMaster);
 
   return {

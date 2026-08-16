@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, Timer, Trophy, Sparkles } from 'lucide-react';
 import { completionSeEvent, playSe } from '@/lib/quiz/sound-effects';
 import { MuteToggle } from '@/components/quiz/mute-toggle';
+import { SessionCountSelector } from '@/components/quiz/session-count-selector';
+import { QuizResultCard } from '@/components/quiz/quiz-result-card';
+import { usePopstateGuard } from '@/lib/hooks/usePopstateGuard';
 import {
   PREFECTURE_KANA,
   REGIONS,
@@ -194,6 +197,9 @@ export default function PrefectureQuizPage() {
     setPhase('playing');
   }, [settings, clearPendingTransition]);
 
+  // ── Back-button interception during play ──
+  usePopstateGuard(phase === 'playing', () => setPhase('setup'));
+
   // タイマー進行
   useEffect(() => {
     if (phase === 'playing') {
@@ -324,30 +330,15 @@ export default function PrefectureQuizPage() {
         </section>
 
         {/* 出題数選択 */}
-        <section className="flex flex-col gap-2">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            出題数
-          </h2>
-          <div className="flex gap-2">
-            {COUNT_OPTIONS.map((opt) => {
-              const isSelected = settings.count === opt.count;
-              return (
-                <button
-                  key={String(opt.count)}
-                  type="button"
-                  onClick={() => setSettings((prev) => ({ ...prev, count: opt.count }))}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                    isSelected
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card text-foreground border-foreground/10 hover:border-foreground/30'
-                  }`}
-                >
-                  {opt.getLabel(maxAvailableCount)}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        <SessionCountSelector
+          title="出題数"
+          selectedValue={settings.count}
+          options={COUNT_OPTIONS.map((opt) => ({
+            label: opt.getLabel(maxAvailableCount),
+            value: opt.count,
+          }))}
+          onSelect={(count) => setSettings((prev) => ({ ...prev, count }))}
+        />
 
         {/* モード選択（通常 / タイムアタック） */}
         <section className="flex flex-col gap-2">
@@ -417,26 +408,33 @@ export default function PrefectureQuizPage() {
     const correct = results.filter((r) => r.correct).length;
     const wrong = results.filter((r) => !r.correct);
     const totalCount = results.length;
-    const accuracy = totalCount > 0 ? Math.round((correct / totalCount) * 100) : 0;
+
+    const wrongItems = wrong.map((r) => {
+      const kana = getPrefectureKana(r.prefecture);
+      return { name: r.prefecture, detail: kana ?? undefined };
+    });
+
+    const actions = (
+      <>
+        <Button onClick={handleStart} className="w-full">
+          もう一度
+        </Button>
+        <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
+          設定に戻る
+        </Button>
+      </>
+    );
 
     return (
-      <div className="flex flex-col gap-4 p-4 max-w-md mx-auto">
-        <button
-          type="button"
-          onClick={() => setPhase('setup')}
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors self-start"
-        >
-          <ChevronLeft size={14} />
-          設定に戻る
-        </button>
-
-        <h2 className="text-xl font-semibold text-center">結果</h2>
-
-        <div className="text-center text-4xl font-bold text-primary">
-          {correct} / {totalCount}
-        </div>
-        <p className="text-center text-muted-foreground text-sm">正答率 {accuracy}%</p>
-
+      <QuizResultCard
+        correctCount={correct}
+        totalCount={totalCount}
+        backHref="/quiz"
+        backLabel="クイズ選択に戻る"
+        weakItems={wrongItems}
+        weakTitle="苦手な都道府県："
+        actions={actions}
+      >
         {/* タイム表示 */}
         <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10 flex flex-col gap-2 items-center">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -464,34 +462,7 @@ export default function PrefectureQuizPage() {
             </div>
           )}
         </div>
-
-        {wrong.length > 0 && (
-          <div className="rounded-xl bg-card p-4">
-            <p className="text-sm font-medium mb-2">苦手な都道府県：</p>
-            <div className="flex flex-wrap gap-1.5">
-              {wrong.map((r) => {
-                const kana = getPrefectureKana(r.prefecture);
-                return (
-                  <span
-                    key={r.prefecture}
-                    className="text-xs px-2 py-0.5 rounded-full bg-destructive/20 text-destructive"
-                  >
-                    {r.prefecture}
-                    {kana ? `（${kana}）` : ''}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <Button onClick={handleStart} className="w-full">
-          もう一度
-        </Button>
-        <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
-          設定に戻る
-        </Button>
-      </div>
+      </QuizResultCard>
     );
   }
 
