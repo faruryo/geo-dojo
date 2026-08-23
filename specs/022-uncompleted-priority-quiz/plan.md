@@ -55,8 +55,12 @@ sequenceDiagram
 
 ## 4. 詳細設計 (Detailed Design)
 
-### 4.1 データ層 (Server Action & Query Keys)
+### 4.1 データ層 (Server Action, DB Index & Query Keys)
 
+- **ファイル**: `lib/db/schema.ts`, `supabase/migrations/`
+  - インデックス追加: `municipality_quiz_results` テーブルに `(user_id, mode, is_correct, municipality_code)` の複合インデックス `idx_municipality_quiz_results_cleared_lookup` を追加。
+  - 大量のクイズ回答履歴が存在する場合でも、`user_id` + `mode` + `is_correct = true` のクリア済みコード DISTINCT 取得クエリが高速にインデックスオンリースキャンで完結するように最適化（SC-002: 1秒以内を保証）。
+  - マイグレーション SQL の生成と `docs/db-schema.md` の同期更新。
 - **ファイル**: `app/(app)/quiz/municipality/actions.ts`
   - 関数: `getClearedMunicipalityCodes(mode: GameMode): Promise<string[]>`
     - クエリ: `municipality_quiz_results` から `userId = auth.uid()`, `mode = mode`, `isCorrect = true` の `municipalityCode` を `DISTINCT` 取得。
