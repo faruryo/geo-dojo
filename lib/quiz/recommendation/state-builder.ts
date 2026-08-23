@@ -50,8 +50,7 @@ function extractRecentlyPlayedCodes(allResults: QuizResultRow[]): Set<string> {
   const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
   const recentlyPlayedCodes = new Set<string>();
   for (const r of allResults) {
-    const answeredTime = (r.answeredAt instanceof Date ? r.answeredAt : new Date(r.answeredAt)).getTime();
-    if (now - answeredTime <= THIRTY_DAYS_MS) {
+    if (now - new Date(r.answeredAt).getTime() <= THIRTY_DAYS_MS) {
       recentlyPlayedCodes.add(r.municipalityCode);
     }
   }

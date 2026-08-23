@@ -22,7 +22,7 @@ export function inferSessions(rows: RawRow[]): Session[] {
   if (rows.length === 0) return [];
   const normalizedRows = rows.map((r) => ({
     ...r,
-    answeredAt: r.answeredAt instanceof Date ? r.answeredAt : new Date(r.answeredAt),
+    answeredAt: new Date(r.answeredAt),
   }));
   const sorted = [...normalizedRows].sort((a, b) => a.answeredAt.getTime() - b.answeredAt.getTime());
   const groups: typeof normalizedRows[] = [];
