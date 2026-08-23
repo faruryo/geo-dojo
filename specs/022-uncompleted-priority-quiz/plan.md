@@ -96,9 +96,10 @@ sequenceDiagram
   - 地域・難易度セレクターの近くに「進捗表示（例: `85 / 95問 クリア (89%)`）」をインライン配置。
   - チェックボックス: `未クリア優先モード`（初期値 ON）
   - **ローディング・再取得・エラーガード (Loading, Fetching & Error Guards)**:
-    - `unclearedFirst: true` の場合、初期ローディング（`isLoading`）、キャッシュ再取得中（`isFetching`）、またはエラー（`isError`）の状態ではスタートボタンを無効化（ローディング/再取得中はスピナーまたは「データ読み込み中...」、エラー時は「クリア状況の取得に失敗しました」と表示しリトライ可能にする）。
+    - `unclearedFirst: true` の場合は `clearedCodes` クエリの `isLoading || isFetching || isError`、`weaknessFirst: true` の場合は `weakness` クエリの `isLoading || isFetching || isError` をそれぞれ判定し、該当クエリが準備完了するまで手動スタートボタンを無効化（ローディング/再取得中は「データ読み込み中...」、エラー時は「データ取得に失敗しました」と表示しリトライ可能にする）。
     - **推薦セッションのバイパス**: `source=recommend` による自動開始（auto-start）時は、推薦エンジンが意図した適正・苦手・探索バランスを維持するため `unclearedFirst` を適用せずバイパスする（推薦通りの問題セットをそのまま開始）。
-    - **遅延再フェッチ設計**: クイズ回答中の保存時は `queryClient.invalidateQueries({ refetchType: 'none' })` でキャッシュを stale マークするのみとし、毎問の不要なバックグラウンド通信を抑止。セッション終了時（完了、中断、リプレイ）に保留中の保存（pending save）の完了を待機した上で 1 回だけ `clearedCodes` および `weakness` の再フェッチを実行・完了を待機する。
+    - **クイズ実行層からの保留中保存公開 (`awaitPendingSaves`)**: `components/quiz/use-quiz-actions.ts` / `QuizRunner` から回答保存の非同期処理を追跡する `awaitPendingSaves(): Promise<void>` を公開。セッション終了時（完了、中断、リプレイ）に `page.tsx` がこれを await してからキャッシュ無効化・再フェッチを実行。
+    - **遅延再フェッチ設計**: クイズ回答中の保存時は `queryClient.invalidateQueries({ refetchType: 'none' })` でキャッシュを stale マークするのみとし、毎問の不要なバックグラウンド通信を抑止。セッション終了時（完了、中断、リプレイ）に上記 `awaitPendingSaves()` の完了を待機した上で 1 回だけ `clearedCodes` および `weakness` の再フェッチを実行・完了を待機する。
     - クイズ完了後・中断後の「もう一度（Replay）」押下時も、上記再フェッチ完了（`!isFetching`）を待ってから次セッションの出題サンプリングを実行し、直前に回答・誤答した自治体の出題・重み付け齟齬を完全に防止する。
 
 ---
