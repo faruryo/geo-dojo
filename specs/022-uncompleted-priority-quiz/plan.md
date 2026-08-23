@@ -104,7 +104,8 @@ sequenceDiagram
     - **クイズ実行層からの保留中保存公開と遅延タイマー破棄**:
       - `components/quiz/use-quiz-actions.ts` / `QuizRunner` から回答保存の非同期処理を追跡する `awaitPendingSaves(): Promise<void>` を公開。
       - 中断（abort）時はスケジュール済みのフィードバック遅延タイマー（`advanceTimer`）を確実に `clearTimeout` で破棄し、中断後に `onComplete` が発火して結果画面へ誤遷移することを抑止。
-      - セッション終了時（完了、中断、リプレイ）に `page.tsx` が `awaitPendingSaves()` を await してからキャッシュ無効化・再フェッチを実行。
+      - **ブラウザバック (Popstate) の統合**: `usePopstateGuard` による戻る操作時もヘッダーの「中断」ボタンと同一の同期 exit ハンドラ（`handleAbort`）を経由させ、保留中保存の待機・タイマー破棄・キャッシュ再フェッチを確実に実行する。
+      - セッション終了時（完了、中断、popstate 戻る、リプレイ）に `page.tsx` が `awaitPendingSaves()` を await してからキャッシュ無効化・再フェッチを実行。
     - **遅延再フェッチ設計**: クイズ回答中の保存時は `queryClient.invalidateQueries({ refetchType: 'none' })` でキャッシュを stale マークするのみとし、毎問の不要なバックグラウンド通信を抑止。セッション終了時（完了、中断、リプレイ）に上記 `awaitPendingSaves()` の完了を待機した上で 1 回だけ `clearedCodes` および `weakness` の再フェッチを実行・完了を待機する。
     - クイズ完了後・中断後の「もう一度（Replay）」押下時も、上記再フェッチ完了（`!isFetching`）を待ってから次セッションの出題サンプリングを実行し、直前に回答・誤答した自治体の出題・重み付け齟齬を完全に防止する。
 
