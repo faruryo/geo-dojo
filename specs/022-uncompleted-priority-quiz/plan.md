@@ -75,10 +75,10 @@ sequenceDiagram
 ### 3.3 UI層 (クイズ設定画面)
 
 - **ファイル**: `app/(app)/quiz/municipality/[mode]/page.tsx`
-  - 状態: `settings.unclearedFirst: boolean` (デフォルト `false`)
+  - 状態: `settings.unclearedFirst: boolean` (デフォルト `true`)
   - 選択中の地域×難易度における総件数 `totalCount` とクリア件数 `clearedCount` を算出。
   - 地域・難易度セレクターの近くに「進捗表示（例: `85 / 95問 クリア (89%)`）」をインライン配置。
-  - チェックボックス: `未クリア優先モード`
+  - チェックボックス: `未クリア優先モード`（初期値 ON）
 
 ---
 
