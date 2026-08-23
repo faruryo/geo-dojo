@@ -58,17 +58,19 @@ sequenceDiagram
 ### 3.2 ロジック層 (純粋関数)
 
 - **ファイル**: `lib/quiz/sampling.ts`（新規作成または `municipality-data.ts`）
-  - 関数: `sampleMunicipalityPool(...)`
+  - 関数: `sampleMunicipalityPool(...)`, `computePoolStats(...)`, `buildQuizQuestions(...)`
+  - **モード別クリア状態集約ルール (Aggregation Rules)**:
+    - **Mode A**: 自治体名（`name`）単位で集約。同名自治体（全国で同名の市や政令市の区）の全インスタンスのうちいずれかのコードが `clearedCodes` に含まれていればクリア済みと判定。
+    - **Mode B / Mode C**: `(name, prefecture)` 単位で集約。同一県・同一市名（政令市の区など）のいずれかのコードが `clearedCodes` に含まれていればクリア済みと判定。
+    - **Mode D**: 自治体コード（`code`）単位で直接判定。
   - **優先順位ルール**:
     1. `unclearedFirst = true` の場合:
-       - プールを「未クリア群（`!clearedSet.has(code)`）」と「既クリア群」に分割。
+       - 対象モードの集約ルールに基づいてプールを「未クリア群」と「既クリア群」に分割。
        - 未クリア群の中で、`weaknessFirst = true` なら誤答重み付きサンプリング、そうでなければランダムシャッフル。
        - 未クリア群から最大 `count` 件を抽出。
        - 不足分（未クリア件数 < `count`）があれば、既クリア群から（`weaknessFirst` に応じて）補充。
     2. `unclearedFirst = false` の場合:
        - 従来通り全プールから `weaknessFirst` またはランダムシャッフルで抽出。
-  - **Mode A の特異性**:
-    - Mode A は「自治体名」単位で出題される。同名複数県の自治体（府中市など）は、その名称の全インスタンスのうち1つでもクリア済みならクリアとみなすか、県単位で判定するかを統一（名称単位のクリア判定）。
 
 ### 3.3 UI層 (クイズ設定画面)
 

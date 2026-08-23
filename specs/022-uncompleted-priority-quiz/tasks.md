@@ -9,13 +9,13 @@
 
 ## User Story 1 - 未クリア（未制覇）優先出題で残りの市区町村を確実に攻略する (Priority: P1)
 
-- [ ] T001 [P] [US1] 純粋関数 `sampleMunicipalityPool` のユニットテスト作成 (`__tests__/lib/quiz/sampling.test.ts`)
-- [ ] T002 [P] [US1] 未クリア優先サンプリング純粋関数 `sampleMunicipalityPool` の実装 (`lib/quiz/sampling.ts`)
-- [ ] T003 [P] [US1] クリア済み自治体コード取得 Server Action `getClearedMunicipalityCodes` の実装 (`app/(app)/quiz/municipality/actions.ts`)
-- [ ] T004 [P] [US1] Server Action の単体テスト作成 (`__tests__/server/cleared-codes.test.ts`)
-- [ ] T005 [P] [US1] クエリキーと TanStack Query フック `useMunicipalityClearedCodes` の追加 (`lib/query-keys.ts`, `lib/hooks/useMunicipalityClearedCodes.ts`)
-- [ ] T006 [P] [US1] クイズ結果保存後のクリア済みキャッシュ無効化の追加 (`components/quiz/use-quiz-actions.ts`)
-- [ ] T007 [P] [US1] クイズ設定画面への「未クリア優先モード」トグルと出題生成への統合 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
+- [ ] T001 [US1] 純粋関数 `sampleMunicipalityPool` のユニットテスト作成 (`__tests__/lib/quiz/sampling.test.ts`)
+- [ ] T002 [US1] 未クリア優先サンプリング純粋関数 `sampleMunicipalityPool` の実装 (`lib/quiz/sampling.ts`)
+- [ ] T003 [US1] Server Action `getClearedMunicipalityCodes` の単体テスト作成 (`__tests__/server/cleared-codes.test.ts`)
+- [ ] T004 [US1] クリア済み自治体コード取得 Server Action `getClearedMunicipalityCodes` の実装 (`app/(app)/quiz/municipality/actions.ts`)
+- [ ] T005 [US1] クエリキーと TanStack Query フック `useMunicipalityClearedCodes` の追加 (`lib/query-keys.ts`, `lib/hooks/useMunicipalityClearedCodes.ts`)
+- [ ] T006 [US1] クイズ結果保存後および中断（abort）時のクリア済みキャッシュ無効化 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
+- [ ] T007 [US1] クイズ設定画面への「未クリア優先モード」トグル・ローディングガードと出題生成への統合 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
 
 ---
 
