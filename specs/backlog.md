@@ -18,6 +18,11 @@
   - 実装: 設定画面（全国/地方別地域選択、出題数10/20/全問、通常/タイムアタックモード切替、苦手優先トグル）を追加。タイマー表示・クリアタイム計測・タイムアタック時の自己ベスト保存（localStorage）およびベスト更新バッジ表示を実装。過去の誤答データに基づく苦手優先出題に対応。
   - 該当: `lib/quiz/prefecture-quiz.ts`（純粋関数）、`app/(app)/quiz/prefecture/page.tsx`（UI画面）、`__tests__/lib/quiz/prefecture-quiz.test.ts`
 
+- [ ] B014 市区町村クイズの未制覇（未クリア）優先出題と進捗可視化 → **022-uncompleted-priority-quiz で着手**
+  - 関東・中部など母数の大きい地域・難易度における100%制覇の難易度（クーポンコレクター問題）を解消。
+  - 「未クリア優先出題」トグルと設定画面でのリアルタイム進捗（クリア件数/総数）表示を提供。
+
+
 - [x] B009 【バグ/UX・修正済】Mode A の全国地図がタッチ端末でピンチズームできない（iPhone Chrome で報告）
   - 修正: `components/map/JapanMap.tsx` で PointerEvent を pointerId ごとに Map で追跡し、2ポインタ時は距離比で `scale` を更新＋指の中点を不動点に保つよう `translate` を補正（2本指ドラッグのパンも同時に成立）。ピンチ→片指に戻ったらドラッグパンへシームレスに移行。ピンチ中は click 抑止（誤選択防止）
   - `MunicipalityMap.tsx`（Mode D 側）は Google Maps の `gestureHandling: 'greedy'` がピンチを処理するため対象外と確認
