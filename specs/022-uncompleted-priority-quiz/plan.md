@@ -97,9 +97,10 @@ sequenceDiagram
   - 選択中の地域×難易度における総件数 `totalCount` とクリア件数 `clearedCount` を算出。
   - 地域・難易度セレクターの近くに「進捗表示（例: `85 / 95問 クリア (89%)`）」をインライン配置。
   - チェックボックス: `未クリア優先モード`（初期値 ON）
-  - **ローディング・エラーガード (Loading & Error Guards)**:
-    - `unclearedFirst: true` の場合、`clearedLoading || isClearedError` の状態では手動スタートボタンを無効化（ローディング中は「データ読み込み中...」、エラー時は「クリア状況の取得に失敗しました」と表示しリトライ可能にする）。
-    - `source=recommend` による自動開始（auto-start）も、`clearedCodes` の取得が完了（`!clearedLoading && !isClearedError`）するまで確実にブロックし、全問未クリア扱いでの誤スタートを防止する。
+  - **ローディング・再取得・エラーガード (Loading, Fetching & Error Guards)**:
+    - `unclearedFirst: true` の場合、初期ローディング（`isLoading`）、キャッシュ再取得中（`isFetching`）、またはエラー（`isError`）の状態ではスタートボタンを無効化（ローディング/再取得中はスピナーまたは「データ読み込み中...」、エラー時は「クリア状況の取得に失敗しました」と表示しリトライ可能にする）。
+    - クイズ完了後・中断後の「もう一度（Replay）」押下時も、`invalidateQueries` に伴う `clearedCodes` の最新再取得完了（`!isFetching`）を待ってから次セッションの出題サンプリングを実行し、直前にクリアした自治体の誤出題を完全に防止する。
+    - `source=recommend` による自動開始（auto-start）も、`clearedCodes` の取得が完了（`!isLoading && !isFetching && !isError`）するまで確実にブロックする。
 
 ---
 
