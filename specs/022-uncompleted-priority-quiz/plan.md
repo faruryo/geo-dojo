@@ -65,7 +65,7 @@ sequenceDiagram
 - **ファイル**: `lib/query-keys.ts`
   - `queryKeys.quiz.clearedCodes(mode: string)` を追加。
 - **ファイル**: `lib/hooks/useMunicipalityClearedCodes.ts`
-  - TanStack Query フックを追加（`staleTime: 1分`）。クイズ結果保存時にキャッシュ無効化。
+  - TanStack Query フックを追加（`staleTime: 1分`）。クイズ結果保存時および中断時にキャッシュ無効化。
 
 ### 4.2 ロジック層 (純粋関数)
 
@@ -75,12 +75,10 @@ sequenceDiagram
     - 純粋関数としてのテスタビリティと決定性を確保するため、`SamplePoolOptions` に `random?: () => number`（デフォルト `Math.random`）を受け取るインターフェースを定義。シャッフルおよび重み付きサンプリングの乱数境界へ注入し、テストでの flaky（確率的不安定性）を排除する。
   - **モード別クリア状態集約ルール (Clear-State Aggregation)**:
     - **Mode A**: 自治体名（`name`）単位で集約。同名自治体（全国で同名の市や政令市の区）の全インスタンスのうちいずれかのコードが `clearedCodes` に含まれていればクリア済みと判定。
-    - **Mode B / Mode C**: `(name, prefecture)` 単位で集約。同一県・同一市名（政令市の区など）のいずれかのコードが `clearedCodes` に含まれていればクリア済みと判定。
-    - **Mode D**: 自治体コード（`code`）単位で直接判定。
+    - **Mode B / Mode C / Mode D**: 出題単位である `(name, prefecture)` 単位で集約。同一県・同一市名（政令指定都市の複数区など、出題・正誤判定が集約されているもの）のいずれかのコードが `clearedCodes` に含まれていればクリア済みと判定。
   - **出題単位ごとの苦手スコア集約ルール (Weakness Score Aggregation)**:
     - **Mode A**: 同名全インスタンスの誤答率の最大値（`Math.max(...)`）をその名称の誤答率重みとして採用。
-    - **Mode B / Mode C**: 同一 `(name, prefecture)` に属する区・インスタンスの誤答率の最大値を重みとして採用。
-    - **Mode D**: 自治体コードごとの誤答率を直接適用。
+    - **Mode B / Mode C / Mode D**: 同一 `(name, prefecture)` に属する区・インスタンスの誤答率の最大値を重みとして採用。
   - **優先順位ルール**:
     1. `unclearedFirst = true` の場合:
        - 対象モードの集約ルールに基づいてプールを「未クリア群」と「既クリア群」に分割。
@@ -99,7 +97,8 @@ sequenceDiagram
   - チェックボックス: `未クリア優先モード`（初期値 ON）
   - **ローディング・再取得・エラーガード (Loading, Fetching & Error Guards)**:
     - `unclearedFirst: true` の場合、初期ローディング（`isLoading`）、キャッシュ再取得中（`isFetching`）、またはエラー（`isError`）の状態ではスタートボタンを無効化（ローディング/再取得中はスピナーまたは「データ読み込み中...」、エラー時は「クリア状況の取得に失敗しました」と表示しリトライ可能にする）。
-    - クイズ完了後・中断後の「もう一度（Replay）」押下時も、`invalidateQueries` に伴う `clearedCodes` の最新再取得完了（`!isFetching`）を待ってから次セッションの出題サンプリングを実行し、直前にクリアした自治体の誤出題を完全に防止する。
+    - 各回答の保存処理（Server Action の settlement）境界で `clearedCodes` および `weakness` の両クエリを無効化（または pending save のコミット完了を待機）。中断（abort）時も進行中の保存完了を待機してキャッシュ無効化を行う。
+    - クイズ完了後・中断後の「もう一度（Replay）」押下時も、`clearedCodes` および `weakness` の最新再取得完了（`!isFetching`）を待ってから次セッションの出題サンプリングを実行し、直前に回答・誤答した自治体の出題・重み付け齟齬を完全に防止する。
     - `source=recommend` による自動開始（auto-start）も、`clearedCodes` の取得が完了（`!isLoading && !isFetching && !isError`）するまで確実にブロックする。
 
 ---
