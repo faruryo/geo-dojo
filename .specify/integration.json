@@ -2,10 +2,25 @@
   "version": "1.0.1",
   "integration_state_schema": 1,
   "installed_integrations": [
-    "agy"
+    "agy",
+    "claude",
+    "cursor-agent",
+    "codex"
   ],
   "integration_settings": {
     "agy": {
+      "script": "sh",
+      "invoke_separator": "-"
+    },
+    "claude": {
+      "script": "sh",
+      "invoke_separator": "-"
+    },
+    "cursor-agent": {
+      "script": "sh",
+      "invoke_separator": "-"
+    },
+    "codex": {
       "script": "sh",
       "invoke_separator": "-"
     }
