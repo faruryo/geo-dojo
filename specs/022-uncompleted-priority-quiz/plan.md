@@ -96,6 +96,7 @@ sequenceDiagram
   - 状態: `settings.unclearedFirst: boolean` (デフォルト `true`)
   - 選択中の地域×難易度における総件数 `totalCount` とクリア件数 `clearedCount` を算出（`computePoolStats` を使用）。
   - 地域・難易度セレクターの近くに「進捗表示（例: `85 / 95問 クリア (89%)`）」をインライン配置。
+    - **進捗表示の独立したローディング・エラー状態**: `unclearedFirst` トグルの ON/OFF に関係なく、`clearedCodes` クエリのローディング中はスケルトン/スピナー、エラー時は「進捗読み込み失敗（再試行）」を表示し、誤った `0 / total` 表示を防止する（`unclearedFirst: false` の場合は通常スタートをブロックしない）。
   - チェックボックス: `未クリア優先モード`（初期値 ON）
   - **ローディング・再取得・エラーガード (Loading, Fetching & Error Guards)**:
     - `unclearedFirst: true` の場合は `clearedCodes` クエリの `isLoading || isFetching || isError`、`weaknessFirst: true` の場合は `weakness` クエリの `isLoading || isFetching || isError` をそれぞれ判定し、該当クエリが準備完了するまで手動スタートボタンを無効化（ローディング/再取得中は「データ読み込み中...」、エラー時は「データ取得に失敗しました」と表示しリトライ可能にする）。

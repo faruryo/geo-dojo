@@ -22,7 +22,7 @@
 
 ## User Story 2 - クイズ設定画面で現在の制覇状況（クリア数 / 総数）を把握する (Priority: P1)
 
-- [ ] T009 [US2] クイズ設定画面への現在の制覇進捗（クリア件数 / 総件数 / 進捗率）のリアルタイム表示追加 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
+- [ ] T009 [US2] クイズ設定画面への現在の制覇進捗（クリア件数 / 総件数 / 進捗率）のリアルタイム表示追加（トグル状態に関わらず独立したローディング/エラー/再試行表示、`computePoolStats` による出題単位集計、`components/quiz/quiz-pool-progress.tsx`, `app/(app)/quiz/municipality/[mode]/page.tsx`）
 
 ---
 
