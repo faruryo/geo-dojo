@@ -59,7 +59,9 @@ sequenceDiagram
 
 - **ファイル**: `app/(app)/quiz/municipality/actions.ts`
   - 関数: `getClearedMunicipalityCodes(mode: GameMode): Promise<string[]>`
-  - クエリ: `municipality_quiz_results` から `userId = auth.uid()`, `mode = mode`, `isCorrect = true` の `municipalityCode` を `DISTINCT` 取得。
+    - クエリ: `municipality_quiz_results` から `userId = auth.uid()`, `mode = mode`, `isCorrect = true` の `municipalityCode` を `DISTINCT` 取得。
+  - 関数: `getMunicipalityWeakness(mode?: GameMode): Promise<MunicipalityWeakness[]>`
+    - 既存のグローバル上限 100 件（`.limit(100)`）を撤廃し、選択地域・全自治体の苦手重み付け判定に必要な全誤答行を取得できるように改修（または指定プールの誤答率を漏れなく集計）。
 - **ファイル**: `lib/query-keys.ts`
   - `queryKeys.quiz.clearedCodes(mode: string)` を追加。
 - **ファイル**: `lib/hooks/useMunicipalityClearedCodes.ts`
