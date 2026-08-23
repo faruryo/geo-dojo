@@ -95,6 +95,9 @@ sequenceDiagram
   - 選択中の地域×難易度における総件数 `totalCount` とクリア件数 `clearedCount` を算出。
   - 地域・難易度セレクターの近くに「進捗表示（例: `85 / 95問 クリア (89%)`）」をインライン配置。
   - チェックボックス: `未クリア優先モード`（初期値 ON）
+  - **ローディング・エラーガード (Loading & Error Guards)**:
+    - `unclearedFirst: true` の場合、`clearedLoading || isClearedError` の状態では手動スタートボタンを無効化（ローディング中は「データ読み込み中...」、エラー時は「クリア状況の取得に失敗しました」と表示しリトライ可能にする）。
+    - `source=recommend` による自動開始（auto-start）も、`clearedCodes` の取得が完了（`!clearedLoading && !isClearedError`）するまで確実にブロックし、全問未クリア扱いでの誤スタートを防止する。
 
 ---
 

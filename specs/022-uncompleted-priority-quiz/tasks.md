@@ -15,7 +15,7 @@
 - [ ] T004 [US1] クリア済み自治体コード取得 Server Action `getClearedMunicipalityCodes` の実装 (`app/(app)/quiz/municipality/actions.ts`)
 - [ ] T005 [US1] クエリキーと TanStack Query フック `useMunicipalityClearedCodes` の追加 (`lib/query-keys.ts`, `lib/hooks/useMunicipalityClearedCodes.ts`)
 - [ ] T006 [US1] クイズ結果保存後および中断（abort）時のクリア済みキャッシュ無効化 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
-- [ ] T007 [US1] クイズ設定画面への「未クリア優先モード」トグル（初期値ON）・ローディングガードと出題生成への統合 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
+- [ ] T007 [US1] クイズ設定画面への「未クリア優先モード」トグル（初期値ON）・ローディング/エラーガード（`isClearedError` 時のスタート抑止・リトライUI・auto-start抑止）と出題生成への統合 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
 
 ---
 
