@@ -7,7 +7,7 @@ type RawRow = {
   prefecture: string;
   mode: string;
   isCorrect: boolean;
-  answeredAt: Date;
+  answeredAt: Date | string;
   region?: string;
   difficulty?: string;
 };
@@ -20,9 +20,13 @@ type MasterEntry = {
 
 export function inferSessions(rows: RawRow[]): Session[] {
   if (rows.length === 0) return [];
-  const sorted = [...rows].sort((a, b) => a.answeredAt.getTime() - b.answeredAt.getTime());
-  const groups: RawRow[][] = [];
-  let current: RawRow[] = [sorted[0]];
+  const normalizedRows = rows.map((r) => ({
+    ...r,
+    answeredAt: r.answeredAt instanceof Date ? r.answeredAt : new Date(r.answeredAt),
+  }));
+  const sorted = [...normalizedRows].sort((a, b) => a.answeredAt.getTime() - b.answeredAt.getTime());
+  const groups: typeof normalizedRows[] = [];
+  let current: typeof normalizedRows = [sorted[0]];
 
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1];
