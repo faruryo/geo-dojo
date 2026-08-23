@@ -109,22 +109,30 @@ type GetRecommendationInput = {
 export async function getRecommendation(
   input: GetRecommendationInput = {},
 ): Promise<Recommendation & { flags: { isColdStart: boolean; isRegressionGuarded: boolean; isProgressionFired: boolean; isDifficultyCapped: boolean }; notes: string[] }> {
-  const userId = await requireUserId();
-  if (!checkRateLimit(userId)) throw new Error('Rate limit exceeded');
+  try {
+    const userId = await requireUserId();
+    if (!checkRateLimit(userId)) throw new Error('Rate limit exceeded');
 
-  const { state, allMaster } = await buildLearnerState(userId);
-  const recommendation = generateRecommendation(state, input.excludeCodes ?? [], allMaster);
+    const { state, allMaster } = await buildLearnerState(userId);
+    const recommendation = generateRecommendation(state, input.excludeCodes ?? [], allMaster);
 
-  return {
-    ...recommendation,
-    flags: {
-      isColdStart: state.totalAnswers < 10,
-      isRegressionGuarded: recommendation.isRegressionGuarded,
-      isProgressionFired: recommendation.isProgressionFired,
-      isDifficultyCapped: state.fitZone.isCappedAt !== null,
-    },
-    notes: recommendation.poolBreakdown.randomFallback > 0
-      ? [`${recommendation.poolBreakdown.randomFallback}問は推薦範囲外のランダム補充です`]
-      : [],
-  };
+    return {
+      ...recommendation,
+      flags: {
+        isColdStart: state.totalAnswers < 10,
+        isRegressionGuarded: recommendation.isRegressionGuarded,
+        isProgressionFired: recommendation.isProgressionFired,
+        isDifficultyCapped: state.fitZone.isCappedAt !== null,
+      },
+      notes: recommendation.poolBreakdown.randomFallback > 0
+        ? [`${recommendation.poolBreakdown.randomFallback}問は推薦範囲外のランダム補充です`]
+        : [],
+    };
+  } catch (e) {
+    console.error('[getRecommendation] failed', {
+      excludeCodes: input.excludeCodes,
+      error: e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : String(e),
+    });
+    throw e;
+  }
 }

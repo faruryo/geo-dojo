@@ -21,9 +21,10 @@ function calculateCrowdAccuracy(crowdRows: CrowdRow[]): Record<Difficulty, numbe
     expert: 0.45,
   };
   for (const row of crowdRows) {
-    if (row.totalCount > 0 && row.difficulty in crowdAccuracy) {
-      crowdAccuracy[row.difficulty as Difficulty] =
-        row.correctCount / row.totalCount;
+    const total = Number(row.totalCount);
+    const correct = Number(row.correctCount);
+    if (total > 0 && row.difficulty in crowdAccuracy) {
+      crowdAccuracy[row.difficulty as Difficulty] = correct / total;
     }
   }
   return crowdAccuracy;
@@ -49,7 +50,7 @@ function extractRecentlyPlayedCodes(allResults: QuizResultRow[]): Set<string> {
   const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
   const recentlyPlayedCodes = new Set<string>();
   for (const r of allResults) {
-    if (now - r.answeredAt.getTime() <= THIRTY_DAYS_MS) {
+    if (now - new Date(r.answeredAt).getTime() <= THIRTY_DAYS_MS) {
       recentlyPlayedCodes.add(r.municipalityCode);
     }
   }
