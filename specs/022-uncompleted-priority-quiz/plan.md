@@ -97,9 +97,9 @@ sequenceDiagram
   - チェックボックス: `未クリア優先モード`（初期値 ON）
   - **ローディング・再取得・エラーガード (Loading, Fetching & Error Guards)**:
     - `unclearedFirst: true` の場合、初期ローディング（`isLoading`）、キャッシュ再取得中（`isFetching`）、またはエラー（`isError`）の状態ではスタートボタンを無効化（ローディング/再取得中はスピナーまたは「データ読み込み中...」、エラー時は「クリア状況の取得に失敗しました」と表示しリトライ可能にする）。
-    - 各回答の保存処理（Server Action の settlement）境界で `clearedCodes` および `weakness` の両クエリを無効化（または pending save のコミット完了を待機）。中断（abort）時も進行中の保存完了を待機してキャッシュ無効化を行う。
-    - クイズ完了後・中断後の「もう一度（Replay）」押下時も、`clearedCodes` および `weakness` の最新再取得完了（`!isFetching`）を待ってから次セッションの出題サンプリングを実行し、直前に回答・誤答した自治体の出題・重み付け齟齬を完全に防止する。
-    - `source=recommend` による自動開始（auto-start）も、`clearedCodes` の取得が完了（`!isLoading && !isFetching && !isError`）するまで確実にブロックする。
+    - **推薦セッションのバイパス**: `source=recommend` による自動開始（auto-start）時は、推薦エンジンが意図した適正・苦手・探索バランスを維持するため `unclearedFirst` を適用せずバイパスする（推薦通りの問題セットをそのまま開始）。
+    - **遅延再フェッチ設計**: クイズ回答中の保存時は `queryClient.invalidateQueries({ refetchType: 'none' })` でキャッシュを stale マークするのみとし、毎問の不要なバックグラウンド通信を抑止。セッション終了時（完了、中断、リプレイ）に保留中の保存（pending save）の完了を待機した上で 1 回だけ `clearedCodes` および `weakness` の再フェッチを実行・完了を待機する。
+    - クイズ完了後・中断後の「もう一度（Replay）」押下時も、上記再フェッチ完了（`!isFetching`）を待ってから次セッションの出題サンプリングを実行し、直前に回答・誤答した自治体の出題・重み付け齟齬を完全に防止する。
 
 ---
 

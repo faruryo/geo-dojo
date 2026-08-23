@@ -14,23 +14,24 @@
 - [ ] T003 [US1] Server Action `getClearedMunicipalityCodes` および `getMunicipalityWeakness` 全件取得の単体テスト作成 (`__tests__/server/cleared-codes.test.ts`)
 - [ ] T004 [US1] クリア済み自治体コード取得 Server Action `getClearedMunicipalityCodes` の実装および `getMunicipalityWeakness` の上限撤廃 (`app/(app)/quiz/municipality/actions.ts`)
 - [ ] T005 [US1] クエリキーと TanStack Query フック `useMunicipalityClearedCodes` の追加 (`lib/query-keys.ts`, `lib/hooks/useMunicipalityClearedCodes.ts`)
-- [ ] T006 [US1] クイズ回答保存時・中断（abort）時の pending save 待機と `clearedCodes` / `weakness` 両クエリの無効化・リプレイ時再フェッチ待機 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
-- [ ] T007 [US1] クイズ設定画面への「未クリア優先モード」トグル（初期値ON）・ローディング/再取得/エラーガード（`isLoading || isFetching || isError` 時のスタート・リプレイ抑止・リトライUI・auto-start抑止）と出題生成への統合 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
+- [ ] T006 [US1] 非同期キャッシュ同期・ガード（保留中保存待機・リプレイ時再フェッチ・エラー/ローディング抑止・推薦バイパス）の統合テスト作成 (`__tests__/components/quiz/municipality-quiz-session-sync.test.tsx`)
+- [ ] T007 [US1] クイズ回答保存時・中断（abort）時の pending save 待機と `clearedCodes` / `weakness` 両クエリの遅延無効化・リプレイ時再フェッチ待機の実装 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
+- [ ] T008 [US1] クイズ設定画面への「未クリア優先モード」トグル（初期値ON）・ローディング/再取得/エラーガード（`isLoading || isFetching || isError` 時のスタート・リプレイ抑止・リトライUI・推薦セッションバイパス）と出題生成への統合 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
 
 ---
 
 ## User Story 2 - クイズ設定画面で現在の制覇状況（クリア数 / 総数）を把握する (Priority: P1)
 
-- [ ] T008 [US2] クイズ設定画面への現在の制覇進捗（クリア件数 / 総件数 / 進捗率）のリアルタイム表示追加 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
+- [ ] T009 [US2] クイズ設定画面への現在の制覇進捗（クリア件数 / 総件数 / 進捗率）のリアルタイム表示追加 (`app/(app)/quiz/municipality/[mode]/page.tsx`)
 
 ---
 
 ## User Story 3 - 苦手優先と未クリア優先の組み合わせ (Priority: P2)
 
-- [ ] T009 [US3] 「苦手優先」と「未クリア優先」併用時の決定論的重み付けサンプリング検証（T001 のテスト実行と T002 での挙動確認）
+- [ ] T010 [US3] 「苦手優先」と「未クリア優先」併用時の決定論的重み付けサンプリング検証（T001 のテスト実行と T002 での挙動確認）
 
 ---
 
 ## 完了検証と品質保証
 
-- [ ] T010 全体の型検査・テスト・lint ratchet実行 (`pnpm type-check`, `pnpm test`, `pnpm lint:ratchet`)
+- [ ] T011 全体の型検査・テスト・lint ratchet実行 (`pnpm type-check`, `pnpm test`, `pnpm lint:ratchet`)
