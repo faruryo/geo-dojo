@@ -9,8 +9,8 @@
 
 ## User Story 1 - 未クリア（未制覇）優先出題で残りの市区町村を確実に攻略する (Priority: P1)
 
-- [ ] T001 [US1] 純粋関数 `sampleMunicipalityPool` / `computePoolStats` / `buildQuizQuestions` の決定論的ユニットテスト作成（未クリア選出・既クリア補充・Mode A 同名集約・Mode B/C/D 出題単位集約・苦手優先併用時の出題単位集約・`computePoolStats` グループ化母数/クリア数集計・RNG注入対応、`__tests__/lib/quiz/sampling.test.ts`）
-- [ ] T002 [US1] 未クリア優先サンプリング純粋関数 `sampleMunicipalityPool` / `computePoolStats` / `buildQuizQuestions` の実装（`options.random` 注入・出題単位のクリア＆苦手集約・出題単位母数集計対応、`lib/quiz/sampling.ts`）
+- [ ] T001 [US1] 純粋関数 `sampleMunicipalityPool` / `computePoolStats` / `buildQuizQuestions` の決定論的ユニットテスト作成（未クリア選出・既クリア補充・Mode A 同名集約・Mode B/C/D 出題単位集約・難易度を跨ぐ政令市区/同名自治体のクリア判定集約・苦手優先併用時の出題単位集約・`computePoolStats` グループ化母数/クリア数集計・RNG注入対応、`__tests__/lib/quiz/sampling.test.ts`）
+- [ ] T002 [US1] 未クリア優先サンプリング純粋関数 `sampleMunicipalityPool` / `computePoolStats` / `buildQuizQuestions` の実装（`identityCodeMap`/全マスタ参照による難易度跨ぎ集約対応・`options.random` 注入・出題単位のクリア＆苦手集約・出題単位母数集計対応、`lib/quiz/sampling.ts`）
 - [ ] T003 [US1] DB インデックス追加マイグレーションの作成、`schema.ts` 更新、および `docs/db-schema.md` 同期 (`lib/db/schema.ts`, `supabase/migrations/`, `docs/db-schema.md`)
 - [ ] T004 [US1] Server Action `getClearedMunicipalityCodes` および `getMunicipalityWeakness` 全件取得の単体テスト作成 (`__tests__/server/cleared-codes.test.ts`)
 - [ ] T005 [US1] クリア済み自治体コード取得 Server Action `getClearedMunicipalityCodes` の実装および `getMunicipalityWeakness` の上限撤廃 (`app/(app)/quiz/municipality/actions.ts`)

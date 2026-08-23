@@ -77,7 +77,8 @@ sequenceDiagram
   - 関数: `sampleMunicipalityPool(pool, options)`, `computePoolStats(...)`, `buildQuizQuestions(...)`
   - **乱数依存の注入 (RNG Injection)**:
     - 純粋関数としてのテスタビリティと決定性を確保するため、`SamplePoolOptions` に `random?: () => number`（デフォルト `Math.random`）を受け取るインターフェースを定義。シャッフルおよび重み付きサンプリングの乱数境界へ注入し、テストでの flaky（確率的不安定性）を排除する。
-  - **モード別クリア状態集約ルール (Clear-State Aggregation)**:
+  - **モード別クリア状態集約ルール (Clear-State Aggregation & Cross-Difficulty Support)**:
+    - **難易度を跨ぐ同一出題単位の解決**: 政令指定都市の区や同名自治体が難易度バケットを跨ぐ場合でも正確に判定できるよう、出題プール（難易度・地域フィルター後）だけでなく、全マスターデータから構築した出題単位コードマップ（`identityCodeMap` または全マスタ参照）をサンプラーおよび `computePoolStats` に注入。難易度外の兄弟コードでクリア保存されている場合でも確実にクリア済みとして集約判定する。
     - **Mode A**: 自治体名（`name`）単位で集約。同名自治体（全国で同名の市や政令市の区）の全インスタンスのうちいずれかのコードが `clearedCodes` に含まれていればクリア済みと判定。
     - **Mode B / Mode C / Mode D**: 出題単位である `(name, prefecture)` 単位で集約。同一県・同一市名（政令指定都市の複数区など、出題・正誤判定が集約されているもの）のいずれかのコードが `clearedCodes` に含まれていればクリア済みと判定。
   - **出題単位ごとの苦手スコア集約ルール (Weakness Score Aggregation)**:
@@ -123,6 +124,7 @@ sequenceDiagram
   - 未クリアが0件（制覇完了）のときのフォールバック動作テスト
   - `weaknessFirst` と `unclearedFirst` が両方有効なときの優先度テスト（出題単位の苦手集約検証含む）
   - Mode A の同名自治体集約時の選出テスト
+  - 難易度を跨ぐ政令指定都市の区コード・同名自治体のクリア判定集約回帰テスト
 - `__tests__/server/cleared-codes.test.ts`:
   - Server Action のクエリ正当性・認証ガード・戻り値テスト
 - 回帰テスト:
@@ -130,7 +132,8 @@ sequenceDiagram
 
 ---
 
-## 6. ロールアウトとリスク
+## 6. ロールアウトとマイグレーション (Rollout & Migration)
 
-- 既存のDBテーブル（`municipality_quiz_results`）をインデックス走査して集計するため、新規テーブルやマイグレーションは不要。
+- `municipality_quiz_results` に `(user_id, mode, is_correct, municipality_code)` の複合インデックスを追加する DDL マイグレーション（`supabase/migrations/`）を作成・適用する。
+- スキーマ変更に伴い `docs/db-schema.md` を更新する。
 - キャッシュ（TanStack Query）により、設定画面での地域切り替え時もローカル計算で即座に進捗バーが反応する。
