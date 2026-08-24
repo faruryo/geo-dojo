@@ -1,96 +1,136 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { executeQuizAdvance, type QuizSessionEntry, type QuizResultEntry } from '@/lib/quiz/quiz-session-core';
+// @vitest-environment happy-dom
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import React, { useEffect, act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import type { Municipality } from '@/lib/quiz/municipality-data';
+import { useQuizSession, type Question } from '@/components/quiz/use-quiz-session';
+
+(globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
+
+let saveResolve: () => void = () => {};
+const mockSaveResult = vi.fn(
+  () =>
+    new Promise<void>((resolve) => {
+      saveResolve = resolve;
+    })
+);
+
+vi.mock('@/app/(app)/quiz/municipality/actions', () => ({
+  saveMunicipalityQuizResult: () => mockSaveResult(),
+}));
+
+interface TestRunnerProps {
+  readonly questions: readonly Question[];
+  readonly allMunicipalities: readonly Municipality[];
+  readonly onComplete: () => void;
+  readonly onReady: (session: ReturnType<typeof useQuizSession>) => void;
+}
+
+function TestRunner({
+  questions,
+  allMunicipalities,
+  onComplete,
+  onReady,
+}: Readonly<TestRunnerProps>) {
+  const session = useQuizSession({ questions, allMunicipalities, onComplete });
+  useEffect(() => {
+    onReady(session);
+  });
+  return null;
+}
 
 describe('Municipality Quiz Session Synchronization & Abort Logic', () => {
+  let container: HTMLDivElement | null = null;
+  let root: Root | null = null;
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
   });
 
-  it('tracks pending saves and cancels delayed advance when abort occurs', async () => {
-    let saveResolve: () => void = () => {};
-    const mockSaveFn = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          saveResolve = resolve;
-        })
-    );
+  afterEach(() => {
+    if (root) {
+      act(() => {
+        root?.unmount();
+      });
+    }
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container);
+    }
+  });
 
-    const entries: QuizSessionEntry[] = [
-      {
-        municipality: {
-          code: '13101',
-          name: '千代田区',
-          prefecture: '東京都',
-          region: 'kanto',
-          difficulty: 'easy',
-        },
-        isCorrect: true,
-        mode: 'A',
-        answerTimeMs: 1500,
-      },
-    ];
+  const mockMunicipality: Municipality = {
+    code: '13101',
+    name: '千代田区',
+    prefecture: '東京都',
+    region: 'kanto',
+    difficulty: 'easy',
+  };
 
-    let isAborted = false;
-    let timerId: NodeJS.Timeout | null = null;
+  const mockQuestions: Question[] = [
+    {
+      kind: 'BCD',
+      mode: 'B',
+      municipality: mockMunicipality,
+      choices: ['東京都', '神奈川県', '埼玉県', '千葉県'],
+    },
+  ];
+
+  it('awaits pending saves and cancels delayed advance timer when production useQuizSession.abort() is called', async () => {
     const onComplete = vi.fn();
-    const onAdvance = vi.fn();
+    let sessionRef: ReturnType<typeof useQuizSession> | null = null;
 
-    // Session runner tracking pending saves
-    const inFlightSaves = new Set<Promise<unknown>>();
+    await act(async () => {
+      root?.render(
+        <TestRunner
+          questions={mockQuestions}
+          allMunicipalities={[mockMunicipality]}
+          onComplete={onComplete}
+          onReady={(session) => {
+            sessionRef = session;
+          }}
+        />
+      );
+    });
 
-    const recordAndAdvance = (delayMs: number) => {
-      const savePromise = executeQuizAdvance(entries, [], mockSaveFn);
-      inFlightSaves.add(savePromise);
-      void savePromise.finally(() => {
-        inFlightSaves.delete(savePromise);
-      });
-
-      void savePromise.then((updated: QuizResultEntry[]) => {
-        if (isAborted) return;
-        timerId = setTimeout(() => {
-          if (isAborted) return;
-          onAdvance(updated);
-          // if last question:
-          onComplete(updated);
-        }, delayMs);
-      });
-
-      return savePromise;
-    };
-
-    const abortQuiz = async () => {
-      isAborted = true;
-      if (timerId) {
-        clearTimeout(timerId);
-        timerId = null;
-      }
-      // Wait for all in-flight saves
-      await Promise.allSettled(Array.from(inFlightSaves));
-    };
+    expect(sessionRef).not.toBeNull();
 
     // 1. Answer question (triggers save and schedules delayed advance)
-    void recordAndAdvance(1200);
-    expect(mockSaveFn).toHaveBeenCalledTimes(1);
-    expect(inFlightSaves.size).toBe(1);
+    act(() => {
+      void sessionRef?.handleChoice('東京都', 'B');
+    });
+
+    expect(mockSaveResult).toHaveBeenCalledTimes(1);
 
     // 2. Abort while save is still in flight
     let abortSettled = false;
-    const abortPromise = abortQuiz().then(() => {
-      abortSettled = true;
+    let abortPromise: Promise<void> | null = null;
+
+    act(() => {
+      abortPromise = sessionRef?.abort().then(() => {
+        abortSettled = true;
+      }) ?? null;
     });
+
     expect(abortSettled).toBe(false);
 
-    // 3. Save finishes
-    saveResolve();
-    await abortPromise;
+    // 3. Resolve the in-flight save promise
+    await act(async () => {
+      saveResolve();
+      await abortPromise;
+    });
+
     expect(abortSettled).toBe(true);
 
-    // 4. Fast forward time past the 1200ms delay
-    vi.advanceTimersByTime(2000);
+    // 4. Fast-forward timer past the feedback delay (1200ms)
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
 
-    // Assert: advance and complete callbacks must NOT have run after abort
-    expect(onAdvance).not.toHaveBeenCalled();
+    // Assert: onComplete must NOT have been called because abort cleared the advance timer
     expect(onComplete).not.toHaveBeenCalled();
   });
 });
