@@ -3,7 +3,7 @@
 import { requireUserId } from '@/lib/auth/current-user';
 import { db } from '@/lib/db';
 import { municipalityQuizResults, municipalityMaster, type MunicipalityMaster } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { checkRateLimit } from '@/lib/quiz/rate-limit';
 import { getValidCodes } from '@/lib/quiz/validation';
 import { upsertSrsRecord } from '@/lib/quiz/srs/record-service';
@@ -60,6 +60,25 @@ export async function saveMunicipalityQuizResult(input: {
   }
 }
 
+export async function getClearedMunicipalityCodes(mode: string): Promise<string[]> {
+  const userId = await requireUserId();
+
+  const rows = await db
+    .selectDistinct({
+      municipalityCode: municipalityQuizResults.municipalityCode,
+    })
+    .from(municipalityQuizResults)
+    .where(
+      and(
+        eq(municipalityQuizResults.userId, userId),
+        eq(municipalityQuizResults.mode, mode),
+        eq(municipalityQuizResults.isCorrect, true),
+      ),
+    );
+
+  return rows.map((r) => r.municipalityCode);
+}
+
 export async function getMunicipalityWeakness(): Promise<
   Array<{ municipalityCode: string; municipalityName: string; prefecture: string; errorRate: number }>
 > {
@@ -85,8 +104,7 @@ export async function getMunicipalityWeakness(): Promise<
     .orderBy(
       sql`CAST(COUNT(*) FILTER (WHERE NOT ${municipalityQuizResults.isCorrect}) AS float) / COUNT(*) DESC`,
       sql`COUNT(*) DESC`,
-    )
-    .limit(100);
+    );
 
   return rows.map((r) => ({
     municipalityCode: r.municipalityCode,

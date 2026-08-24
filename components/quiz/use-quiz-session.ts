@@ -38,35 +38,24 @@ export function useQuizSession({
   onComplete,
 }: Readonly<UseQuizSessionProps>) {
   const state = useQuizState(questions.length, onComplete);
-  const currentQuestion =
-    state.qIdx < questions.length ? questions.at(state.qIdx) ?? null : null;
+  const currentQuestion = state.qIdx < questions.length ? questions.at(state.qIdx) ?? null : null;
 
-  const { handleModeASubmit, handleChoice, handleDTap, handleTimeout } = useQuizActions({
-    currentQuestion,
-    allMunicipalities,
-    state,
-  });
-
+  const actions = useQuizActions({ currentQuestion, allMunicipalities, state });
   const { setSelectedPrefectures, setModeDFailed, feedback } = state;
+  const { handleTimeout } = actions;
 
-  const handlePrefectureTap = useCallback(
-    (name: string) => {
-      if (feedback !== 'idle') return;
-      setSelectedPrefectures((prev) => {
-        const next = new Set(prev);
-        if (next.has(name)) next.delete(name);
-        else next.add(name);
-        return next;
-      });
-    },
-    [feedback, setSelectedPrefectures],
-  );
+  const handlePrefectureTap = useCallback((name: string) => {
+    if (feedback !== 'idle') return;
+    setSelectedPrefectures((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }, [feedback, setSelectedPrefectures]);
 
   const handleModeDFallback = useCallback(() => setModeDFailed(true), [setModeDFailed]);
-
-  const handleTimeoutCallback = useCallback(() => {
-    void handleTimeout();
-  }, [handleTimeout]);
+  const handleTimeoutCallback = useCallback(() => { void handleTimeout(); }, [handleTimeout]);
 
   const { timeLeft } = useQuizTimer({
     currentQuestion,
@@ -77,20 +66,11 @@ export function useQuizSession({
   });
 
   return {
-    qIdx: state.qIdx,
+    ...actions,
+    ...state,
     currentQuestion,
-    feedback: state.feedback,
-    results: state.results,
-    modeDFailed: state.modeDFailed,
-    selectedPrefectures: state.selectedPrefectures,
-    selectedChoice: state.selectedChoice,
-    correctCodes: state.correctCodes,
-    wrongCodes: state.wrongCodes,
     timeLeft,
     handlePrefectureTap,
-    handleModeASubmit,
-    handleChoice,
-    handleDTap,
     handleModeDFallback,
   };
 }

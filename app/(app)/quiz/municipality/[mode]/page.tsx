@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { notFound, useParams, useSearchParams } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
@@ -8,15 +8,27 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useMunicipalityWeakness } from '@/lib/hooks/useMunicipalityWeakness';
 import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
-import { usePopstateGuard } from '@/lib/hooks/usePopstateGuard';
+import { useMunicipalityClearedCodes } from '@/lib/hooks/useMunicipalityClearedCodes';
+import {
+  getClearedMunicipalityCodes,
+  getMunicipalityWeakness,
+} from '@/app/(app)/quiz/municipality/actions';
 import { queryKeys } from '@/lib/query-keys';
 import { RecommendReplayButton } from '@/components/recommend/recommend-replay-button';
 import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
 import { SessionCountSelector } from '@/components/quiz/session-count-selector';
 import { QuizResultCard } from '@/components/quiz/quiz-result-card';
+import { QuizPoolProgress } from '@/components/quiz/quiz-pool-progress';
 import type { Question } from '@/components/quiz/quiz-runner';
 import { LAST_SELECTED_MODE_KEY, parseGameMode } from '@/lib/quiz/last-selected-mode';
+import {
+  buildIdentityCodeMap,
+  computePoolStats,
+  sampleMunicipalityPool,
+  type IdentityCodeMap,
+  type MunicipalityWeakness,
+} from '@/lib/quiz/sampling';
 import {
   type Difficulty,
   type GameMode,
@@ -35,7 +47,6 @@ import {
   getRegionsPrefectures,
   isModeAvailable,
   shuffle,
-  weightedSample,
 } from '@/lib/quiz/municipality-data';
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -44,6 +55,7 @@ interface Settings {
   mode: GameMode;
   regions: Region[];
   count: SessionCount;
+  unclearedFirst: boolean;
   weaknessFirst: boolean;
   difficulties: Difficulty[];
 }
@@ -58,48 +70,41 @@ type Phase = 'setup' | 'playing' | 'result';
 
 // ─── Question builder ───────────────────────────────────────────────
 
-function buildQuestions(
+function buildModeAQuestions(
+  pool: Municipality[],
   all: Municipality[],
-  settings: Settings,
-  weaknessMap: Map<string, number>,
+  count: number,
 ): Question[] {
-  const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
-  const source = isTextMode ? filterTextModeMunicipalities(all) : all;
-  const byRegion = filterByRegions(source, settings.regions);
-  const filtered = filterByDifficulty(byRegion, settings.difficulties);
-  const pool = settings.weaknessFirst
-    ? weightedSample(filtered, weaknessMap, settings.count * 3)
-    : shuffle(filtered);
-
-  if (settings.mode === 'A') {
-    const seen = new Set<string>();
-    const questions: Question[] = [];
-    for (const m of pool) {
-      if (questions.length >= settings.count) break;
-      if (seen.has(m.name)) continue;
-      seen.add(m.name);
-      const instances = all.filter((a) => a.name === m.name);
-      questions.push({
-        kind: 'A',
-        name: m.name,
-        instances,
-        correctPrefectures: new Set(instances.map((i) => i.prefecture)),
-      });
-    }
-    return questions;
-  }
-
-  const deduped = (() => {
-    const seen = new Set<string>();
-    return pool.filter((m) => {
-      const key = `${m.name}::${m.prefecture}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
+  const seen = new Set<string>();
+  const questions: Question[] = [];
+  for (const m of pool) {
+    if (questions.length >= count) break;
+    if (seen.has(m.name)) continue;
+    seen.add(m.name);
+    const instances = all.filter((a) => a.name === m.name);
+    questions.push({
+      kind: 'A',
+      name: m.name,
+      instances,
+      correctPrefectures: new Set(instances.map((i) => i.prefecture)),
     });
-  })();
-  const sliced = deduped.slice(0, settings.count);
+  }
+  return questions;
+}
 
+function buildBCDQuestions(
+  pool: Municipality[],
+  source: Municipality[],
+  settings: Settings,
+): Question[] {
+  const seen = new Set<string>();
+  const deduped = pool.filter((m) => {
+    const key = `${m.name}::${m.prefecture}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const sliced = deduped.slice(0, settings.count);
   const regionPrefs = getRegionsPrefectures(settings.regions);
 
   return sliced.map((m): Question => {
@@ -118,7 +123,34 @@ function buildQuestions(
   });
 }
 
-// ─── Component ─────────────────────────────────────────────────────
+function buildQuestions(
+  all: Municipality[],
+  settings: Settings,
+  weaknessMap: Map<string, MunicipalityWeakness>,
+  clearedCodes: Set<string>,
+  identityCodeMap: IdentityCodeMap,
+): Question[] {
+  const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
+  const source = isTextMode ? filterTextModeMunicipalities(all) : all;
+  const byRegion = filterByRegions(source, settings.regions);
+  const filtered = filterByDifficulty(byRegion, settings.difficulties);
+
+  const sampledItems = sampleMunicipalityPool(filtered, {
+    count: settings.count,
+    mode: settings.mode,
+    unclearedFirst: settings.unclearedFirst,
+    weaknessFirst: settings.weaknessFirst,
+    clearedCodes,
+    weaknessMap,
+    identityCodeMap,
+  });
+
+  if (settings.mode === 'A') {
+    return buildModeAQuestions(sampledItems, all, settings.count);
+  }
+
+  return buildBCDQuestions(sampledItems, source, settings);
+}
 
 const VALID_MODES = ['A', 'B', 'C', 'D'] as const;
 const MODE_LABEL: Record<GameMode, string> = {
@@ -127,6 +159,27 @@ const MODE_LABEL: Record<GameMode, string> = {
   C: 'モードC・順引き4択',
   D: 'モードD・順引き地図',
 };
+
+function getStartLabel({
+  isLoading,
+  isBlocked,
+  modeAvailable,
+  hasDifficulties,
+  poolSize,
+}: {
+  isLoading: boolean;
+  isBlocked: boolean;
+  modeAvailable: boolean;
+  hasDifficulties: boolean;
+  poolSize: number;
+}): string {
+  if (isLoading) return 'データ読み込み中...';
+  if (isBlocked) return 'データ取得に失敗しました（再試行してください）';
+  if (!modeAvailable) return '地域を追加してください';
+  if (!hasDifficulties) return '難易度を選択してください';
+  if (poolSize === 0) return '該当する市区町村なし — 地域か難易度を変更してください';
+  return 'スタート';
+}
 
 export default function MunicipalityQuizPage() {
   const params = useParams<{ mode: string }>();
@@ -143,7 +196,7 @@ export default function MunicipalityQuizPage() {
   const recommendCount = countParam ? (parseInt(countParam, 10) as 10 | 20 | 30) : null;
 
   const initRegions = initRegion
-    ? initRegion.split(',').filter((r) => (REGIONS as readonly string[]).includes(r)) as Region[]
+    ? (initRegion.split(',').filter((r) => (REGIONS as readonly string[]).includes(r)) as Region[])
     : null;
 
   const initDifficulties: Difficulty[] | null = initDifficultiesParam
@@ -158,13 +211,29 @@ export default function MunicipalityQuizPage() {
     mode: modeFromUrl,
     regions: initRegions && initRegions.length > 0 ? initRegions : ['全国'],
     count: recommendCount && [10, 20, 30].includes(recommendCount) ? recommendCount : 10,
+    unclearedFirst: true,
     weaknessFirst: false,
     difficulties: initDifficulties && initDifficulties.length > 0 ? initDifficulties : ['easy', 'medium'],
   });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [results, setResults] = useState<ResultEntry[]>([]);
 
-  const { data: weaknessData = [] } = useMunicipalityWeakness();
+  const {
+    data: weaknessData = [],
+    isLoading: weaknessLoading,
+    isFetching: weaknessFetching,
+    isError: weaknessError,
+    refetch: refetchWeakness,
+  } = useMunicipalityWeakness();
+
+  const {
+    data: clearedCodesData = [],
+    isLoading: clearedLoading,
+    isFetching: clearedFetching,
+    isError: clearedError,
+    refetch: refetchCleared,
+  } = useMunicipalityClearedCodes(modeFromUrl);
+
   const { data: masterData, isLoading: masterLoading } = useMunicipalityMaster();
 
   const allMunicipalities: Municipality[] = useMemo(
@@ -180,6 +249,27 @@ export default function MunicipalityQuizPage() {
     [masterData],
   );
 
+  const identityCodeMap = useMemo(
+    () => buildIdentityCodeMap(allMunicipalities),
+    [allMunicipalities],
+  );
+
+  const clearedCodesSet = useMemo(() => new Set(clearedCodesData), [clearedCodesData]);
+
+  const weaknessMap = useMemo(
+    () =>
+      new Map<string, MunicipalityWeakness>(
+        weaknessData.map((w) => [
+          w.municipalityCode,
+          {
+            municipalityCode: w.municipalityCode,
+            errorRate: w.errorRate,
+          },
+        ]),
+      ),
+    [weaknessData],
+  );
+
   // ── Persist valid mode to localStorage ──
   useEffect(() => {
     const validMode = parseGameMode(modeFromUrl);
@@ -192,63 +282,169 @@ export default function MunicipalityQuizPage() {
     }
   }, [modeFromUrl]);
 
-  // ── Back-button interception during play ──
-  usePopstateGuard(phase === 'playing', () => setPhase('setup'));
+  // ── Synchronized Exit / Abort Handler ──
+  const handleExitToSetup = useCallback(async () => {
+    setPhase('setup');
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.municipality.weakness(),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.dashboard.all,
+    });
+  }, [modeFromUrl, queryClient]);
+
+  // ── Pool and stats calculation ──
+  const filteredPool = useMemo(() => {
+    if (allMunicipalities.length === 0) return [];
+    const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
+    const source = isTextMode ? filterTextModeMunicipalities(allMunicipalities) : allMunicipalities;
+    return filterByDifficulty(
+      filterByRegions(source, settings.regions),
+      settings.difficulties,
+    );
+  }, [allMunicipalities, settings.regions, settings.difficulties, settings.mode]);
+
+  const poolStats = useMemo(
+    () => computePoolStats(filteredPool, settings.mode, clearedCodesSet, identityCodeMap),
+    [filteredPool, settings.mode, clearedCodesSet, identityCodeMap],
+  );
+
+  const effectivePoolSize = poolStats.totalCount;
 
   // ── Start ──
-  function handleStart() {
-    const weaknessMap = new Map<string, number>(
-      weaknessData.map((w) => [w.municipalityCode, w.errorRate]),
+  const handleStart = useCallback(() => {
+    const qs = buildQuestions(
+      allMunicipalities,
+      settings,
+      weaknessMap,
+      clearedCodesSet,
+      identityCodeMap,
     );
-    const qs = buildQuestions(allMunicipalities, settings, weaknessMap);
     if (qs.length === 0) return;
     setQuestions(qs);
     setResults([]);
     setPhase('playing');
-  }
+  }, [allMunicipalities, settings, weaknessMap, clearedCodesSet, identityCodeMap]);
+
+  const [isReplaying, setIsReplaying] = useState(false);
+  const [replayError, setReplayError] = useState<string | null>(null);
+
+  // ── Replay with cache synchronization ──
+  const handleReplay = useCallback(async () => {
+    if (isReplaying) return;
+    setIsReplaying(true);
+    setReplayError(null);
+    try {
+      const [clearedRes, weaknessRes] = await Promise.all([
+        queryClient.fetchQuery({
+          queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
+          queryFn: () => getClearedMunicipalityCodes(modeFromUrl),
+        }),
+        queryClient.fetchQuery({
+          queryKey: queryKeys.municipality.weakness(),
+          queryFn: () => getMunicipalityWeakness(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard.all,
+        }),
+      ]);
+
+      const latestClearedCodesSet = new Set(clearedRes);
+      const latestWeaknessMap = new Map<string, MunicipalityWeakness>(
+        weaknessRes.map((w) => [
+          w.municipalityCode,
+          { municipalityCode: w.municipalityCode, errorRate: w.errorRate },
+        ]),
+      );
+
+      const qs = buildQuestions(
+        allMunicipalities,
+        settings,
+        latestWeaknessMap,
+        latestClearedCodesSet,
+        identityCodeMap,
+      );
+      if (qs.length === 0) return;
+      setQuestions(qs);
+      setResults([]);
+      setPhase('playing');
+    } catch (err) {
+      console.error('Failed to refetch mastery data for replay:', err);
+      setReplayError('最新データの取得に失敗しました。再試行してください。');
+    } finally {
+      setIsReplaying(false);
+    }
+  }, [allMunicipalities, settings, identityCodeMap, modeFromUrl, queryClient, isReplaying]);
 
   // ── Auto-start when coming from recommend ──
   const autoStarted = useRef(false);
   useEffect(() => {
-    if (!isRecommendSource || autoStarted.current || masterLoading || allMunicipalities.length === 0 || phase !== 'setup') return;
+    if (
+      !isRecommendSource ||
+      autoStarted.current ||
+      masterLoading ||
+      allMunicipalities.length === 0 ||
+      phase !== 'setup'
+    ) {
+      return;
+    }
     if (!isModeAvailable(modeFromUrl, settings.regions)) return;
-    const weaknessMap = new Map<string, number>(weaknessData.map((w) => [w.municipalityCode, w.errorRate]));
-    const qs = buildQuestions(allMunicipalities, settings, weaknessMap);
+
+    // Recommend sessions bypass unclearedFirst
+    const recommendSettings = { ...settings, unclearedFirst: false };
+    const qs = buildQuestions(
+      allMunicipalities,
+      recommendSettings,
+      weaknessMap,
+      clearedCodesSet,
+      identityCodeMap,
+    );
     if (qs.length === 0) return;
     autoStarted.current = true;
     setQuestions(qs);
     setResults([]);
     setPhase('playing');
-  }, [isRecommendSource, masterLoading, allMunicipalities]);
-
-  const effectivePoolSize = useMemo(() => {
-    if (allMunicipalities.length === 0) return 0;
-    const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
-    const source = isTextMode ? filterTextModeMunicipalities(allMunicipalities) : allMunicipalities;
-    const filtered = filterByDifficulty(
-      filterByRegions(source, settings.regions),
-      settings.difficulties,
-    );
-    if (settings.mode === 'A') return new Set(filtered.map((m) => m.name)).size;
-    return filtered.length;
-  }, [allMunicipalities, settings.regions, settings.difficulties, settings.mode]);
+  }, [
+    isRecommendSource,
+    masterLoading,
+    allMunicipalities,
+    modeFromUrl,
+    settings,
+    weaknessMap,
+    clearedCodesSet,
+    identityCodeMap,
+    phase,
+  ]);
 
   const modeAvailable = isModeAvailable(modeFromUrl, settings.regions);
+
+  const isClearedQueryLoading = settings.unclearedFirst && (clearedLoading || clearedFetching);
+  const isClearedQueryError = settings.unclearedFirst && clearedError;
+  const isWeaknessQueryLoading = settings.weaknessFirst && (weaknessLoading || weaknessFetching);
+  const isWeaknessQueryError = settings.weaknessFirst && weaknessError;
+
+  const isAnyRequiredQueryLoading =
+    masterLoading || allMunicipalities.length === 0 || isClearedQueryLoading || isWeaknessQueryLoading;
+  const isAnyRequiredQueryError = isClearedQueryError || isWeaknessQueryError;
+
   const canStart =
-    !masterLoading &&
+    !isAnyRequiredQueryLoading &&
+    !isAnyRequiredQueryError &&
     allMunicipalities.length > 0 &&
     settings.difficulties.length > 0 &&
     effectivePoolSize > 0 &&
     modeAvailable;
-  const startLabel = masterLoading || allMunicipalities.length === 0
-    ? 'データ読み込み中...'
-    : !modeAvailable
-      ? '地域を追加してください'
-      : settings.difficulties.length === 0
-        ? '難易度を選択してください'
-        : effectivePoolSize === 0
-          ? '該当する市区町村なし — 地域か難易度を変更してください'
-          : 'スタート';
+
+  const startLabel = getStartLabel({
+    isLoading: isAnyRequiredQueryLoading,
+    isBlocked: isAnyRequiredQueryError,
+    modeAvailable,
+    hasDifficulties: settings.difficulties.length > 0,
+    poolSize: effectivePoolSize,
+  });
 
   // ─── Render: Setup ──────────────────────────────────────────────
 
@@ -349,15 +545,48 @@ export default function MunicipalityQuizPage() {
           </div>
         </div>
 
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={settings.weaknessFirst}
-            onChange={(e) => setSettings((s) => ({ ...s, weaknessFirst: e.target.checked }))}
-            className="w-4 h-4"
-          />
-          <span className="text-sm">苦手優先モード</span>
-        </label>
+        {/* 制覇進捗表示 */}
+        <QuizPoolProgress
+          stats={poolStats}
+          isLoading={clearedLoading}
+          isError={clearedError}
+          onRetry={() => void refetchCleared()}
+        />
+
+        <div className="flex flex-col gap-2.5 pt-1">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.unclearedFirst}
+              onChange={(e) => setSettings((s) => ({ ...s, unclearedFirst: e.target.checked }))}
+              className="w-4 h-4"
+            />
+            <span className="text-sm">未クリア優先出題</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.weaknessFirst}
+              onChange={(e) => setSettings((s) => ({ ...s, weaknessFirst: e.target.checked }))}
+              className="w-4 h-4"
+            />
+            <span className="text-sm">苦手優先モード</span>
+          </label>
+        </div>
+
+        {weaknessError && settings.weaknessFirst && (
+          <p className="text-xs text-destructive">
+            苦手データの読み込みに失敗しました。
+            <button
+              type="button"
+              onClick={() => void refetchWeakness()}
+              className="underline font-medium ml-1"
+            >
+              再試行
+            </button>
+          </p>
+        )}
 
         <Button onClick={handleStart} disabled={!canStart} className="w-full">
           {startLabel}
@@ -379,29 +608,41 @@ export default function MunicipalityQuizPage() {
       .filter((r) => !r.correct)
       .map((r) => ({ name: r.name, detail: r.prefecture }));
 
-    const actions = isRecommendSource ? (
+    const actions = (
       <>
-        <RecommendReplayButton />
-        <Button onClick={handleStart} variant="outline" className="w-full">
-          同じ設定でもう一度
-        </Button>
-        <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
-          設定に戻る
-        </Button>
-      </>
-    ) : (
-      <>
-        <Button onClick={handleStart} className="w-full">
-          もう一度
-        </Button>
-        <Link href="/?recommend=open">
-          <Button className="w-full" variant="outline">
-            ✨ 今日のおすすめクイズを試す
-          </Button>
-        </Link>
-        <Button onClick={() => setPhase('setup')} variant="outline" className="w-full">
-          設定に戻る
-        </Button>
+        {replayError && (
+          <p className="text-xs text-destructive text-center mb-1">{replayError}</p>
+        )}
+        {isRecommendSource ? (
+          <>
+            <RecommendReplayButton />
+            <Button
+              onClick={handleReplay}
+              disabled={isReplaying}
+              variant="outline"
+              className="w-full"
+            >
+              {isReplaying ? '読み込み中...' : '同じ設定でもう一度'}
+            </Button>
+            <Button onClick={handleExitToSetup} variant="outline" className="w-full">
+              設定に戻る
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button onClick={handleReplay} disabled={isReplaying} className="w-full">
+              {isReplaying ? '読み込み中...' : 'もう一度'}
+            </Button>
+            <Link href="/?recommend=open">
+              <Button className="w-full" variant="outline">
+                ✨ 今日のおすすめクイズを試す
+              </Button>
+            </Link>
+            <Button onClick={handleExitToSetup} variant="outline" className="w-full">
+              設定に戻る
+            </Button>
+          </>
+        )}
       </>
     );
 
@@ -426,11 +667,19 @@ export default function MunicipalityQuizPage() {
     <QuizRunner
       questions={questions}
       allMunicipalities={allMunicipalities}
-      onAbort={() => setPhase('setup')}
+      onAbort={handleExitToSetup}
       onComplete={(completedResults) => {
         setResults(completedResults);
         setPhase('result');
-        void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.municipality.weakness(),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard.all,
+        });
       }}
     />
   );
