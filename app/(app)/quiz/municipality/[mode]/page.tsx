@@ -15,7 +15,7 @@ import {
 } from '@/app/(app)/quiz/municipality/actions';
 import { queryKeys } from '@/lib/query-keys';
 import { RecommendReplayButton } from '@/components/recommend/recommend-replay-button';
-import { buildRecommendAutoStartQuestions } from '@/lib/quiz/recommend-auto-start';
+import { buildRecommendAutoStartQuestions, isQueryResultReady } from '@/lib/quiz/recommend-auto-start';
 import {
   buildMunicipalityQuestions,
   type MunicipalityQuizSettings,
@@ -125,16 +125,14 @@ export default function MunicipalityQuizPage() {
 
   const {
     data: weaknessData = [],
-    isLoading: weaknessLoading,
-    isFetching: weaknessFetching,
+    isSuccess: weaknessSuccess,
     isError: weaknessError,
     refetch: refetchWeakness,
   } = useMunicipalityWeakness();
 
   const {
     data: clearedCodesData = [],
-    isLoading: clearedLoading,
-    isFetching: clearedFetching,
+    isSuccess: clearedSuccess,
     isError: clearedError,
     refetch: refetchCleared,
   } = useMunicipalityClearedCodes(modeFromUrl);
@@ -294,9 +292,9 @@ export default function MunicipalityQuizPage() {
       masterReady: !masterLoading && allMunicipalities.length > 0,
       modeAvailable: isModeAvailable(modeFromUrl, settings.regions),
       unclearedFirst: settings.unclearedFirst,
-      clearedQuerySettledOk: !clearedLoading && !clearedFetching && !clearedError,
+      clearedQuerySettledOk: isQueryResultReady({ isSuccess: clearedSuccess }),
       weaknessFirst: settings.weaknessFirst,
-      weaknessQuerySettledOk: !weaknessLoading && !weaknessFetching && !weaknessError,
+      weaknessQuerySettledOk: isQueryResultReady({ isSuccess: weaknessSuccess }),
       allMunicipalities,
       settings,
       weaknessMap,
@@ -318,19 +316,15 @@ export default function MunicipalityQuizPage() {
     clearedCodesSet,
     identityCodeMap,
     phase,
-    clearedLoading,
-    clearedFetching,
-    clearedError,
-    weaknessLoading,
-    weaknessFetching,
-    weaknessError,
+    clearedSuccess,
+    weaknessSuccess,
   ]);
 
   const modeAvailable = isModeAvailable(modeFromUrl, settings.regions);
 
-  const isClearedQueryLoading = settings.unclearedFirst && (clearedLoading || clearedFetching);
+  const isClearedQueryLoading = settings.unclearedFirst && !clearedSuccess && !clearedError;
   const isClearedQueryError = settings.unclearedFirst && clearedError;
-  const isWeaknessQueryLoading = settings.weaknessFirst && (weaknessLoading || weaknessFetching);
+  const isWeaknessQueryLoading = settings.weaknessFirst && !weaknessSuccess && !weaknessError;
   const isWeaknessQueryError = settings.weaknessFirst && weaknessError;
 
   const isAnyRequiredQueryLoading =
@@ -455,7 +449,7 @@ export default function MunicipalityQuizPage() {
         {/* 制覇進捗表示 */}
         <QuizPoolProgress
           stats={poolStats}
-          isLoading={clearedLoading}
+          isLoading={!clearedSuccess && !clearedError}
           isError={clearedError}
           onRetry={() => void refetchCleared()}
         />

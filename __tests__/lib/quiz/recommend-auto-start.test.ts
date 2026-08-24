@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Municipality } from '@/lib/quiz/municipality-data';
 import {
   buildRecommendAutoStartQuestions,
+  isQueryResultReady,
   isRecommendAutoStartReady,
   type RecommendAutoStartInput,
 } from '@/lib/quiz/recommend-auto-start';
@@ -65,6 +66,25 @@ describe('isRecommendAutoStartReady', () => {
   });
 });
 
+describe('isQueryResultReady', () => {
+  it('does not treat a paused pending query as ready', () => {
+    const pausedPending = {
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: false,
+    };
+    const legacySettled =
+      !pausedPending.isLoading && !pausedPending.isFetching && !pausedPending.isError;
+    expect(legacySettled).toBe(true);
+    expect(isQueryResultReady(pausedPending)).toBe(false);
+  });
+
+  it('treats a successful query as ready even when data is an empty list', () => {
+    expect(isQueryResultReady({ isSuccess: true })).toBe(true);
+  });
+});
+
 describe('buildRecommendAutoStartQuestions', () => {
   const cleared = Array.from({ length: 10 }, (_, i) =>
     muni(`c${String(i).padStart(2, '0')}`, `市${i}`),
@@ -121,6 +141,7 @@ describe('municipality quiz page recommend wiring', () => {
       'utf8',
     );
     expect(src).toContain('buildRecommendAutoStartQuestions');
+    expect(src).toContain('isQueryResultReady');
     expect(src).not.toMatch(/unclearedFirst:\s*false/);
   });
 });

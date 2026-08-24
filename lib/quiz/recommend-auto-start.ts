@@ -6,6 +6,18 @@ import {
 } from '@/lib/quiz/municipality-questions';
 import type { IdentityCodeMap, MunicipalityWeakness } from '@/lib/quiz/sampling';
 
+/**
+ * TanStack Query v5 では未キャッシュかつ offline だと
+ * status: pending / fetchStatus: paused になり、
+ * isLoading・isFetching・isError がすべて false のまま成功扱いにならない。
+ * 出題サンプリングは isSuccess だけを成功とみなす。
+ */
+export function isQueryResultReady(query: {
+  isSuccess: boolean;
+}): boolean {
+  return query.isSuccess;
+}
+
 export type QuizPhase = 'setup' | 'playing' | 'result';
 
 export interface RecommendAutoStartInput {
