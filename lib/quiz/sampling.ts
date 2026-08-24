@@ -117,7 +117,9 @@ export function computePoolStats(
     }
   }
 
-  const percentage = Math.round((clearedCount / totalCount) * 100);
+  const rawPercentage = Math.round((clearedCount / totalCount) * 100);
+  const percentage =
+    clearedCount === totalCount ? 100 : Math.min(99, rawPercentage);
   return { totalCount, clearedCount, percentage };
 }
 

@@ -47,7 +47,7 @@ export function QuizPoolProgress({
   if (isError) return <ProgressError onRetry={onRetry} />;
   if (stats.totalCount === 0) return null;
 
-  const isCompleted = stats.percentage === 100 && stats.totalCount > 0;
+  const isCompleted = stats.totalCount > 0 && stats.clearedCount === stats.totalCount;
 
   return (
     <div className="flex flex-col gap-1.5 p-2.5 rounded-lg bg-card border border-border">

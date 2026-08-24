@@ -64,6 +64,24 @@ describe('sampleMunicipalityPool & computePoolStats (Pure Quiz Sampler)', () => 
       expect(stats.clearedCount).toBe(1);
       expect(stats.percentage).toBe(50);
     });
+
+    it('caps percentage at 99% when incomplete even if raw rounded percentage reaches 100', () => {
+      // 200 items out of 201 cleared => 200/201 = 0.99502... (Math.round gives 100)
+      const dummyPool = Array.from({ length: 201 }, (_, i) => ({
+        code: `code_${i}`,
+        name: `City_${i}`,
+        prefecture: '神奈川県',
+        region: 'kanto',
+        difficulty: 'easy' as const,
+      }));
+      const clearedCodes = new Set(Array.from({ length: 200 }, (_, i) => `code_${i}`));
+      const dummyMap = buildIdentityCodeMap(dummyPool);
+
+      const stats = computePoolStats(dummyPool, 'mode_b', clearedCodes, dummyMap);
+      expect(stats.totalCount).toBe(201);
+      expect(stats.clearedCount).toBe(200);
+      expect(stats.percentage).toBe(99);
+    });
   });
 
   describe('sampleMunicipalityPool - unclearedFirst behavior', () => {
