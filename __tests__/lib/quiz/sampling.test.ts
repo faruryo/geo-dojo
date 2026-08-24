@@ -135,6 +135,21 @@ describe('sampleMunicipalityPool & computePoolStats (Pure Quiz Sampler)', () => 
       // 静岡市 is recognized as cleared via 02002, so uncleared itemC (横浜市) is chosen
       expect(sampled[0].code).toBe('03001');
     });
+
+    it('deduplicates sibling wards of designated cities to a single identity before sampling count', () => {
+      // Pool contains both 静岡市葵区 and 静岡市駿河区, plus 横浜市, 川崎市
+      const poolWithWards = [itemB1, itemB2, itemC, itemD];
+      const sampled = sampleMunicipalityPool(poolWithWards, {
+        count: 3,
+        mode: 'mode_b',
+        unclearedFirst: false,
+      });
+
+      // Sampled should contain 3 distinct question identities (静岡市, 横浜市, 川崎市)
+      expect(sampled).toHaveLength(3);
+      const names = sampled.map((i) => i.name.replace(/葵区|駿河区/, ''));
+      expect(new Set(names).size).toBe(3);
+    });
   });
 
   describe('sampleMunicipalityPool - deterministic RNG injection', () => {

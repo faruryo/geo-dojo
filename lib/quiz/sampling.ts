@@ -246,6 +246,22 @@ function sampleGroup(
   return shuffleArray(items, random).slice(0, count);
 }
 
+function deduplicatePoolByIdentity(
+  pool: readonly Municipality[],
+  mode: SamplingMode | GameMode,
+): Municipality[] {
+  const seen = new Set<string>();
+  const deduped: Municipality[] = [];
+  for (const item of pool) {
+    const key = getIdentityKey(item, mode);
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(item);
+    }
+  }
+  return deduped;
+}
+
 /**
  * Pure function to sample municipality items according to priority options.
  */
@@ -262,12 +278,14 @@ export function sampleMunicipalityPool(
     random = Math.random,
   } = options;
 
+  const uniquePool = deduplicatePoolByIdentity(pool, mode);
+
   // If unclearedFirst is enabled and clearedCodes are provided
   if (unclearedFirst && clearedCodes.size > 0 && identityCodeMap) {
     const uncleared: Municipality[] = [];
     const cleared: Municipality[] = [];
 
-    for (const item of pool) {
+    for (const item of uniquePool) {
       const identityKey = getIdentityKey(item, mode);
       if (isIdentityCleared(identityKey, mode, clearedCodes, identityCodeMap)) {
         cleared.push(item);
@@ -286,11 +304,11 @@ export function sampleMunicipalityPool(
     return [...selectedUncleared, ...selectedCleared];
   }
 
-  if (pool.length <= count) {
-    return shuffleArray(pool, random);
+  if (uniquePool.length <= count) {
+    return shuffleArray(uniquePool, random);
   }
 
-  return sampleGroup(pool, count, options);
+  return sampleGroup(uniquePool, count, options);
 }
 
 export interface BuildQuestionsOptions extends SamplePoolOptions {

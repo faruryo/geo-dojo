@@ -11,6 +11,7 @@ import {
   type ModeAQuestion,
   type SingleQuestion,
 } from './use-quiz-session';
+import { usePopstateGuard } from '@/lib/hooks/usePopstateGuard';
 import { QuizHeader } from './quiz-header';
 import { QuizQuestionCard } from './quiz-question-card';
 import { ModeAView } from './views/mode-a-view';
@@ -55,6 +56,10 @@ export function QuizRunner({
     await abort();
     onAbort();
   }, [abort, onAbort]);
+
+  usePopstateGuard(true, () => {
+    void handleAbort();
+  });
 
   if (!currentQuestion) return null;
 

@@ -9,7 +9,10 @@ import { Button } from '@/components/ui/button';
 import { useMunicipalityWeakness } from '@/lib/hooks/useMunicipalityWeakness';
 import { useMunicipalityMaster } from '@/lib/hooks/useMunicipalityMaster';
 import { useMunicipalityClearedCodes } from '@/lib/hooks/useMunicipalityClearedCodes';
-import { usePopstateGuard } from '@/lib/hooks/usePopstateGuard';
+import {
+  getClearedMunicipalityCodes,
+  getMunicipalityWeakness,
+} from '@/app/(app)/quiz/municipality/actions';
 import { queryKeys } from '@/lib/query-keys';
 import { RecommendReplayButton } from '@/components/recommend/recommend-replay-button';
 import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
@@ -296,11 +299,6 @@ export default function MunicipalityQuizPage() {
     });
   }, [modeFromUrl, queryClient]);
 
-  // ── Back-button interception during play ──
-  usePopstateGuard(phase === 'playing', () => {
-    void handleExitToSetup();
-  });
-
   // ── Pool and stats calculation ──
   const filteredPool = useMemo(() => {
     if (allMunicipalities.length === 0) return [];
@@ -336,19 +334,37 @@ export default function MunicipalityQuizPage() {
 
   // ── Replay with cache synchronization ──
   const handleReplay = useCallback(async () => {
-    await Promise.allSettled([
-      queryClient.invalidateQueries({
+    const [clearedRes, weaknessRes] = await Promise.all([
+      queryClient.fetchQuery({
         queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
+        queryFn: () => getClearedMunicipalityCodes(modeFromUrl),
       }),
-      queryClient.invalidateQueries({
+      queryClient.fetchQuery({
         queryKey: queryKeys.municipality.weakness(),
+        queryFn: () => getMunicipalityWeakness(),
       }),
       queryClient.invalidateQueries({
         queryKey: queryKeys.dashboard.all,
       }),
     ]);
-    handleStart();
-  }, [modeFromUrl, queryClient, handleStart]);
+
+    const latestClearedCodesSet = new Set(clearedRes);
+    const latestWeaknessMap = new Map<string, MunicipalityWeakness>(
+      weaknessRes.map((w) => [w.municipalityCode, { municipalityCode: w.municipalityCode, errorRate: w.errorRate }])
+    );
+
+    const qs = buildQuestions(
+      allMunicipalities,
+      settings,
+      latestWeaknessMap,
+      latestClearedCodesSet,
+      identityCodeMap,
+    );
+    if (qs.length === 0) return;
+    setQuestions(qs);
+    setResults([]);
+    setPhase('playing');
+  }, [allMunicipalities, settings, identityCodeMap, modeFromUrl, queryClient]);
 
   // ── Auto-start when coming from recommend ──
   const autoStarted = useRef(false);
