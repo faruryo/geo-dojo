@@ -81,7 +81,11 @@ describe('isQueryResultReady', () => {
   });
 
   it('treats a successful query as ready even when data is an empty list', () => {
-    expect(isQueryResultReady({ isSuccess: true })).toBe(true);
+    expect(isQueryResultReady({ isSuccess: true, isFetching: false })).toBe(true);
+  });
+
+  it('does not treat a background refetch of cached success as ready', () => {
+    expect(isQueryResultReady({ isSuccess: true, isFetching: true })).toBe(false);
   });
 });
 

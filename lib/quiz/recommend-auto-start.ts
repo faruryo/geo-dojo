@@ -10,12 +10,15 @@ import type { IdentityCodeMap, MunicipalityWeakness } from '@/lib/quiz/sampling'
  * TanStack Query v5 では未キャッシュかつ offline だと
  * status: pending / fetchStatus: paused になり、
  * isLoading・isFetching・isError がすべて false のまま成功扱いにならない。
- * 出題サンプリングは isSuccess だけを成功とみなす。
+ * 出題サンプリングは isSuccess かつ未フェッチであることを成功とみなす。
+ * キャッシュ成功のまま background refetch 中だと isSuccess が true のまま
+ * 古い clearedCodes で自動開始してしまうため、isFetching 中は待たせる。
  */
 export function isQueryResultReady(query: {
   isSuccess: boolean;
+  isFetching: boolean;
 }): boolean {
-  return query.isSuccess;
+  return query.isSuccess && !query.isFetching;
 }
 
 export type QuizPhase = 'setup' | 'playing' | 'result';
