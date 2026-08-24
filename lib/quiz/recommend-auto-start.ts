@@ -1,3 +1,11 @@
+import type { Question } from '@/components/quiz/use-quiz-session';
+import type { Municipality } from '@/lib/quiz/municipality-data';
+import {
+  buildMunicipalityQuestions,
+  type MunicipalityQuizSettings,
+} from '@/lib/quiz/municipality-questions';
+import type { IdentityCodeMap, MunicipalityWeakness } from '@/lib/quiz/sampling';
+
 export type QuizPhase = 'setup' | 'playing' | 'result';
 
 export interface RecommendAutoStartInput {
@@ -25,4 +33,30 @@ export function isRecommendAutoStartReady(input: RecommendAutoStartInput): boole
   if (input.unclearedFirst && !input.clearedQuerySettledOk) return false;
   if (input.weaknessFirst && !input.weaknessQuerySettledOk) return false;
   return true;
+}
+
+export interface RecommendAutoStartQuestionsInput extends RecommendAutoStartInput {
+  allMunicipalities: readonly Municipality[];
+  settings: MunicipalityQuizSettings;
+  weaknessMap: Map<string, MunicipalityWeakness>;
+  clearedCodes: Set<string>;
+  identityCodeMap: IdentityCodeMap;
+  random?: () => number;
+}
+
+/**
+ * 推薦自動開始の出題。settings を上書きせず、手動スタートと同じサンプリングを使う。
+ */
+export function buildRecommendAutoStartQuestions(
+  input: RecommendAutoStartQuestionsInput,
+): Question[] {
+  if (!isRecommendAutoStartReady(input)) return [];
+  return buildMunicipalityQuestions(
+    [...input.allMunicipalities],
+    input.settings,
+    input.weaknessMap,
+    input.clearedCodes,
+    input.identityCodeMap,
+    input.random,
+  );
 }

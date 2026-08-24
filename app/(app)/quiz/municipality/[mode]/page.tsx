@@ -15,7 +15,11 @@ import {
 } from '@/app/(app)/quiz/municipality/actions';
 import { queryKeys } from '@/lib/query-keys';
 import { RecommendReplayButton } from '@/components/recommend/recommend-replay-button';
-import { isRecommendAutoStartReady } from '@/lib/quiz/recommend-auto-start';
+import { buildRecommendAutoStartQuestions } from '@/lib/quiz/recommend-auto-start';
+import {
+  buildMunicipalityQuestions,
+  type MunicipalityQuizSettings,
+} from '@/lib/quiz/municipality-questions';
 import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
 import { SessionCountSelector } from '@/components/quiz/session-count-selector';
@@ -26,8 +30,6 @@ import { LAST_SELECTED_MODE_KEY, parseGameMode } from '@/lib/quiz/last-selected-
 import {
   buildIdentityCodeMap,
   computePoolStats,
-  sampleMunicipalityPool,
-  type IdentityCodeMap,
   type MunicipalityWeakness,
 } from '@/lib/quiz/sampling';
 import {
@@ -35,31 +37,17 @@ import {
   type GameMode,
   type Municipality,
   type Region,
-  type SessionCount,
   DIFFICULTIES,
   DIFFICULTY_LABEL,
   REGIONS,
   SESSION_COUNTS,
-  ALL_PREFECTURES,
-  buildModeCDistractors,
   filterByDifficulty,
   filterByRegions,
   filterTextModeMunicipalities,
-  getRegionsPrefectures,
   isModeAvailable,
-  shuffle,
 } from '@/lib/quiz/municipality-data';
 
-// ─── Types ─────────────────────────────────────────────────────────
-
-interface Settings {
-  mode: GameMode;
-  regions: Region[];
-  count: SessionCount;
-  unclearedFirst: boolean;
-  weaknessFirst: boolean;
-  difficulties: Difficulty[];
-}
+type Settings = MunicipalityQuizSettings;
 
 interface ResultEntry {
   name: string;
@@ -68,90 +56,6 @@ interface ResultEntry {
 }
 
 type Phase = 'setup' | 'playing' | 'result';
-
-// ─── Question builder ───────────────────────────────────────────────
-
-function buildModeAQuestions(
-  pool: Municipality[],
-  all: Municipality[],
-  count: number,
-): Question[] {
-  const seen = new Set<string>();
-  const questions: Question[] = [];
-  for (const m of pool) {
-    if (questions.length >= count) break;
-    if (seen.has(m.name)) continue;
-    seen.add(m.name);
-    const instances = all.filter((a) => a.name === m.name);
-    questions.push({
-      kind: 'A',
-      name: m.name,
-      instances,
-      correctPrefectures: new Set(instances.map((i) => i.prefecture)),
-    });
-  }
-  return questions;
-}
-
-function buildBCDQuestions(
-  pool: Municipality[],
-  source: Municipality[],
-  settings: Settings,
-): Question[] {
-  const seen = new Set<string>();
-  const deduped = pool.filter((m) => {
-    const key = `${m.name}::${m.prefecture}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  const sliced = deduped.slice(0, settings.count);
-  const regionPrefs = getRegionsPrefectures(settings.regions);
-
-  return sliced.map((m): Question => {
-    if (settings.mode === 'B') {
-      const prefPool = regionPrefs.length >= 4 ? regionPrefs : ALL_PREFECTURES;
-      const distractors = shuffle(prefPool.filter((p) => p !== m.prefecture)).slice(0, 3);
-      const choices = shuffle([m.prefecture, ...distractors]);
-      return { kind: 'BCD', mode: 'B', municipality: m, choices };
-    }
-    const distractors = buildModeCDistractors(m, source, {
-      regionPrefs,
-      targetDifficulties: settings.difficulties,
-    });
-    const choices = shuffle([m.name, ...distractors]);
-    return { kind: 'BCD', mode: settings.mode as 'C' | 'D', municipality: m, choices };
-  });
-}
-
-function buildQuestions(
-  all: Municipality[],
-  settings: Settings,
-  weaknessMap: Map<string, MunicipalityWeakness>,
-  clearedCodes: Set<string>,
-  identityCodeMap: IdentityCodeMap,
-): Question[] {
-  const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
-  const source = isTextMode ? filterTextModeMunicipalities(all) : all;
-  const byRegion = filterByRegions(source, settings.regions);
-  const filtered = filterByDifficulty(byRegion, settings.difficulties);
-
-  const sampledItems = sampleMunicipalityPool(filtered, {
-    count: settings.count,
-    mode: settings.mode,
-    unclearedFirst: settings.unclearedFirst,
-    weaknessFirst: settings.weaknessFirst,
-    clearedCodes,
-    weaknessMap,
-    identityCodeMap,
-  });
-
-  if (settings.mode === 'A') {
-    return buildModeAQuestions(sampledItems, all, settings.count);
-  }
-
-  return buildBCDQuestions(sampledItems, source, settings);
-}
 
 const VALID_MODES = ['A', 'B', 'C', 'D'] as const;
 const MODE_LABEL: Record<GameMode, string> = {
@@ -317,7 +221,7 @@ export default function MunicipalityQuizPage() {
 
   // ── Start ──
   const handleStart = useCallback(() => {
-    const qs = buildQuestions(
+    const qs = buildMunicipalityQuestions(
       allMunicipalities,
       settings,
       weaknessMap,
@@ -361,7 +265,7 @@ export default function MunicipalityQuizPage() {
         ]),
       );
 
-      const qs = buildQuestions(
+      const qs = buildMunicipalityQuestions(
         allMunicipalities,
         settings,
         latestWeaknessMap,
@@ -383,29 +287,22 @@ export default function MunicipalityQuizPage() {
   // ── Auto-start when coming from recommend ──
   const autoStarted = useRef(false);
   useEffect(() => {
-    if (
-      !isRecommendAutoStartReady({
-        isRecommendSource,
-        alreadyStarted: autoStarted.current,
-        phase,
-        masterReady: !masterLoading && allMunicipalities.length > 0,
-        modeAvailable: isModeAvailable(modeFromUrl, settings.regions),
-        unclearedFirst: settings.unclearedFirst,
-        clearedQuerySettledOk: !clearedLoading && !clearedFetching && !clearedError,
-        weaknessFirst: settings.weaknessFirst,
-        weaknessQuerySettledOk: !weaknessLoading && !weaknessFetching && !weaknessError,
-      })
-    ) {
-      return;
-    }
-
-    const qs = buildQuestions(
+    const qs = buildRecommendAutoStartQuestions({
+      isRecommendSource,
+      alreadyStarted: autoStarted.current,
+      phase,
+      masterReady: !masterLoading && allMunicipalities.length > 0,
+      modeAvailable: isModeAvailable(modeFromUrl, settings.regions),
+      unclearedFirst: settings.unclearedFirst,
+      clearedQuerySettledOk: !clearedLoading && !clearedFetching && !clearedError,
+      weaknessFirst: settings.weaknessFirst,
+      weaknessQuerySettledOk: !weaknessLoading && !weaknessFetching && !weaknessError,
       allMunicipalities,
       settings,
       weaknessMap,
-      clearedCodesSet,
+      clearedCodes: clearedCodesSet,
       identityCodeMap,
-    );
+    });
     if (qs.length === 0) return;
     autoStarted.current = true;
     setQuestions(qs);

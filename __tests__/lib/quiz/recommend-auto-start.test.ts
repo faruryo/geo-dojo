@@ -1,5 +1,13 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { isRecommendAutoStartReady, type RecommendAutoStartInput } from '@/lib/quiz/recommend-auto-start';
+import type { Municipality } from '@/lib/quiz/municipality-data';
+import {
+  buildRecommendAutoStartQuestions,
+  isRecommendAutoStartReady,
+  type RecommendAutoStartInput,
+} from '@/lib/quiz/recommend-auto-start';
+import { buildIdentityCodeMap } from '@/lib/quiz/sampling';
+import type { MunicipalityQuizSettings } from '@/lib/quiz/municipality-questions';
 
 function ready(overrides: Partial<RecommendAutoStartInput> = {}): RecommendAutoStartInput {
   return {
@@ -13,6 +21,16 @@ function ready(overrides: Partial<RecommendAutoStartInput> = {}): RecommendAutoS
     weaknessFirst: false,
     weaknessQuerySettledOk: true,
     ...overrides,
+  };
+}
+
+function muni(code: string, name: string): Municipality {
+  return {
+    code,
+    name,
+    prefecture: '神奈川県',
+    region: '関東',
+    difficulty: 'easy',
   };
 }
 
@@ -44,5 +62,65 @@ describe('isRecommendAutoStartReady', () => {
         ready({ weaknessFirst: false, weaknessQuerySettledOk: false }),
       ),
     ).toBe(true);
+  });
+});
+
+describe('buildRecommendAutoStartQuestions', () => {
+  const cleared = Array.from({ length: 10 }, (_, i) =>
+    muni(`c${String(i).padStart(2, '0')}`, `市${i}`),
+  );
+  const uncleared = muni('u01', '未クリア市');
+  const allMunicipalities = [...cleared, uncleared];
+  const identityCodeMap = buildIdentityCodeMap(allMunicipalities);
+  const settings: MunicipalityQuizSettings = {
+    mode: 'B',
+    regions: ['関東'],
+    count: 10,
+    unclearedFirst: true,
+    weaknessFirst: false,
+    difficulties: ['easy'],
+  };
+
+  function bcdCodes(questions: ReturnType<typeof buildRecommendAutoStartQuestions>): string[] {
+    return questions.flatMap((q) => (q.kind === 'BCD' ? [q.municipality.code] : []));
+  }
+
+  it('includes remaining uncleared municipalities when recommend auto-start has loaded cleared codes', () => {
+    const questions = buildRecommendAutoStartQuestions({
+      ...ready(),
+      allMunicipalities,
+      settings,
+      weaknessMap: new Map(),
+      clearedCodes: new Set(cleared.map((item) => item.code)),
+      identityCodeMap,
+      random: () => 0,
+    });
+
+    expect(bcdCodes(questions)).toContain('u01');
+  });
+
+  it('excludes the last uncleared municipality if unclearedFirst is forced off (the pre-fix recommend bypass)', () => {
+    const questions = buildRecommendAutoStartQuestions({
+      ...ready(),
+      allMunicipalities,
+      settings: { ...settings, unclearedFirst: false },
+      weaknessMap: new Map(),
+      clearedCodes: new Set(cleared.map((item) => item.code)),
+      identityCodeMap,
+      random: () => 0,
+    });
+
+    expect(bcdCodes(questions)).not.toContain('u01');
+  });
+});
+
+describe('municipality quiz page recommend wiring', () => {
+  it('starts recommend sessions through buildRecommendAutoStartQuestions without forcing unclearedFirst off', () => {
+    const src = readFileSync(
+      new URL('../../../app/(app)/quiz/municipality/[mode]/page.tsx', import.meta.url),
+      'utf8',
+    );
+    expect(src).toContain('buildRecommendAutoStartQuestions');
+    expect(src).not.toMatch(/unclearedFirst:\s*false/);
   });
 });
