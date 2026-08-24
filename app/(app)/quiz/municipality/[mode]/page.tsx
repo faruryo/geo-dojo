@@ -145,14 +145,11 @@ function buildQuestions(
     identityCodeMap,
   });
 
-  const sampledCodes = new Set(sampledItems.map((i) => i.code));
-  const pool = filtered.filter((m) => sampledCodes.has(m.code));
-
   if (settings.mode === 'A') {
-    return buildModeAQuestions(pool, all, settings.count);
+    return buildModeAQuestions(sampledItems, all, settings.count);
   }
 
-  return buildBCDQuestions(pool, source, settings);
+  return buildBCDQuestions(sampledItems, source, settings);
 }
 
 const VALID_MODES = ['A', 'B', 'C', 'D'] as const;
