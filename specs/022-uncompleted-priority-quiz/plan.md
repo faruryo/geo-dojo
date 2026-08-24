@@ -105,7 +105,7 @@ sequenceDiagram
   - チェックボックス: `未クリア優先モード`（初期値 ON）
   - **ローディング・再取得・エラーガード (Loading, Fetching & Error Guards)**:
     - `unclearedFirst: true` の場合は `clearedCodes` クエリの `isLoading || isFetching || isError`、`weaknessFirst: true` の場合は `weakness` クエリの `isLoading || isFetching || isError` をそれぞれ判定し、該当クエリが準備完了するまで手動スタートボタンを無効化（ローディング/再取得中は「データ読み込み中...」、エラー時は「データ取得に失敗しました」と表示しリトライ可能にする）。
-    - **推薦セッションのバイパス**: `source=recommend` による自動開始（auto-start）時は、推薦エンジンが意図した適正・苦手・探索バランスを維持するため `unclearedFirst` を適用せずバイパスする（推薦通りの問題セットをそのまま開始）。
+    - **推薦セッションでも未クリア優先を適用**: `source=recommend` の自動開始は、推薦エンジンが決めたモード・地域・難易度・問数のプールに対し、手動スタートと同じ `settings`（`unclearedFirst` 既定 ON）で `buildQuestions` する。推薦の `codes` 履歴は重複回避用であり、出題サンプリングを上書きしない。クリア済みコード（および `weaknessFirst` 時は苦手）クエリが成功するまで自動開始しない（空のクリア集合で「全問未クリア」と誤認しない）。
     - **クイズ実行層からの保留中保存公開と遅延タイマー破棄**:
       - `components/quiz/use-quiz-actions.ts` / `QuizRunner` から回答保存の非同期処理を追跡する `awaitPendingSaves(): Promise<void>` を公開。
       - 中断（abort）時はスケジュール済みのフィードバック遅延タイマー（`advanceTimer`）を確実に `clearTimeout` で破棄し、中断後に `onComplete` が発火して結果画面へ誤遷移することを抑止。
@@ -125,6 +125,8 @@ sequenceDiagram
   - `weaknessFirst` と `unclearedFirst` が両方有効なときの優先度テスト（出題単位の苦手集約検証含む）
   - Mode A の同名自治体集約時の選出テスト
   - 難易度を跨ぐ政令指定都市の区コード・同名自治体のクリア判定集約回帰テスト
+- `__tests__/lib/quiz/recommend-auto-start.test.ts`:
+  - `source=recommend` 自動開始が `unclearedFirst` ON 時にクリア済みクエリ成功を待つこと
 - `__tests__/server/cleared-codes.test.ts`:
   - Server Action のクエリ正当性・認証ガード・戻り値テスト
 - 回帰テスト:

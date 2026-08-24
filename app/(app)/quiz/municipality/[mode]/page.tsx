@@ -15,6 +15,7 @@ import {
 } from '@/app/(app)/quiz/municipality/actions';
 import { queryKeys } from '@/lib/query-keys';
 import { RecommendReplayButton } from '@/components/recommend/recommend-replay-button';
+import { isRecommendAutoStartReady } from '@/lib/quiz/recommend-auto-start';
 import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
 import { SessionCountSelector } from '@/components/quiz/session-count-selector';
@@ -383,21 +384,24 @@ export default function MunicipalityQuizPage() {
   const autoStarted = useRef(false);
   useEffect(() => {
     if (
-      !isRecommendSource ||
-      autoStarted.current ||
-      masterLoading ||
-      allMunicipalities.length === 0 ||
-      phase !== 'setup'
+      !isRecommendAutoStartReady({
+        isRecommendSource,
+        alreadyStarted: autoStarted.current,
+        phase,
+        masterReady: !masterLoading && allMunicipalities.length > 0,
+        modeAvailable: isModeAvailable(modeFromUrl, settings.regions),
+        unclearedFirst: settings.unclearedFirst,
+        clearedQuerySettledOk: !clearedLoading && !clearedFetching && !clearedError,
+        weaknessFirst: settings.weaknessFirst,
+        weaknessQuerySettledOk: !weaknessLoading && !weaknessFetching && !weaknessError,
+      })
     ) {
       return;
     }
-    if (!isModeAvailable(modeFromUrl, settings.regions)) return;
 
-    // Recommend sessions bypass unclearedFirst
-    const recommendSettings = { ...settings, unclearedFirst: false };
     const qs = buildQuestions(
       allMunicipalities,
-      recommendSettings,
+      settings,
       weaknessMap,
       clearedCodesSet,
       identityCodeMap,
@@ -417,6 +421,12 @@ export default function MunicipalityQuizPage() {
     clearedCodesSet,
     identityCodeMap,
     phase,
+    clearedLoading,
+    clearedFetching,
+    clearedError,
+    weaknessLoading,
+    weaknessFetching,
+    weaknessError,
   ]);
 
   const modeAvailable = isModeAvailable(modeFromUrl, settings.regions);
