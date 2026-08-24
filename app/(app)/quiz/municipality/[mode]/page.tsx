@@ -424,23 +424,26 @@ export default function MunicipalityQuizPage() {
 
   const modeAvailable = isModeAvailable(modeFromUrl, settings.regions);
 
-  const isClearedQueryBlocked =
-    settings.unclearedFirst && (clearedLoading || clearedFetching || clearedError);
-  const isWeaknessQueryBlocked =
-    settings.weaknessFirst && (weaknessLoading || weaknessFetching || weaknessError);
+  const isClearedQueryLoading = settings.unclearedFirst && (clearedLoading || clearedFetching);
+  const isClearedQueryError = settings.unclearedFirst && clearedError;
+  const isWeaknessQueryLoading = settings.weaknessFirst && (weaknessLoading || weaknessFetching);
+  const isWeaknessQueryError = settings.weaknessFirst && weaknessError;
+
+  const isAnyRequiredQueryLoading =
+    masterLoading || allMunicipalities.length === 0 || isClearedQueryLoading || isWeaknessQueryLoading;
+  const isAnyRequiredQueryError = isClearedQueryError || isWeaknessQueryError;
 
   const canStart =
-    !masterLoading &&
+    !isAnyRequiredQueryLoading &&
+    !isAnyRequiredQueryError &&
     allMunicipalities.length > 0 &&
     settings.difficulties.length > 0 &&
     effectivePoolSize > 0 &&
-    modeAvailable &&
-    !isClearedQueryBlocked &&
-    !isWeaknessQueryBlocked;
+    modeAvailable;
 
   const startLabel = getStartLabel({
-    isLoading: masterLoading || clearedLoading || clearedFetching,
-    isBlocked: isClearedQueryBlocked || isWeaknessQueryBlocked,
+    isLoading: isAnyRequiredQueryLoading,
+    isBlocked: isAnyRequiredQueryError,
     modeAvailable,
     hasDifficulties: settings.difficulties.length > 0,
     poolSize: effectivePoolSize,
