@@ -73,6 +73,7 @@ describe('isQueryResultReady', () => {
       isFetching: false,
       isError: false,
       isSuccess: false,
+      isPaused: true,
     };
     const legacySettled =
       !pausedPending.isLoading && !pausedPending.isFetching && !pausedPending.isError;
@@ -80,12 +81,16 @@ describe('isQueryResultReady', () => {
     expect(isQueryResultReady(pausedPending)).toBe(false);
   });
 
-  it('treats a successful query as ready even when data is an empty list', () => {
-    expect(isQueryResultReady({ isSuccess: true, isFetching: false })).toBe(true);
+  it('treats a successful idle query as ready even when data is an empty list', () => {
+    expect(isQueryResultReady({ isSuccess: true, isFetching: false, isPaused: false })).toBe(true);
   });
 
   it('does not treat a background refetch of cached success as ready', () => {
-    expect(isQueryResultReady({ isSuccess: true, isFetching: true })).toBe(false);
+    expect(isQueryResultReady({ isSuccess: true, isFetching: true, isPaused: false })).toBe(false);
+  });
+
+  it('does not treat a paused cached success as ready', () => {
+    expect(isQueryResultReady({ isSuccess: true, isFetching: false, isPaused: true })).toBe(false);
   });
 });
 

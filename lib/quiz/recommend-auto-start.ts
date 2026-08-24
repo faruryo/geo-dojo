@@ -11,14 +11,15 @@ import type { IdentityCodeMap, MunicipalityWeakness } from '@/lib/quiz/sampling'
  * status: pending / fetchStatus: paused になり、
  * isLoading・isFetching・isError がすべて false のまま成功扱いにならない。
  * 出題サンプリングは isSuccess かつ未フェッチであることを成功とみなす。
- * キャッシュ成功のまま background refetch 中だと isSuccess が true のまま
- * 古い clearedCodes で自動開始してしまうため、isFetching 中は待たせる。
+ * キャッシュ成功かつ offline だと isSuccess のまま fetchStatus が paused になり、
+ * 古い clearedCodes で自動開始してしまうため、isPaused 中も待たせる。
  */
 export function isQueryResultReady(query: {
   isSuccess: boolean;
   isFetching: boolean;
+  isPaused: boolean;
 }): boolean {
-  return query.isSuccess && !query.isFetching;
+  return query.isSuccess && !query.isFetching && !query.isPaused;
 }
 
 export type QuizPhase = 'setup' | 'playing' | 'result';
