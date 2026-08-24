@@ -332,39 +332,55 @@ export default function MunicipalityQuizPage() {
     setPhase('playing');
   }, [allMunicipalities, settings, weaknessMap, clearedCodesSet, identityCodeMap]);
 
+  const [isReplaying, setIsReplaying] = useState(false);
+  const [replayError, setReplayError] = useState<string | null>(null);
+
   // ── Replay with cache synchronization ──
   const handleReplay = useCallback(async () => {
-    const [clearedRes, weaknessRes] = await Promise.all([
-      queryClient.fetchQuery({
-        queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
-        queryFn: () => getClearedMunicipalityCodes(modeFromUrl),
-      }),
-      queryClient.fetchQuery({
-        queryKey: queryKeys.municipality.weakness(),
-        queryFn: () => getMunicipalityWeakness(),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.dashboard.all,
-      }),
-    ]);
+    if (isReplaying) return;
+    setIsReplaying(true);
+    setReplayError(null);
+    try {
+      const [clearedRes, weaknessRes] = await Promise.all([
+        queryClient.fetchQuery({
+          queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
+          queryFn: () => getClearedMunicipalityCodes(modeFromUrl),
+        }),
+        queryClient.fetchQuery({
+          queryKey: queryKeys.municipality.weakness(),
+          queryFn: () => getMunicipalityWeakness(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard.all,
+        }),
+      ]);
 
-    const latestClearedCodesSet = new Set(clearedRes);
-    const latestWeaknessMap = new Map<string, MunicipalityWeakness>(
-      weaknessRes.map((w) => [w.municipalityCode, { municipalityCode: w.municipalityCode, errorRate: w.errorRate }])
-    );
+      const latestClearedCodesSet = new Set(clearedRes);
+      const latestWeaknessMap = new Map<string, MunicipalityWeakness>(
+        weaknessRes.map((w) => [
+          w.municipalityCode,
+          { municipalityCode: w.municipalityCode, errorRate: w.errorRate },
+        ]),
+      );
 
-    const qs = buildQuestions(
-      allMunicipalities,
-      settings,
-      latestWeaknessMap,
-      latestClearedCodesSet,
-      identityCodeMap,
-    );
-    if (qs.length === 0) return;
-    setQuestions(qs);
-    setResults([]);
-    setPhase('playing');
-  }, [allMunicipalities, settings, identityCodeMap, modeFromUrl, queryClient]);
+      const qs = buildQuestions(
+        allMunicipalities,
+        settings,
+        latestWeaknessMap,
+        latestClearedCodesSet,
+        identityCodeMap,
+      );
+      if (qs.length === 0) return;
+      setQuestions(qs);
+      setResults([]);
+      setPhase('playing');
+    } catch (err) {
+      console.error('Failed to refetch mastery data for replay:', err);
+      setReplayError('最新データの取得に失敗しました。再試行してください。');
+    } finally {
+      setIsReplaying(false);
+    }
+  }, [allMunicipalities, settings, identityCodeMap, modeFromUrl, queryClient, isReplaying]);
 
   // ── Auto-start when coming from recommend ──
   const autoStarted = useRef(false);
@@ -592,29 +608,41 @@ export default function MunicipalityQuizPage() {
       .filter((r) => !r.correct)
       .map((r) => ({ name: r.name, detail: r.prefecture }));
 
-    const actions = isRecommendSource ? (
+    const actions = (
       <>
-        <RecommendReplayButton />
-        <Button onClick={handleReplay} variant="outline" className="w-full">
-          同じ設定でもう一度
-        </Button>
-        <Button onClick={handleExitToSetup} variant="outline" className="w-full">
-          設定に戻る
-        </Button>
-      </>
-    ) : (
-      <>
-        <Button onClick={handleReplay} className="w-full">
-          もう一度
-        </Button>
-        <Link href="/?recommend=open">
-          <Button className="w-full" variant="outline">
-            ✨ 今日のおすすめクイズを試す
-          </Button>
-        </Link>
-        <Button onClick={handleExitToSetup} variant="outline" className="w-full">
-          設定に戻る
-        </Button>
+        {replayError && (
+          <p className="text-xs text-destructive text-center mb-1">{replayError}</p>
+        )}
+        {isRecommendSource ? (
+          <>
+            <RecommendReplayButton />
+            <Button
+              onClick={handleReplay}
+              disabled={isReplaying}
+              variant="outline"
+              className="w-full"
+            >
+              {isReplaying ? '読み込み中...' : '同じ設定でもう一度'}
+            </Button>
+            <Button onClick={handleExitToSetup} variant="outline" className="w-full">
+              設定に戻る
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button onClick={handleReplay} disabled={isReplaying} className="w-full">
+              {isReplaying ? '読み込み中...' : 'もう一度'}
+            </Button>
+            <Link href="/?recommend=open">
+              <Button className="w-full" variant="outline">
+                ✨ 今日のおすすめクイズを試す
+              </Button>
+            </Link>
+            <Button onClick={handleExitToSetup} variant="outline" className="w-full">
+              設定に戻る
+            </Button>
+          </>
+        )}
       </>
     );
 
