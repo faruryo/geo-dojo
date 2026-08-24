@@ -24,7 +24,7 @@
     {
       "file": "app/(app)/quiz/municipality/[mode]/page.tsx",
       "rule": "sonarjs/no-nested-conditional",
-      "count": 4
+      "count": 1
     },
     {
       "file": "app/(app)/quiz/municipality/[mode]/page.tsx",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { saveMunicipalityQuizResult } from '@/app/(app)/quiz/municipality/actions';
 import {
   dedupeInstancesByPrefecture,
@@ -132,11 +132,42 @@ export function useQuizActions({
   allMunicipalities,
   state,
 }: Readonly<UseQuizActionsProps>) {
+  const inFlightSavesRef = useRef<Set<Promise<unknown>>>(new Set());
+  const advanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isAbortedRef = useRef<boolean>(false);
+
+  const awaitPendingSaves = useCallback(async () => {
+    if (inFlightSavesRef.current.size > 0) {
+      await Promise.allSettled(Array.from(inFlightSavesRef.current));
+    }
+  }, []);
+
+  const abort = useCallback(async () => {
+    isAbortedRef.current = true;
+    if (advanceTimerRef.current) {
+      clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = null;
+    }
+    await awaitPendingSaves();
+  }, [awaitPendingSaves]);
+
   const recordAndAdvance = useCallback(
     async (entries: QuizSessionEntry[], delayMs: number) => {
-      const updated = await executeQuizAdvance(entries, state.results, saveMunicipalityQuizResult);
+      const savePromise = executeQuizAdvance(entries, state.results, saveMunicipalityQuizResult);
+      inFlightSavesRef.current.add(savePromise);
+      void savePromise.finally(() => {
+        inFlightSavesRef.current.delete(savePromise);
+      });
+
+      const updated = await savePromise;
+      if (isAbortedRef.current) return;
+
       state.setResults(updated);
-      setTimeout(() => state.advanceQuestion(updated), delayMs);
+      advanceTimerRef.current = setTimeout(() => {
+        if (!isAbortedRef.current) {
+          state.advanceQuestion(updated);
+        }
+      }, delayMs);
     },
     [state],
   );
@@ -150,5 +181,12 @@ export function useQuizActions({
     recordAndAdvance,
   );
 
-  return { handleModeASubmit, handleChoice, handleDTap, handleTimeout };
+  return {
+    handleModeASubmit,
+    handleChoice,
+    handleDTap,
+    handleTimeout,
+    awaitPendingSaves,
+    abort,
+  };
 }

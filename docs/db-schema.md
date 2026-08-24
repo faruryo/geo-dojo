@@ -115,3 +115,8 @@ erDiagram
 | **正解フラグ** | `is_correct` | `boolean` | NOT NULL | 正解なら `true` / 不正解なら `false` |
 | **解答時間** | `answer_time_ms` | `integer` | NULL可 | 出題表示から確定までの経過時間 (ミリ秒) (例: `3420`) |
 | **回答日時** | `answered_at` | `timestamp` | NOT NULL | クイズ回答時のタイムスタンプ |
+
+#### インデックス
+- `mqr_user_code_idx`: `(user_id, municipality_code)`
+- `mqr_user_time_idx`: `(user_id, answered_at)`
+- `mqr_user_mode_correct_code_idx`: `(user_id, mode, is_correct, municipality_code)` — 未クリア判定・クリア済み自治体コードの高速 DISTINCT 取得用

@@ -29,6 +29,12 @@ export const municipalityQuizResults = pgTable(
   (table) => [
     index('mqr_user_code_idx').on(table.userId, table.municipalityCode),
     index('mqr_user_time_idx').on(table.userId, table.answeredAt),
+    index('mqr_user_mode_correct_code_idx').on(
+      table.userId,
+      table.mode,
+      table.isCorrect,
+      table.municipalityCode,
+    ),
   ],
 );
 

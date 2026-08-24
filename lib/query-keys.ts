@@ -30,6 +30,7 @@ export const queryKeys = {
     all: ['municipality'] as const,
     master: () => ['municipality', 'master'] as const,
     weakness: () => ['municipality', 'weakness'] as const,
+    clearedCodes: (mode: string) => ['municipality', 'clearedCodes', mode] as const,
   },
   recommendation: () => ['recommendation'] as const,
 };

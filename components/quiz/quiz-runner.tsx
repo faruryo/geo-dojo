@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback } from 'react';
 import { representativeDifficulty, type Municipality } from '@/lib/quiz/municipality-data';
 import { formatModeAFeedback, withKana } from '@/lib/quiz/feedback-labels';
 import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
@@ -47,7 +48,13 @@ export function QuizRunner({
     handleChoice,
     handleDTap,
     handleModeDFallback,
+    abort,
   } = useQuizSession({ questions, allMunicipalities, onComplete });
+
+  const handleAbort = useCallback(async () => {
+    await abort();
+    onAbort();
+  }, [abort, onAbort]);
 
   if (!currentQuestion) return null;
 
@@ -69,7 +76,7 @@ export function QuizRunner({
           currentIndex={qIdx}
           totalQuestions={questions.length}
           correctCount={correctCount}
-          onAbort={onAbort}
+          onAbort={handleAbort}
         />
 
         <QuizQuestionCard
@@ -135,7 +142,7 @@ export function QuizRunner({
         currentIndex={qIdx}
         totalQuestions={questions.length}
         correctCount={correctCount}
-        onAbort={onAbort}
+        onAbort={handleAbort}
       />
 
       {effectiveMode === 'D' && (
