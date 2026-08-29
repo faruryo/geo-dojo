@@ -3,10 +3,10 @@ import { dehydrate, type DehydratedState } from '@tanstack/react-query';
 import { getCurrentUserId } from '@/lib/auth/current-user';
 import { getQueryClient } from '@/lib/get-query-client';
 import { queryKeys } from '@/lib/query-keys';
+import { PREFETCH_TIMEOUT_MS } from '@/lib/dashboard/prefetch-config';
 import {
   getDashboardSummaryData,
   getAccuracyTrendData,
-  getCompletionTrendData,
   getCompletionByModeData,
   getDifficultyProgressData,
   getWeaknessRankingData,
@@ -26,12 +26,9 @@ import {
  * 推薦（['recommendation']）は client localStorage 履歴に依存するためここでは prefetch せず、
  * クライアント側の単発取得（staleTime 付き）に委ねる。
  *
- * preview 実測: 認証 ~0.8s + 9クエリ並列 ~1.6s。プール枯渇を避けるため db は max:20。
+ * preview 実測: 認証 ~0.8s + 並列 read。最重の制覇率推移はプリフェッチせず
+ * クライアントの inView マウント後に取得する（#66）。
  */
-
-/** プリフェッチの安全弁。万一サーバ側 read が詰まっても初回描画をハングさせず、
- *  null を返してクライアント側フェッチ（従来挙動）へフォールバックさせる（通常 < 2s）。 */
-const PREFETCH_TIMEOUT_MS = 8_000;
 
 export async function getDashboardDehydratedState(): Promise<DehydratedState | null> {
   const userId = await getCurrentUserId();
@@ -48,11 +45,6 @@ export async function getDashboardDehydratedState(): Promise<DehydratedState | n
       queryKey: queryKeys.dashboard.trend('7d', 'all', '全国'),
       queryFn: () =>
         getAccuracyTrendData(userId, { period: '7d', mode: 'all', region: '全国' }),
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboard.completionTrend('all', 'all', '全国'),
-      queryFn: () =>
-        getCompletionTrendData(userId, { period: 'all', mode: 'all', region: '全国' }),
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.dashboard.completion('all', '全国'),

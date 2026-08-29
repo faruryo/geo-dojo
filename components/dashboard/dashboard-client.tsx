@@ -13,14 +13,13 @@ import { ReviewCard } from '@/components/dashboard/review-card';
 import { MilestoneBanner } from '@/components/dashboard/milestone-banner';
 import { FilterBar, type FilterMode } from '@/components/dashboard/filter-bar';
 import { RecommendHeroCard } from '@/components/recommend/recommend-hero-card';
+import { InViewMount } from '@/components/dashboard/in-view-mount';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
 /**
- * ダッシュボード表示本体（client）。各部品はサーバ側プリフェッチ
- * （lib/dashboard/prefetch.ts → HydrationBoundary）でハイドレート済みの
- * TanStack Query キャッシュを読むため、初回フェッチは発生しない。
- * フィルタ変更などオンデマンド再取得は従来どおり各フックが担う。
+ * ファーストビュー（サマリ＋復習）は summary 完了を待たず並行マウントする。
+ * 下部チャートは inView 後にマウントし、最重の制覇率推移はサーバプリフェッチしない。
  */
 export function DashboardClient() {
   const { data: summary } = useDashboardSummary();
@@ -30,6 +29,9 @@ export function DashboardClient() {
 
   const [compMode, setCompMode] = useState<FilterMode>('all');
   const [compRegion, setCompRegion] = useState('全国');
+
+  const summaryPending = summary === undefined;
+  const hasPlayed = (summary?.totalQuestions ?? 0) > 0;
 
   return (
     <div className="flex flex-col gap-6 p-4 max-w-3xl mx-auto">
@@ -45,58 +47,59 @@ export function DashboardClient() {
         />
       )}
 
-      {/* 新規ユーザー向け: クイズ未経験の場合はおすすめクイズを最初のアクションとして表示 */}
       {(!summary || summary.totalQuestions === 0) && <RecommendHeroCard />}
 
       <SummaryCards />
 
-      {summary && summary.totalQuestions > 0 && (
+      {(summaryPending || hasPlayed) && <ReviewCard />}
+
+      {hasPlayed && (
         <>
-          {/* 復習ハブ（行動+状態を集約）。優先度: 復習 > 今日のおすすめクイズ (FR-020) */}
-          <ReviewCard />
           <RecommendHeroCard />
 
           <StreakDisplay />
 
-          <Card>
-            <CardContent className="flex flex-col gap-5">
-              <FilterBar
-                mode={accMode}
-                onModeChange={setAccMode}
-                region={accRegion}
-                onRegionChange={setAccRegion}
-              />
+          <InViewMount>
+            <Card>
+              <CardContent className="flex flex-col gap-5">
+                <FilterBar
+                  mode={accMode}
+                  onModeChange={setAccMode}
+                  region={accRegion}
+                  onRegionChange={setAccRegion}
+                />
 
-              <Separator />
+                <Separator />
 
-              <AccuracyChart mode={accMode} region={accRegion} />
-            </CardContent>
-          </Card>
+                <AccuracyChart mode={accMode} region={accRegion} />
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="flex flex-col gap-5">
-              <FilterBar
-                mode={compMode}
-                onModeChange={setCompMode}
-                region={compRegion}
-                onRegionChange={setCompRegion}
-              />
+            <Card>
+              <CardContent className="flex flex-col gap-5">
+                <FilterBar
+                  mode={compMode}
+                  onModeChange={setCompMode}
+                  region={compRegion}
+                  onRegionChange={setCompRegion}
+                />
 
-              <Separator />
+                <Separator />
 
-              <CompletionChart mode={compMode} region={compRegion} />
+                <CompletionChart mode={compMode} region={compRegion} />
 
-              <Separator />
+                <Separator />
 
-              <CompletionProgress mode={compMode} region={compRegion} />
+                <CompletionProgress mode={compMode} region={compRegion} />
 
-              <Separator />
+                <Separator />
 
-              <DifficultyProgress mode={compMode} region={compRegion} />
-            </CardContent>
-          </Card>
+                <DifficultyProgress mode={compMode} region={compRegion} />
+              </CardContent>
+            </Card>
 
-          <WeaknessRanking />
+            <WeaknessRanking />
+          </InViewMount>
         </>
       )}
     </div>

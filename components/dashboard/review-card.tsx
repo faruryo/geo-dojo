@@ -20,7 +20,7 @@ function formatNextDue(isoDate: string): string {
 /**
  * 復習ハブ。間隔反復システムの「今やること（行動）」と「全体の状況（状態）」を
  * 1枚のカードに集約する。旧 ReviewRecommendations / ReviewProgress を統合したもの。
- * データは lib/dashboard/prefetch.ts でハイドレート済みのため初回フェッチは発生しない。
+ * due 件数は summary 完了を待たずマウントし、プリフェッチ済みなら即描画する。
  */
 export function ReviewCard() {
   const { data: summary, isLoading: summaryLoading } = useDueReviewSummary();
