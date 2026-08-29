@@ -5,7 +5,7 @@ import { DashboardClient } from '@/components/dashboard/dashboard-client';
 /**
  * ダッシュボード（トップ）の薄い server wrapper。
  * ファーストビュー向け read を認証1回＋Promise.all でプリフェッチし、
- * HydrationBoundary でクライアントへ渡す。制覇率推移はプリフェッチ対象外。
+ * HydrationBoundary でクライアントへ渡す。下部チャートはプリフェッチ対象外。
  */
 export default async function DashboardPage() {
   const dehydratedState = await getDashboardDehydratedState();

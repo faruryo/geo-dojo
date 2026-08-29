@@ -20,17 +20,24 @@ describe('shouldRevealFromEntries', () => {
 });
 
 describe('dashboard prefetch policy (#66)', () => {
-  it('uses a sub-2s prefetch timeout instead of the 8s hang', () => {
-    expect(PREFETCH_TIMEOUT_MS).toBe(1_500);
-    expect(PREFETCH_TIMEOUT_MS).toBeLessThan(2_000);
+  it('uses a timeout above remaining first-view latency and below the old 8s hang', () => {
+    expect(PREFETCH_TIMEOUT_MS).toBe(2_000);
+    expect(PREFETCH_TIMEOUT_MS).toBeGreaterThan(1_585);
+    expect(PREFETCH_TIMEOUT_MS).toBeLessThan(8_000);
   });
 
-  it('does not prefetch completionTrend (lazy chart)', () => {
+  it('prefetches only first-view reads, not below-the-fold charts', () => {
     const src = readFileSync(
       resolve(process.cwd(), 'lib/dashboard/prefetch.ts'),
       'utf8',
     );
     expect(src).not.toMatch(/completionTrend/);
+    expect(src).not.toMatch(/getAccuracyTrendData/);
+    expect(src).not.toMatch(/getCompletionByModeData/);
+    expect(src).not.toMatch(/getDifficultyProgressData/);
+    expect(src).not.toMatch(/getWeaknessRankingData/);
+    expect(src).toMatch(/getDashboardSummaryData/);
+    expect(src).toMatch(/getDueReviewSummaryData/);
   });
 
   it('mounts ReviewCard without waiting for summary.totalQuestions', () => {

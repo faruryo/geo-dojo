@@ -71,7 +71,7 @@ components/recommend/recommend-hero-card.tsx  # [調整] page.tsx の二重配�
 
 採用案: **サーバ側並列プリフェッチ ＋ TanStack Query ハイドレーション（ハイブリッド）**
 
-- 初回ロード: `page.tsx` をサーバ component 化し、既定フィルタ（all/全国）の **ファーストビュー向け read** を **認証1回 ＋ Promise.all** で取得 → `HydrationBoundary` でクライアントへ渡す。`completionTrend` はプリフェッチせず、チャートは inView 後にマウントする（#66）。安全弁は `PREFETCH_TIMEOUT_MS = 1.5s`。
+- 初回ロード: `page.tsx` をサーバ component 化し、ファーストビュー向け read（サマリ・復習・連続記録）を **認証1回 ＋ Promise.all** で取得 → `HydrationBoundary` でクライアントへ渡す。下部チャートはプリフェッチせず inView 後にマウントする（#66）。安全弁は `PREFETCH_TIMEOUT_MS = 2s`（実測のチャート最遅 1,585ms を超える）。
 - オンデマンド（フィルタ変更・手動更新）: 既存の取得関数を流用（同時に走るのはせいぜい1〜2本なので直列化の害は無視可能）。
 - 並行して効く **クイックウィン**（順序独立・低リスク）:
   1. `getRecommendation` の重複排除（`page.tsx` の `RecommendHeroCard` 二重配置 ＋ `staleTime:0/refetchOnMount:'always'` 見直し）。単独で約3.5秒削減見込み。
