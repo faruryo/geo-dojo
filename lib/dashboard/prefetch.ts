@@ -3,13 +3,9 @@ import { dehydrate, type DehydratedState } from '@tanstack/react-query';
 import { getCurrentUserId } from '@/lib/auth/current-user';
 import { getQueryClient } from '@/lib/get-query-client';
 import { queryKeys } from '@/lib/query-keys';
+import { PREFETCH_TIMEOUT_MS } from '@/lib/dashboard/prefetch-config';
 import {
   getDashboardSummaryData,
-  getAccuracyTrendData,
-  getCompletionTrendData,
-  getCompletionByModeData,
-  getDifficultyProgressData,
-  getWeaknessRankingData,
   getStreakData,
 } from '@/lib/db/queries/dashboard';
 import {
@@ -18,20 +14,9 @@ import {
 } from '@/lib/db/queries/srs';
 
 /**
- * ダッシュボード初回表示の read を「認証1回 ＋ Promise.all」で取得し dehydrate する。
- *
- * 各 queryKey は対応する lib/hooks/use*.ts と完全一致させ、クライアント部品が
- * 初回フェッチせずハイドレート済みキャッシュを読むようにする（直列 Server Action を解消）。
- * 既定フィルタ = all/全国。チャートの既定 period は accuracy='7d' / completion='all'。
- * 推薦（['recommendation']）は client localStorage 履歴に依存するためここでは prefetch せず、
- * クライアント側の単発取得（staleTime 付き）に委ねる。
- *
- * preview 実測: 認証 ~0.8s + 9クエリ並列 ~1.6s。プール枯渇を避けるため db は max:20。
+ * ファーストビュー（サマリ・復習・連続記録）の read を認証1回＋Promise.all で取得し dehydrate する。
+ * 下部チャートは inView 後のクライアント取得に委ね、バッチ最遅を押し上げない（#66）。
  */
-
-/** プリフェッチの安全弁。万一サーバ側 read が詰まっても初回描画をハングさせず、
- *  null を返してクライアント側フェッチ（従来挙動）へフォールバックさせる（通常 < 2s）。 */
-const PREFETCH_TIMEOUT_MS = 8_000;
 
 export async function getDashboardDehydratedState(): Promise<DehydratedState | null> {
   const userId = await getCurrentUserId();
@@ -43,30 +28,6 @@ export async function getDashboardDehydratedState(): Promise<DehydratedState | n
     queryClient.prefetchQuery({
       queryKey: queryKeys.dashboard.summary(),
       queryFn: () => getDashboardSummaryData(userId),
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboard.trend('7d', 'all', '全国'),
-      queryFn: () =>
-        getAccuracyTrendData(userId, { period: '7d', mode: 'all', region: '全国' }),
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboard.completionTrend('all', 'all', '全国'),
-      queryFn: () =>
-        getCompletionTrendData(userId, { period: 'all', mode: 'all', region: '全国' }),
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboard.completion('all', '全国'),
-      queryFn: () =>
-        getCompletionByModeData(userId, { mode: 'all', region: '全国' }),
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboard.difficulty('all', '全国'),
-      queryFn: () =>
-        getDifficultyProgressData(userId, { mode: 'all', region: '全国' }),
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboard.weakness(),
-      queryFn: () => getWeaknessRankingData(userId),
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.dashboard.streak(),
@@ -89,10 +50,8 @@ export async function getDashboardDehydratedState(): Promise<DehydratedState | n
 
   try {
     const result = await Promise.race([prefetchAll.then(() => 'ok' as const), timeout]);
-    // タイムアウト時はハイドレーション無しで返し、クライアントの通常フェッチに委ねる
     return result === 'timeout' ? null : dehydrate(queryClient);
   } catch {
-    // 取得失敗時もフォールバック（初回描画を止めない）
     return null;
   } finally {
     if (timer) clearTimeout(timer);
