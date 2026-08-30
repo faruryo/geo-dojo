@@ -9,6 +9,7 @@ import { getValidCodes } from '@/lib/quiz/validation';
 import { upsertSrsRecord } from '@/lib/quiz/srs/record-service';
 import { buildLearnerState } from '@/lib/quiz/recommendation/state-builder';
 import { generateRecommendation } from '@/lib/quiz/recommendation/engine';
+import type { RecommendClientState } from '@/lib/quiz/recommendation/conquest-lottery';
 import { normalizeAnswerTimeMs } from '@/lib/quiz/answer-time';
 import type { Recommendation } from '@/lib/quiz/recommendation/types';
 
@@ -122,6 +123,7 @@ export async function getMunicipalityMaster(): Promise<MunicipalityMaster[]> {
 type GetRecommendationInput = {
   excludeCodes?: string[];
   clientNowIso?: string;
+  client?: RecommendClientState;
 };
 
 export async function getRecommendation(
@@ -132,7 +134,9 @@ export async function getRecommendation(
     if (!checkRateLimit(userId)) throw new Error('Rate limit exceeded');
 
     const { state, allMaster } = await buildLearnerState(userId);
-    const recommendation = generateRecommendation(state, input.excludeCodes ?? [], allMaster);
+    const recommendation = generateRecommendation(state, input.excludeCodes ?? [], allMaster, {
+      client: input.client,
+    });
 
     return {
       ...recommendation,

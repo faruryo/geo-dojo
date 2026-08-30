@@ -22,7 +22,7 @@ description: "Task list for 024-conquest-mode-a"
 
 **Purpose**: 設計どおりの置き場を用意する。新規パッケージは不要。
 
-- [ ] T001 Add placeholder modules `lib/quiz/location-labels.ts` and `lib/quiz/recommendation/coverage-cells.ts` per `specs/024-conquest-mode-a/plan.md`
+- [x] T001 Add placeholder modules `lib/quiz/location-labels.ts` and `lib/quiz/recommendation/coverage-cells.ts` per `specs/024-conquest-mode-a/plan.md`
 
 ---
 
@@ -32,10 +32,10 @@ description: "Task list for 024-conquest-mode-a"
 
 **⚠️ CRITICAL**: このフェーズ完了まで US 実装を始めない
 
-- [ ] T002 Write failing tests for D identity (code unit, no (name, prefecture) fold) and B/C unchanged aggregation in `__tests__/lib/quiz/sampling.test.ts`
-- [ ] T003 Split `IdentityCodeMap` so Mode D uses municipality codes while B/C keep `(prefecture, normalizedName)` in `lib/quiz/sampling.ts` and `lib/quiz/municipality-questions.ts`
-- [ ] T004 [P] Write failing tests for designated-city ward labels (Sapporo wards distinguishable; Tokyo 23 wards keep 区名) in `__tests__/lib/quiz/location-labels.test.ts`
-- [ ] T005 [P] Add build-time code→区付きラベル map and `locationLabel(code)` in `lib/quiz/location-labels.ts` plus `lib/quiz/data/designated-city-ward-names.json` (do not change `municipality_master.name`)
+- [x] T002 Write failing tests for D identity (code unit, no (name, prefecture) fold) and B/C unchanged aggregation in `__tests__/lib/quiz/sampling.test.ts`
+- [x] T003 Split `IdentityCodeMap` so Mode D uses municipality codes while B/C keep `(prefecture, normalizedName)` in `lib/quiz/sampling.ts` and `lib/quiz/municipality-questions.ts`
+- [x] T004 [P] Write failing tests for designated-city ward labels (Sapporo wards distinguishable; Tokyo 23 wards keep 区名) in `__tests__/lib/quiz/location-labels.test.ts`
+- [x] T005 [P] Add build-time code→区付きラベル map and `locationLabel(code)` in `lib/quiz/location-labels.ts` plus `lib/quiz/data/designated-city-ward-names.json` (do not change `municipality_master.name`)
 
 **Checkpoint**: D の未クリア判定と区ラベルをテストで固定できる
 
@@ -49,15 +49,15 @@ description: "Task list for 024-conquest-mode-a"
 
 ### Tests for User Story 1
 
-- [ ] T006 [P] [US1] Write failing tests that Mode D tap correctness uses `code === municipality.code` (same city other ward is wrong) in `__tests__/components/quiz/use-quiz-actions-mode-d.test.ts` (or extend nearest existing quiz-action test)
-- [ ] T007 [P] [US1] Write failing tests that MunicipalityMap merges only same `code` polygons, not same `nam_ja` in `__tests__/components/map/municipality-map-merge.test.ts` (or extend `__tests__/components/map/autofocus-integration.test.tsx`)
+- [x] T006 [P] [US1] Write failing tests that Mode D tap correctness uses `code === municipality.code` (same city other ward is wrong) in `__tests__/components/quiz/use-quiz-actions-mode-d.test.ts` (or extend nearest existing quiz-action test)
+- [x] T007 [P] [US1] Write failing tests that MunicipalityMap merges only same `code` polygons, not same `nam_ja` in `__tests__/components/map/municipality-map-merge.test.ts` (or extend `__tests__/components/map/autofocus-integration.test.tsx`)
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Change Mode D judging and highlight codes to the question code only in `components/quiz/use-quiz-actions.ts`
-- [ ] T009 [US1] Stop union-by-`nam_ja`; merge only duplicate geometries of the same `code` in `components/map/MunicipalityMap.tsx`
-- [ ] T010 [US1] Show `locationLabel` on Mode D prompt and feedback in `components/quiz/quiz-runner.tsx` (and any Mode D question header in `app/(app)/quiz/municipality/[mode]/page.tsx`)
-- [ ] T011 [US1] Replace dashboard combined conquest with two fixed bars (A nationwide including Hokkaido; D by code) and remove combined % in `components/dashboard/dashboard-client.tsx`, `components/dashboard/completion-progress.tsx`, `components/dashboard/summary-cards.tsx`, `components/dashboard/milestone-banner.tsx`
+- [x] T008 [US1] Change Mode D judging and highlight codes to the question code only in `components/quiz/use-quiz-actions.ts`
+- [x] T009 [US1] Stop union-by-`nam_ja`; merge only duplicate geometries of the same `code` in `components/map/MunicipalityMap.tsx`
+- [x] T010 [US1] Show `locationLabel` on Mode D prompt and feedback in `components/quiz/quiz-runner.tsx` (and any Mode D question header in `app/(app)/quiz/municipality/[mode]/page.tsx`)
+- [x] T011 [US1] Replace dashboard combined conquest with two fixed bars (A nationwide including Hokkaido; D by code) and remove combined % in `components/dashboard/dashboard-client.tsx`, `components/dashboard/completion-progress.tsx`, `components/dashboard/summary-cards.tsx`, `components/dashboard/milestone-banner.tsx`
 
 **Checkpoint**: US1 をトップと D クイズだけで確認できる（おすすめ・モード文言・分析削除は後続）
 
@@ -71,11 +71,11 @@ description: "Task list for 024-conquest-mode-a"
 
 ### Tests for User Story 2
 
-- [ ] T012 [US2] Add or extend a test that mode catalog copy matches 県当て/練習/場所当て in `__tests__/lib/quiz/last-selected-mode.test.ts` or a small `__tests__/app/municipality-mode-labels.test.ts` that imports the `MODES` constant extracted from the page
+- [x] T012 [US2] Add or extend a test that mode catalog copy matches 県当て/練習/場所当て in `__tests__/lib/quiz/last-selected-mode.test.ts` or a small `__tests__/app/municipality-mode-labels.test.ts` that imports the `MODES` constant extracted from the page
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Update `MODES` labels in `app/(app)/quiz/municipality/page.tsx` per `specs/024-conquest-mode-a/contracts/dashboard-top.md` (extract `MODES` if needed so T012 can import it)
+- [x] T013 [US2] Update `MODES` labels in `app/(app)/quiz/municipality/page.tsx` per `specs/024-conquest-mode-a/contracts/dashboard-top.md` (extract `MODES` if needed so T012 can import it)
 
 **Checkpoint**: モード選択だけ見て役割が分かる
 
@@ -89,16 +89,16 @@ description: "Task list for 024-conquest-mode-a"
 
 ### Tests for User Story 3
 
-- [ ] T014 [US3] Write failing case-table tests for A/D coin, Hokkaido exclusion, 90% redraw, easiest uncleared difficulty, min-coverage cells, struggle swap, swap-once, D no-swap, cold start no-swap in `__tests__/lib/quiz/recommendation-conquest-lottery.test.ts` with injected `random` (`specs/024-conquest-mode-a/contracts/recommend-engine.md`)
-- [ ] T015 [P] [US3] Write failing tests that Mode A same-name multi-prefecture rows normalize to one question for session accuracy in `__tests__/lib/quiz/quiz-results.test.ts` or a session helper test next to `lib/quiz/recommendation/history-cache.ts`
+- [x] T014 [US3] Write failing case-table tests for A/D coin, Hokkaido exclusion, 90% redraw, easiest uncleared difficulty, min-coverage cells, struggle swap, swap-once, D no-swap, cold start no-swap in `__tests__/lib/quiz/recommendation-conquest-lottery.test.ts` with injected `random` (`specs/024-conquest-mode-a/contracts/recommend-engine.md`)
+- [x] T015 [P] [US3] Write failing tests that Mode A same-name multi-prefecture rows normalize to one question for session accuracy in `__tests__/lib/quiz/quiz-results.test.ts` or a session helper test next to `lib/quiz/recommendation/history-cache.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T016 [US3] Implement mode-specific region×difficulty coverage (A=name with current same-name exclusion; D=code; Hokkaido omitted from A lottery「全市」) in `lib/quiz/recommendation/coverage-cells.ts`
-- [ ] T017 [US3] Replace `generateRecommendation` lottery (drop Fit Zone / nationwide B cold-start on this path) in `lib/quiz/recommendation/engine.ts`
-- [ ] T018 [US3] Extend recommendation history with last A/B/C sessions, `quizSessionId` at quiz start, swapConsumed, display-1問 accuracy; pass into `getRecommendation` in `lib/quiz/recommendation/history-cache.ts`, `lib/quiz/recommendation/types.ts`, `app/(app)/quiz/municipality/actions.ts`, `lib/hooks/useRecommendation.ts`, `app/(app)/quiz/municipality/[mode]/page.tsx`
-- [ ] T019 [US3] After ≥1 saved answer and session exit (complete / abort / popstate / replay), invalidate `queryKeys.recommendation()` once saves finish in `app/(app)/quiz/municipality/[mode]/page.tsx` and `lib/hooks/useRecommendation.ts`
-- [ ] T020 [US3] Keep recommend auto-start on the chosen mode×region×difficulty with 022 uncleared-first; D uses code identity from T003 in `lib/quiz/recommend-auto-start.ts`
+- [x] T016 [US3] Implement mode-specific region×difficulty coverage (A=name with current same-name exclusion; D=code; Hokkaido omitted from A lottery「全市」) in `lib/quiz/recommendation/coverage-cells.ts`, and feed per-mode cleared codes from `lib/quiz/recommendation/state-builder.ts` / `lib/quiz/recommendation/types.ts` (do not reuse a single mixed-mode `correctCodes` set)
+- [x] T017 [US3] Replace `generateRecommendation` lottery (drop Fit Zone / nationwide B cold-start on this path) in `lib/quiz/recommendation/engine.ts`
+- [x] T018 [US3] Persist last A as one session and last B/C keyed by `mode:region:difficulty` (not one record per mode); issue `quizSessionId` at start; append a display-1問 result when each save succeeds (abort/`onAbort` currently has no results); pass into `getRecommendation` in `lib/quiz/recommendation/history-cache.ts`, `lib/quiz/recommendation/types.ts`, `components/quiz/quiz-runner.tsx`, `components/quiz/use-quiz-actions.ts`, `app/(app)/quiz/municipality/actions.ts`, `lib/hooks/useRecommendation.ts`, `app/(app)/quiz/municipality/[mode]/page.tsx`
+- [x] T019 [US3] After ≥1 saved answer and session exit (complete / abort / popstate / replay), flush the session buffer then invalidate `queryKeys.recommendation()` once saves finish in `app/(app)/quiz/municipality/[mode]/page.tsx` and `lib/hooks/useRecommendation.ts`
+- [x] T020 [US3] Keep recommend auto-start on the chosen mode×region×difficulty with 022 uncleared-first; D uses code identity from T003 in `lib/quiz/recommend-auto-start.ts`
 
 **Checkpoint**: おすすめ単体で SC-004–007, 013–014 をテストと画面で確認できる
 
@@ -112,11 +112,11 @@ description: "Task list for 024-conquest-mode-a"
 
 ### Tests for User Story 4
 
-- [ ] T021 [US4] Tests not applicable for page deletion; confirm `spec.md` Out of Scope / FR-017 still states 詳細分析 is a follow-up spec (no new page)
+- [x] T021 [US4] Tests not applicable for page deletion; confirm `spec.md` Out of Scope / FR-017 still states 詳細分析 is a follow-up spec (no new page)
 
 ### Implementation for User Story 4
 
-- [ ] T022 [US4] Remove AccuracyChart, WeaknessRanking, combined CompletionChart/FilterBar from the top in `components/dashboard/dashboard-client.tsx` (keep RecommendHeroCard, ReviewCard, A/D bars from T011)
+- [x] T022 [US4] Remove AccuracyChart, WeaknessRanking, combined CompletionChart/FilterBar, StreakDisplay, DifficultyProgress, and SummaryCards from the top in `components/dashboard/dashboard-client.tsx` (keep RecommendHeroCard, ReviewCard, A/D bars from T011)
 
 **Checkpoint**: トップはおすすめと A/D と復習だけ
 
@@ -126,9 +126,9 @@ description: "Task list for 024-conquest-mode-a"
 
 **Purpose**: 横断確認。詳細分析ページは作らない。
 
-- [ ] T023 [P] Confirm SRS review stays mode-scoped (A correct does not clear B/C/D due) via existing `__tests__/lib/quiz/srs/` (add a one-liner regression only if a change touched `lib/quiz/srs/`)
-- [ ] T024 Run `specs/024-conquest-mode-a/quickstart.md` locally (mode labels, two bars, D wards, recommend refresh)
-- [ ] T025 Run `pnpm test`, `pnpm type-check`, `pnpm lint:ratchet`
+- [x] T023 [P] Confirm SRS review stays mode-scoped (A correct does not clear B/C/D due) via existing `__tests__/lib/quiz/srs/` (add a one-liner regression only if a change touched `lib/quiz/srs/`)
+- [x] T024 Run `specs/024-conquest-mode-a/quickstart.md` locally (mode labels, two bars, D wards, recommend refresh)
+- [x] T025 Run `pnpm test`, `pnpm type-check`, `pnpm lint:ratchet`
 
 ---
 

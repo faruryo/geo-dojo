@@ -2,7 +2,11 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getRecommendation } from '@/app/(app)/quiz/municipality/actions';
-import { readRecommendationHistory } from '@/lib/quiz/recommendation/history-cache';
+import {
+  readRecommendationHistory,
+  readRecommendClientState,
+  markSwapConsumedIfRecommended,
+} from '@/lib/quiz/recommendation/history-cache';
 import { queryKeys } from '@/lib/query-keys';
 
 export function useRecommendation() {
@@ -10,9 +14,13 @@ export function useRecommendation() {
     queryKey: queryKeys.recommendation(),
     queryFn: async () => {
       const history = readRecommendationHistory();
-      return await getRecommendation({
+      const client = readRecommendClientState();
+      const rec = await getRecommendation({
         excludeCodes: history?.lastCodes ?? [],
+        client,
       });
+      markSwapConsumedIfRecommended(rec.mode);
+      return rec;
     },
     // summary の undefined→loaded 遷移でヒーローカードが再マウントしても
     // キャッシュを再利用し二重フェッチ（HAR で 2.5s+1.0s）を防ぐ。

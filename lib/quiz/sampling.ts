@@ -10,7 +10,8 @@ export interface MunicipalityWeakness {
 
 export interface IdentityCodeMap {
   modeA: Map<string, string[]>; // name -> codes[]
-  modeBCD: Map<string, string[]>; // `${prefecture}:${normalizedName}` -> codes[]
+  modeBCD: Map<string, string[]>; // `${prefecture}:${normalizedName}` -> codes[] for B/C
+  modeD: Map<string, string[]>; // code -> [code]
 }
 
 const WARD_REGEX = /^([^市]+市)(.+区)$/;
@@ -36,29 +37,46 @@ export function normalizeMunicipalityName(name: string, code?: string): string {
 export function buildIdentityCodeMap(allMunicipalities: readonly Municipality[]): IdentityCodeMap {
   const modeA = new Map<string, string[]>();
   const modeBCD = new Map<string, string[]>();
+  const modeD = new Map<string, string[]>();
 
   for (const item of allMunicipalities) {
     const normName = normalizeMunicipalityName(item.name, item.code);
 
-    // Mode A: grouped by name
     const aList = modeA.get(normName) || [];
     aList.push(item.code);
     modeA.set(normName, aList);
 
-    // Mode B/C/D: grouped by (prefecture, normalized name)
     const bcdKey = `${item.prefecture}:${normName}`;
     const bcdList = modeBCD.get(bcdKey) || [];
     bcdList.push(item.code);
     modeBCD.set(bcdKey, bcdList);
+
+    modeD.set(item.code, [item.code]);
   }
 
-  return { modeA, modeBCD };
+  return { modeA, modeBCD, modeD };
+}
+
+function codesForIdentity(
+  identityCodeMap: IdentityCodeMap,
+  identityKey: string,
+  mode: SamplingMode | GameMode,
+): string[] | undefined {
+  if (mode === 'mode_a' || mode === 'A') {
+    return identityCodeMap.modeA.get(identityKey);
+  }
+  if (mode === 'mode_d' || mode === 'D') {
+    return identityCodeMap.modeD.get(identityKey);
+  }
+  return identityCodeMap.modeBCD.get(identityKey);
 }
 
 export function getIdentityKey(item: Municipality, mode: SamplingMode | GameMode): string {
+  if (mode === 'mode_d' || mode === 'D') {
+    return item.code;
+  }
   const normName = normalizeMunicipalityName(item.name, item.code);
-  const isModeA = mode === 'mode_a' || mode === 'A';
-  if (isModeA) {
+  if (mode === 'mode_a' || mode === 'A') {
     return normName;
   }
   return `${item.prefecture}:${normName}`;
@@ -73,10 +91,7 @@ export function isIdentityCleared(
   if (!identityCodeMap) {
     return false;
   }
-  const isModeA = mode === 'mode_a' || mode === 'A';
-  const codes = isModeA
-    ? identityCodeMap.modeA.get(identityKey)
-    : identityCodeMap.modeBCD.get(identityKey);
+  const codes = codesForIdentity(identityCodeMap, identityKey, mode);
 
   if (!codes || codes.length === 0) {
     return false;
@@ -172,10 +187,7 @@ function getWeaknessScore(
 
   if (identityCodeMap) {
     const identityKey = getIdentityKey(item, mode);
-    const isModeA = mode === 'mode_a' || mode === 'A';
-    const codes = isModeA
-      ? identityCodeMap.modeA.get(identityKey)
-      : identityCodeMap.modeBCD.get(identityKey);
+    const codes = codesForIdentity(identityCodeMap, identityKey, mode);
 
     if (codes && codes.length > 0) {
       return getAggregatedErrorRate(codes, weaknessMap);

@@ -12,18 +12,14 @@ import {
   type QuizSessionEntry,
 } from '@/lib/quiz/quiz-session-core';
 import { playSe } from '@/lib/quiz/sound-effects';
+import { isModeDTapCorrect } from '@/lib/quiz/mode-d-judge';
+import { toQuestionResult } from '@/lib/quiz/quiz-results';
+import { appendRecommendQuestion } from '@/lib/quiz/recommendation/history-cache';
 import type { Question } from './use-quiz-session';
 import type { useQuizState } from './use-quiz-state';
 import { TIME_LIMIT_SEC } from './use-quiz-timer';
 
-function findMatchingCodes(
-  allMunicipalities: readonly Municipality[],
-  target: Municipality,
-): string[] {
-  return allMunicipalities
-    .filter((m) => m.name === target.name && m.prefecture === target.prefecture)
-    .map((m) => m.code);
-}
+type QuizState = ReturnType<typeof useQuizState>;
 
 function isModeACorrect(
   selectedPrefectures: Set<string>,
@@ -34,8 +30,6 @@ function isModeACorrect(
     [...correctPrefectures].every((p) => selectedPrefectures.has(p))
   );
 }
-
-type QuizState = ReturnType<typeof useQuizState>;
 
 export function useModeAAction(
   currentQuestion: Question | null,
@@ -81,21 +75,20 @@ export function useChoiceAction(
 
 export function useMapAction(
   currentQuestion: Question | null,
-  allMunicipalities: readonly Municipality[],
   state: QuizState,
   recordAndAdvance: (entries: QuizSessionEntry[], delayMs: number) => Promise<void>,
 ) {
   const handleDTap = useCallback(
-    async (code: string, tappedName: string) => {
+    async (code: string) => {
       if (state.feedback !== 'idle' || !currentQuestion || currentQuestion.kind !== 'BCD') return;
       const elapsedMs = Math.max(0, Date.now() - state.startTimeRef.current);
       const { municipality } = currentQuestion;
-      const correct = tappedName === municipality.name;
-      const allCodes = findMatchingCodes(allMunicipalities, municipality);
-      if (correct) state.setCorrectCodes(allCodes);
+      const correct = isModeDTapCorrect(code, municipality.code);
+      const highlight = [municipality.code];
+      if (correct) state.setCorrectCodes(highlight);
       else {
         state.setWrongCodes([code]);
-        state.setCorrectCodes(allCodes);
+        state.setCorrectCodes(highlight);
       }
       state.setFeedback(correct ? 'correct' : 'incorrect');
       playSe(correct ? 'correct' : 'incorrect');
@@ -104,19 +97,19 @@ export function useMapAction(
         1500,
       );
     },
-    [state, currentQuestion, allMunicipalities, recordAndAdvance],
+    [state, currentQuestion, recordAndAdvance],
   );
 
   const handleTimeout = useCallback(async () => {
     if (state.feedback !== 'idle' || !currentQuestion) return;
     if (currentQuestion.kind === 'BCD' && currentQuestion.mode === 'D' && !state.modeDFailed) {
       const { municipality } = currentQuestion;
-      state.setCorrectCodes(findMatchingCodes(allMunicipalities, municipality));
+      state.setCorrectCodes([municipality.code]);
       state.setFeedback('incorrect');
       playSe('incorrect');
       await recordAndAdvance([createTimeoutEntry(municipality, TIME_LIMIT_SEC)], 1500);
     }
-  }, [state, currentQuestion, allMunicipalities, recordAndAdvance]);
+  }, [state, currentQuestion, recordAndAdvance]);
 
   return { handleDTap, handleTimeout };
 }
@@ -127,9 +120,21 @@ interface UseQuizActionsProps {
   readonly state: QuizState;
 }
 
+function appendDisplayQuestion(entries: QuizSessionEntry[]): void {
+  const head = entries[0];
+  if (!head) return;
+  const display = toQuestionResult(entries);
+  appendRecommendQuestion({
+    mode: head.mode,
+    correct: display.correct,
+    region: head.municipality.region,
+    difficulty: head.municipality.difficulty ?? 'easy',
+  });
+}
+
 export function useQuizActions({
   currentQuestion,
-  allMunicipalities,
+  allMunicipalities: _allMunicipalities,
   state,
 }: Readonly<UseQuizActionsProps>) {
   const inFlightSavesRef = useRef<Set<Promise<unknown>>>(new Set());
@@ -160,6 +165,7 @@ export function useQuizActions({
       });
 
       const updated = await savePromise;
+      appendDisplayQuestion(entries);
       if (isAbortedRef.current) return;
 
       state.setResults(updated);
@@ -176,7 +182,6 @@ export function useQuizActions({
   const handleChoice = useChoiceAction(currentQuestion, state, recordAndAdvance);
   const { handleDTap, handleTimeout } = useMapAction(
     currentQuestion,
-    allMunicipalities,
     state,
     recordAndAdvance,
   );

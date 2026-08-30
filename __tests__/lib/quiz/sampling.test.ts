@@ -65,6 +65,15 @@ describe('sampleMunicipalityPool & computePoolStats (Pure Quiz Sampler)', () => 
       expect(stats.percentage).toBe(50);
     });
 
+    it('Mode D: counts each municipality code; sibling ward clear does not clear the other', () => {
+      const pool = [itemB1, itemB2, itemC];
+      const clearedCodes = new Set(['02002']);
+
+      const stats = computePoolStats(pool, 'mode_d', clearedCodes, identityCodeMap);
+      expect(stats.totalCount).toBe(3);
+      expect(stats.clearedCount).toBe(1);
+    });
+
     it('caps percentage at 99% when incomplete even if raw rounded percentage reaches 100', () => {
       // 200 items out of 201 cleared => 200/201 = 0.99502... (Math.round gives 100)
       const dummyPool = Array.from({ length: 201 }, (_, i) => ({
@@ -152,6 +161,19 @@ describe('sampleMunicipalityPool & computePoolStats (Pure Quiz Sampler)', () => 
 
       // 静岡市 is recognized as cleared via 02002, so uncleared itemC (横浜市) is chosen
       expect(sampled[0].code).toBe('03001');
+    });
+
+    it('Mode D: treating a sibling ward as uncleared when only the other code is cleared', () => {
+      const targetPool = [itemB1, itemB2];
+      const sampled = sampleMunicipalityPool(targetPool, {
+        count: 2,
+        mode: 'mode_d',
+        unclearedFirst: true,
+        clearedCodes: new Set(['02002']),
+        identityCodeMap,
+      });
+      expect(sampled.map((i) => i.code)).toEqual(['02001', '02002']);
+      expect(sampled[0].code).toBe('02001');
     });
 
     it('deduplicates sibling wards of designated cities to a single identity before sampling count', () => {
