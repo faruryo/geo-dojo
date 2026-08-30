@@ -20,7 +20,7 @@ export async function saveMunicipalityQuizResult(input: {
   mode: 'A' | 'B' | 'C' | 'D';
   isCorrect: boolean;
   answerTimeMs?: number;
-}): Promise<{ quizPersisted: boolean }> {
+}): Promise<{ quizPersisted: boolean; srsPersisted: boolean }> {
   // 本番では Next.js が server action の throw を digest に隠すため、原因を必ず明示ログしてから
   // 再 throw する。クライアントは Promise.allSettled で握り潰すので、ここが唯一の検知点になる。
   try {
@@ -55,8 +55,9 @@ export async function saveMunicipalityQuizResult(input: {
         mode: input.mode,
         error: srsErr instanceof Error ? `${srsErr.name}: ${srsErr.message}` : String(srsErr),
       });
+      return { quizPersisted: true, srsPersisted: false };
     }
-    return { quizPersisted: true };
+    return { quizPersisted: true, srsPersisted: true };
   } catch (e) {
     console.error('[saveMunicipalityQuizResult] failed', {
       code: input.municipalityCode,

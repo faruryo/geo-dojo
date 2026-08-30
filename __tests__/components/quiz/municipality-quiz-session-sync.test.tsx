@@ -10,8 +10,8 @@ import { useQuizSession, type Question } from '@/components/quiz/use-quiz-sessio
 let saveResolve: () => void = () => {};
 const mockSaveResult = vi.fn(
   () =>
-    new Promise<{ quizPersisted: boolean }>((resolve) => {
-      saveResolve = () => resolve({ quizPersisted: true });
+    new Promise<{ quizPersisted: boolean; srsPersisted: boolean }>((resolve) => {
+      saveResolve = () => resolve({ quizPersisted: true, srsPersisted: true });
     })
 );
 
