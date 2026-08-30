@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateConquestRecommendation, cellSessionKey } from '@/lib/quiz/recommendation/conquest-lottery';
+import { generateConquestRecommendation, cellSessionKey, modeFrequency } from '@/lib/quiz/recommendation/conquest-lottery';
 import type { LearnerState } from '@/lib/quiz/recommendation/types';
 import type { Difficulty } from '@/lib/quiz/municipality-data';
 
@@ -194,5 +194,18 @@ describe('generateConquestRecommendation', () => {
       client: { lastA: null, lastByCell: {}, swapConsumedForASessionId: null },
     });
     expect(rec.mode).toBe('A');
+  });
+
+  it('uses the most frequent recent question count, not the last session', () => {
+    const state = emptyState(tohokuCodes);
+    state.recentQuestionCounts = [20, 20, 10];
+    const rec = generateConquestRecommendation(state, [], allMaster, { random: () => 0.1 });
+    expect(rec.count).toBe(20);
+  });
+});
+
+describe('modeFrequency', () => {
+  it('returns 20 for [20, 20, 10]', () => {
+    expect(modeFrequency([20, 20, 10])).toBe(20);
   });
 });

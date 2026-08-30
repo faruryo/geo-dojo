@@ -33,6 +33,27 @@ export function cellSessionKey(mode: 'B' | 'C', region: string, difficulty: stri
   return `${mode}:${region}:${difficulty}`;
 }
 
+/** Most frequent recent session length (ties keep the earlier count). */
+export function modeFrequency(counts: readonly (10 | 20 | 30)[]): 10 | 20 | 30 {
+  if (counts.length === 0) return 10;
+  const order: Array<10 | 20 | 30> = [];
+  const freq = new Map<10 | 20 | 30, number>();
+  for (const c of counts) {
+    if (!freq.has(c)) order.push(c);
+    freq.set(c, (freq.get(c) ?? 0) + 1);
+  }
+  let best: 10 | 20 | 30 = 10;
+  let bestCount = -1;
+  for (const k of order) {
+    const v = freq.get(k) ?? 0;
+    if (v > bestCount) {
+      bestCount = v;
+      best = k;
+    }
+  }
+  return best;
+}
+
 function pickOne<T>(items: readonly T[], random: () => number): T {
   if (items.length === 0) {
     throw new Error('pickOne: empty list');
@@ -166,8 +187,7 @@ export function generateConquestRecommendation(
 ): Recommendation {
   const random = options?.random ?? Math.random;
   const client = options?.client;
-  const lastCount = state.recentQuestionCounts[state.recentQuestionCounts.length - 1];
-  const count: 10 | 20 | 30 = lastCount === 20 || lastCount === 30 ? lastCount : 10;
+  const count = modeFrequency(state.recentQuestionCounts);
 
   const emptyCleared = new Set<string>();
   const clearedA = state.clearedCodesByMode?.get('A') ?? emptyCleared;
