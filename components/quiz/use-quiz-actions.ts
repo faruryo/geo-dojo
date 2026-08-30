@@ -164,8 +164,8 @@ export function useQuizActions({
         inFlightSavesRef.current.delete(savePromise);
       });
 
-      const updated = await savePromise;
-      appendDisplayQuestion(entries);
+      const { results: updated, persisted } = await savePromise;
+      if (persisted) appendDisplayQuestion(entries);
       if (isAbortedRef.current) return;
 
       state.setResults(updated);

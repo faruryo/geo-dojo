@@ -41,9 +41,10 @@ export async function executeQuizAdvance(
   currentResults: readonly QuizResultEntry[],
   saveFn: SaveResultFn,
   logger: QuizAdvanceLogger = console,
-): Promise<QuizResultEntry[]> {
-  const updatedResults = [...currentResults, toQuestionResult(entries as QuizSessionEntry[])];
+): Promise<{ results: QuizResultEntry[]; persisted: boolean }> {
+  const results = [...currentResults, toQuestionResult(entries as QuizSessionEntry[])];
 
+  let persisted = true;
   const savePromises = entries.map(async (entry) => {
     try {
       await saveFn({
@@ -55,6 +56,7 @@ export async function executeQuizAdvance(
         answerTimeMs: entry.answerTimeMs,
       });
     } catch (reason: unknown) {
+      persisted = false;
       logger.error('[quiz-runner] failed to save result', {
         code: entry.municipality.code,
         mode: entry.mode,
@@ -65,7 +67,7 @@ export async function executeQuizAdvance(
 
   await Promise.allSettled(savePromises);
 
-  return updatedResults;
+  return { results, persisted };
 }
 
 /**

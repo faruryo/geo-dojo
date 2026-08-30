@@ -47,8 +47,13 @@ describe('quiz-session-core', () => {
         saveCalls.push(input);
       });
 
-      const updated = await executeQuizAdvance(entries, initialResults, mockSaveFn);
+      const { results: updated, persisted } = await executeQuizAdvance(
+        entries,
+        initialResults,
+        mockSaveFn,
+      );
 
+      expect(persisted).toBe(true);
       // 表示結果は1件だけ追加（合計2件）
       expect(updated).toHaveLength(2);
       expect(updated[1]).toEqual({
@@ -91,8 +96,14 @@ describe('quiz-session-core', () => {
         error: vi.fn(),
       };
 
-      const updated = await executeQuizAdvance(entries, [], mockSaveFn, mockLogger);
+      const { results: updated, persisted } = await executeQuizAdvance(
+        entries,
+        [],
+        mockSaveFn,
+        mockLogger,
+      );
 
+      expect(persisted).toBe(false);
       expect(updated).toHaveLength(1);
       expect(updated[0]).toEqual({
         name: '札幌市',
