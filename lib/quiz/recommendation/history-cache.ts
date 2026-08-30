@@ -5,7 +5,12 @@ import type { RecommendationHistoryCache } from './types';
 
 const STORAGE_KEY = 'geodojo:recommendation:history';
 const CLIENT_KEY = 'geodojo:recommendation:client-state';
+const ACTIVE_KEY = 'geodojo:recommendation:active-session';
 const TTL_MS = 24 * 60 * 60 * 1000;
+
+export function scopedRecommendKey(base: string, userId: string): string {
+  return `${base}:${userId}`;
+}
 
 type ActiveQuestion = {
   correct: boolean;
@@ -30,10 +35,10 @@ function parseClientState(raw: string): RecommendClientState {
   return { ...emptyClient(), ...parsed };
 }
 
-export function readRecommendClientState(): RecommendClientState {
-  if (typeof window === 'undefined') return emptyClient();
+export function readRecommendClientState(userId: string | null): RecommendClientState {
+  if (typeof window === 'undefined' || !userId) return emptyClient();
   try {
-    const raw = localStorage.getItem(CLIENT_KEY);
+    const raw = localStorage.getItem(scopedRecommendKey(CLIENT_KEY, userId));
     if (!raw) return emptyClient();
     return parseClientState(raw);
   } catch {
@@ -42,28 +47,35 @@ export function readRecommendClientState(): RecommendClientState {
 }
 
 /** Persist swap-once after a B/C recommend that used last A struggle. */
-export function markSwapConsumedIfRecommended(mode: GameMode): void {
+export function markSwapConsumedIfRecommended(userId: string | null, mode: GameMode): void {
   if (mode !== 'B' && mode !== 'C') return;
-  const client = readRecommendClientState();
+  const client = readRecommendClientState(userId);
   if (!client.lastA || client.lastA.accuracy >= 0.3) return;
   client.swapConsumedForASessionId = client.lastA.sessionId;
-  writeRecommendClientState(client);
+  writeRecommendClientState(userId, client);
 }
 
-export function writeRecommendClientState(state: RecommendClientState): void {
-  if (typeof window === 'undefined') return;
+export function writeRecommendClientState(
+  userId: string | null,
+  state: RecommendClientState,
+): void {
+  if (typeof window === 'undefined' || !userId) return;
   try {
-    localStorage.setItem(CLIENT_KEY, JSON.stringify(state));
+    localStorage.setItem(scopedRecommendKey(CLIENT_KEY, userId), JSON.stringify(state));
   } catch {
     /* private mode */
   }
 }
 
-export function startRecommendSession(sessionId: string, mode: GameMode): void {
-  if (typeof window === 'undefined') return;
+export function startRecommendSession(
+  userId: string | null,
+  sessionId: string,
+  mode: GameMode,
+): void {
+  if (typeof window === 'undefined' || !userId) return;
   try {
     localStorage.setItem(
-      'geodojo:recommendation:active-session',
+      scopedRecommendKey(ACTIVE_KEY, userId),
       JSON.stringify({ sessionId, mode, questions: [] } satisfies ActiveSession),
     );
   } catch {
@@ -71,94 +83,107 @@ export function startRecommendSession(sessionId: string, mode: GameMode): void {
   }
 }
 
-function readActiveSession(): ActiveSession | null {
-  if (typeof window === 'undefined') return null;
+function readActiveSession(userId: string | null): ActiveSession | null {
+  if (typeof window === 'undefined' || !userId) return null;
   try {
-    const raw = localStorage.getItem('geodojo:recommendation:active-session');
+    const raw = localStorage.getItem(scopedRecommendKey(ACTIVE_KEY, userId));
     return raw ? (JSON.parse(raw) as ActiveSession) : null;
   } catch {
     return null;
   }
 }
 
-export function appendRecommendQuestion(question: ActiveQuestion): void {
-  const active = readActiveSession();
-  if (!active) return;
+export function appendRecommendQuestion(userId: string | null, question: ActiveQuestion): void {
+  const active = readActiveSession(userId);
+  if (!active || !userId) return;
   active.questions.push(question);
   try {
-    localStorage.setItem('geodojo:recommendation:active-session', JSON.stringify(active));
+    localStorage.setItem(scopedRecommendKey(ACTIVE_KEY, userId), JSON.stringify(active));
   } catch {
     /* ignore */
   }
 }
 
-export function finalizeRecommendSession(opts?: { swappedForA?: boolean }): void {
-  const active = readActiveSession();
+function clearActiveSession(userId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(scopedRecommendKey(ACTIVE_KEY, userId));
+  } catch {
+    /* ignore */
+  }
+}
+
+function mergeBcCellSessions(
+  client: RecommendClientState,
+  active: ActiveSession,
+): RecommendClientState {
+  const byCell = new Map<string, ActiveQuestion[]>();
+  for (const q of active.questions) {
+    const key = cellSessionKey(active.mode as 'B' | 'C', q.region, q.difficulty);
+    const list = byCell.get(key) ?? [];
+    list.push(q);
+    byCell.set(key, list);
+  }
+  const nextCells = { ...client.lastByCell };
+  for (const [key, qs] of byCell) {
+    const first = qs[0];
+    if (!first) continue;
+    const acc = qs.filter((q) => q.correct).length / qs.length;
+    Object.assign(nextCells, {
+      [key]: {
+        sessionId: active.sessionId,
+        mode: active.mode,
+        accuracy: acc,
+        questionCount: qs.length,
+        region: first.region,
+        difficulty: first.difficulty,
+      } satisfies LastModeSession,
+    });
+  }
+  return { ...client, lastByCell: nextCells };
+}
+
+export function finalizeRecommendSession(
+  userId: string | null,
+  opts?: { swappedForA?: boolean },
+): void {
+  const active = readActiveSession(userId);
+  if (!userId) return;
   if (!active || active.questions.length === 0) {
-    try {
-      localStorage.removeItem('geodojo:recommendation:active-session');
-    } catch {
-      /* ignore */
-    }
+    clearActiveSession(userId);
     return;
   }
 
   const correct = active.questions.filter((q) => q.correct).length;
-  const accuracy = correct / active.questions.length;
   const last: LastModeSession = {
     sessionId: active.sessionId,
     mode: active.mode,
-    accuracy,
+    accuracy: correct / active.questions.length,
     questionCount: active.questions.length,
     region: active.questions[0]?.region ?? '',
     difficulty: active.questions[0]?.difficulty ?? 'easy',
   };
 
-  const client = readRecommendClientState();
+  let client = readRecommendClientState(userId);
   if (active.mode === 'A') {
     client.lastA = last;
     if (opts?.swappedForA) {
       client.swapConsumedForASessionId = active.sessionId;
     }
   } else if (active.mode === 'B' || active.mode === 'C') {
-    const byCell = new Map<string, ActiveQuestion[]>();
-    for (const q of active.questions) {
-      const key = cellSessionKey(active.mode, q.region, q.difficulty);
-      const list = byCell.get(key) ?? [];
-      list.push(q);
-      byCell.set(key, list);
-    }
-    const nextCells = { ...client.lastByCell };
-    for (const [key, qs] of byCell) {
-      const first = qs[0];
-      if (!first) continue;
-      const acc = qs.filter((q) => q.correct).length / qs.length;
-      Object.assign(nextCells, {
-        [key]: {
-          sessionId: active.sessionId,
-          mode: active.mode,
-          accuracy: acc,
-          questionCount: qs.length,
-          region: first.region,
-          difficulty: first.difficulty,
-        } satisfies LastModeSession,
-      });
-    }
-    client.lastByCell = nextCells;
+    client = mergeBcCellSessions(client, active);
   }
 
-  writeRecommendClientState(client);
-  try {
-    localStorage.removeItem('geodojo:recommendation:active-session');
-  } catch {
-    /* ignore */
-  }
+  writeRecommendClientState(userId, client);
+  clearActiveSession(userId);
 }
 
-export function readRecommendationHistory(): RecommendationHistoryCache | null {
-  if (typeof window === 'undefined') return null;
+export function readRecommendationHistory(
+  userId: string | null,
+): RecommendationHistoryCache | null {
+  if (typeof window === 'undefined' || !userId) return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(scopedRecommendKey(STORAGE_KEY, userId));
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return null;
@@ -171,14 +196,14 @@ export function readRecommendationHistory(): RecommendationHistoryCache | null {
   }
 }
 
-export function writeRecommendationHistory(codes: string[]): void {
-  if (typeof window === 'undefined') return;
+export function writeRecommendationHistory(userId: string | null, codes: string[]): void {
+  if (typeof window === 'undefined' || !userId) return;
   try {
     const cache: RecommendationHistoryCache = {
       lastCodes: codes,
       storedAt: new Date().toISOString(),
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
+    localStorage.setItem(scopedRecommendKey(STORAGE_KEY, userId), JSON.stringify(cache));
   } catch {
     /* ignore */
   }

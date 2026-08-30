@@ -15,6 +15,7 @@ import { playSe } from '@/lib/quiz/sound-effects';
 import { isModeDTapCorrect } from '@/lib/quiz/mode-d-judge';
 import { toQuestionResult } from '@/lib/quiz/quiz-results';
 import { appendRecommendQuestion } from '@/lib/quiz/recommendation/history-cache';
+import { getBrowserUserId } from '@/lib/auth/browser-user';
 import type { Question } from './use-quiz-session';
 import type { useQuizState } from './use-quiz-state';
 import { TIME_LIMIT_SEC } from './use-quiz-timer';
@@ -120,11 +121,12 @@ interface UseQuizActionsProps {
   readonly state: QuizState;
 }
 
-function appendDisplayQuestion(entries: QuizSessionEntry[]): void {
+async function appendDisplayQuestion(entries: QuizSessionEntry[]): Promise<void> {
   const head = entries[0];
   if (!head) return;
   const display = toQuestionResult(entries);
-  appendRecommendQuestion({
+  const userId = await getBrowserUserId();
+  appendRecommendQuestion(userId, {
     mode: head.mode,
     correct: display.correct,
     region: head.municipality.region,
@@ -165,7 +167,7 @@ export function useQuizActions({
       });
 
       const { results: updated, persisted } = await savePromise;
-      if (persisted) appendDisplayQuestion(entries);
+      if (persisted) await appendDisplayQuestion(entries);
       if (isAbortedRef.current) return;
 
       state.setResults(updated);

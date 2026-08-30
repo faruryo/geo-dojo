@@ -31,6 +31,7 @@ import {
   startRecommendSession,
   finalizeRecommendSession,
 } from '@/lib/quiz/recommendation/history-cache';
+import { getBrowserUserId } from '@/lib/auth/browser-user';
 import {
   buildIdentityCodeMap,
   computePoolStats,
@@ -195,7 +196,7 @@ export default function MunicipalityQuizPage() {
 
   // ── Synchronized Exit / Abort Handler ──
   const handleExitToSetup = useCallback(async () => {
-    finalizeRecommendSession();
+    finalizeRecommendSession(await getBrowserUserId());
     setPhase('setup');
     void queryClient.invalidateQueries({
       queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
@@ -230,7 +231,7 @@ export default function MunicipalityQuizPage() {
   const effectivePoolSize = poolStats.totalCount;
 
   // ── Start ──
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
     const qs = buildMunicipalityQuestions(
       allMunicipalities,
       settings,
@@ -241,7 +242,7 @@ export default function MunicipalityQuizPage() {
     if (qs.length === 0) return;
     setQuestions(qs);
     setResults([]);
-    startRecommendSession(crypto.randomUUID(), settings.mode);
+    startRecommendSession(await getBrowserUserId(), crypto.randomUUID(), settings.mode);
     setPhase('playing');
   }, [allMunicipalities, settings, weaknessMap, clearedCodesSet, identityCodeMap]);
 
@@ -286,7 +287,7 @@ export default function MunicipalityQuizPage() {
       if (qs.length === 0) return;
       setQuestions(qs);
       setResults([]);
-      startRecommendSession(crypto.randomUUID(), settings.mode);
+      startRecommendSession(await getBrowserUserId(), crypto.randomUUID(), settings.mode);
       setPhase('playing');
     } catch (err) {
       console.error('Failed to refetch mastery data for replay:', err);
@@ -327,7 +328,9 @@ export default function MunicipalityQuizPage() {
     autoStarted.current = true;
     setQuestions(qs);
     setResults([]);
-    startRecommendSession(crypto.randomUUID(), settings.mode);
+    void getBrowserUserId().then((userId) => {
+      startRecommendSession(userId, crypto.randomUUID(), settings.mode);
+    });
     setPhase('playing');
   }, [
     isRecommendSource,
@@ -617,7 +620,9 @@ export default function MunicipalityQuizPage() {
       allMunicipalities={allMunicipalities}
       onAbort={handleExitToSetup}
       onComplete={(completedResults) => {
-        finalizeRecommendSession();
+        void getBrowserUserId().then((userId) => {
+          finalizeRecommendSession(userId);
+        });
         setResults(completedResults);
         setPhase('result');
         void queryClient.invalidateQueries({

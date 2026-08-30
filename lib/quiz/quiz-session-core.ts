@@ -22,7 +22,7 @@ export type SaveResultFn = (input: {
   mode: 'A' | 'B' | 'C' | 'D';
   isCorrect: boolean;
   answerTimeMs?: number;
-}) => Promise<void>;
+}) => Promise<{ quizPersisted: boolean }>;
 
 export interface QuizAdvanceLogger {
   error: (message: string, context?: unknown) => void;
@@ -47,7 +47,7 @@ export async function executeQuizAdvance(
   let persisted = true;
   const savePromises = entries.map(async (entry) => {
     try {
-      await saveFn({
+      const { quizPersisted } = await saveFn({
         municipalityCode: entry.municipality.code,
         municipalityName: entry.municipality.name,
         prefecture: entry.municipality.prefecture,
@@ -55,6 +55,7 @@ export async function executeQuizAdvance(
         isCorrect: entry.isCorrect,
         answerTimeMs: entry.answerTimeMs,
       });
+      if (!quizPersisted) persisted = false;
     } catch (reason: unknown) {
       persisted = false;
       logger.error('[quiz-runner] failed to save result', {

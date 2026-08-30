@@ -1,4 +1,4 @@
-import { isSameNameMunicipality } from '@/lib/quiz/municipality-data';
+import { isSameNameMunicipality, isTokyoSpecialWard } from '@/lib/quiz/municipality-data';
 import type { Difficulty, GameMode, Region } from './types';
 import { DIFFICULTY_ORDER, REGION_VALUES } from './types';
 
@@ -19,10 +19,22 @@ type MasterEntry = {
   difficulty: string;
 };
 
+function isModeAPlayable(m: MasterEntry): boolean {
+  return (
+    !isSameNameMunicipality(m.name, m.prefecture) &&
+    !isTokyoSpecialWard({
+      code: m.code,
+      name: m.name,
+      prefecture: m.prefecture,
+      region: m.region,
+    })
+  );
+}
+
 function codesByName(master: readonly MasterEntry[]): Map<string, string[]> {
   const byName = new Map<string, string[]>();
   for (const m of master) {
-    if (isSameNameMunicipality(m.name, m.prefecture)) continue;
+    if (!isModeAPlayable(m)) continue;
     const list = byName.get(m.name) ?? [];
     list.push(m.code);
     byName.set(m.name, list);
@@ -38,7 +50,7 @@ function aNameUnits(
   const byName = new Map<string, string[]>();
   for (const m of master) {
     if (m.region !== region || m.difficulty !== difficulty) continue;
-    if (isSameNameMunicipality(m.name, m.prefecture)) continue;
+    if (!isModeAPlayable(m)) continue;
     const list = byName.get(m.name) ?? [];
     list.push(m.code);
     byName.set(m.name, list);

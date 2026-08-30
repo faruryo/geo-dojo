@@ -6,6 +6,9 @@ export type QuizModeFilter = 'all' | 'A' | 'B' | 'C' | 'D';
 
 export const notSameNameSql = sql`NOT (REGEXP_REPLACE(${municipalityMaster.name}, '[市区町村]$', '') = REGEXP_REPLACE(${municipalityMaster.prefecture}, '[都道府県]$', ''))`;
 
+/** Mode A 出題から除外する東京23区（filterTextModeMunicipalities と揃える） */
+export const notTokyoSpecialWardSql = sql`NOT (${municipalityMaster.prefecture} = '東京都' AND ${municipalityMaster.name} LIKE '%区')`;
+
 export async function getMasterPoolSize(
   mode: QuizModeFilter,
   region?: string,
@@ -30,7 +33,7 @@ export async function getMasterPoolSize(
         value: sql<number>`COUNT(DISTINCT ${municipalityMaster.name})`,
       })
       .from(municipalityMaster)
-      .where(and(regionCond, notSameNameSql));
+      .where(and(regionCond, notSameNameSql, notTokyoSpecialWardSql));
     return Number(row.value);
   }
 
@@ -90,6 +93,9 @@ export function getFilterCondSql(mode: QuizModeFilter) {
     return sql`(${municipalityQuizResults.mode} = 'D' OR ${notSameNameSql})`;
   }
   if (mode === 'A' || mode === 'B' || mode === 'C') {
+    if (mode === 'A') {
+      return sql`(${notSameNameSql} AND ${notTokyoSpecialWardSql})`;
+    }
     return notSameNameSql;
   }
   return undefined;
