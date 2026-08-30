@@ -1,5 +1,5 @@
 import type { Difficulty, GameMode } from '@/lib/quiz/municipality-data';
-import type { LearnerState, Recommendation } from './types';
+import type { LearnerState, Recommendation, RegionValue } from './types';
 import { DIFFICULTY_ORDER, REGION_VALUES } from './types';
 import { coverageRate } from './coverage-cells';
 
@@ -29,20 +29,22 @@ type MasterEntry = {
 const STRUGGLE_ACCURACY = 0.3;
 const COVERAGE_THRESHOLD = 0.9;
 
+type QuestionCount = 10 | 20 | 30;
+
 export function cellSessionKey(mode: 'B' | 'C', region: string, difficulty: string): string {
   return `${mode}:${region}:${difficulty}`;
 }
 
 /** Most frequent recent session length (ties keep the earlier count). */
-export function modeFrequency(counts: readonly (10 | 20 | 30)[]): 10 | 20 | 30 {
+export function modeFrequency(counts: readonly QuestionCount[]): QuestionCount {
   if (counts.length === 0) return 10;
-  const order: Array<10 | 20 | 30> = [];
-  const freq = new Map<10 | 20 | 30, number>();
+  const order: QuestionCount[] = [];
+  const freq = new Map<QuestionCount, number>();
   for (const c of counts) {
     if (!freq.has(c)) order.push(c);
     freq.set(c, (freq.get(c) ?? 0) + 1);
   }
-  let best: 10 | 20 | 30 = 10;
+  let best: QuestionCount = 10;
   let bestCount = -1;
   for (const k of order) {
     const v = freq.get(k) ?? 0;
@@ -66,7 +68,7 @@ function pickOne<T>(items: readonly T[], random: () => number): T {
   return item;
 }
 
-function playableRegions(mode: GameMode): Array<(typeof REGION_VALUES)[number]> {
+function playableRegions(mode: GameMode): RegionValue[] {
   if (mode === 'A') {
     return REGION_VALUES.filter((r) => r !== '北海道');
   }
@@ -100,7 +102,7 @@ function easiestOpenDifficulty(
   return 'easy';
 }
 
-type PickedCell = { mode: GameMode; region: (typeof REGION_VALUES)[number]; difficulty: Difficulty };
+type PickedCell = { mode: GameMode; region: RegionValue; difficulty: Difficulty };
 
 function pickMinCoverageCell(
   master: readonly MasterEntry[],
