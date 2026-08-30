@@ -70,9 +70,9 @@ B単体バーがAだけで100%になり得る点は、B側の1行で回収する
 - ダッシュボード固有の再実装も同じ定義にする。`lib/db/queries/dashboard.ts` の `fetchCurrentSummaryCounts` / `fetchPrevSummaryCounts`、難易度・推移向けの `calculateDiffTotals` / `getCompletionEntryKey` をヘルパーと食い違わせない。
 - Bフィルタの外側WHERE: `getCompletionTrendData` / `getDifficultyProgressData` / `getCompletionByModeData` が `mode = 'B'` だけで行を落とすと、DISTINCT側を直してもA正解がB表示に入らない。B表示ではA/B両方の行を残す。
 - クライアント側プール進捗: `lib/quiz/sampling.ts` のBクリア判定にA正解集合を渡す。
-- Aプレイ後のキャッシュ: `clearedCodes('A')` だけ無効化すると、B画面が古い未制覇のまま残る。Bキーも無効化するか、A/B共通キーにする。
+- Aプレイ後のキャッシュ: `clearedCodes('A')` だけ無効化すると、B画面が古い未制覇のまま残る。Bキーも無効化するか、A/B共通キーにする。回答完了時に推薦キャッシュ（`recommendation`）も無効化する。結果画面から「今日のおすすめ」へ戻る導線を回帰に含める。
 - おすすめ: `computeCellCoverages` のBセル、`engine.ts` の underexploredModes、`evaluateProgression` の `nextMode`（AがFit ZoneならBを対象にしない）、coverage の played 判定。
-- 回帰テスト: 分母がA+B二重にならないこと、A正解だけでB/全体逆引きが埋まること（Bフィルタの推移・難易度・完了数を含む）、B正解ではAゲージが動かないこと、C/D非影響、ダッシュボード各面が同じ分子であること、おすすめがA安定後にBへ戻さないこと（進行のモード切替含む）、A直後にBキャッシュが古くないこと。
+- 回帰テスト: 分母がA+B二重にならないこと、A正解だけでB/全体逆引きが埋まること（Bフィルタの推移・難易度・完了数を含む）、B正解ではAゲージが動かないこと、C/D非影響、ダッシュボード各面が同じ分子であること、おすすめがA安定後にBへ戻さないこと（進行のモード切替含む）、A直後にBキャッシュが古くないこと、回答完了後におすすめキャッシュが古くないこと。
 
 ## 対象外
 
