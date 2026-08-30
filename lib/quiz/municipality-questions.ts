@@ -57,7 +57,7 @@ function buildBCDQuestions(
 ): Question[] {
   const seen = new Set<string>();
   const deduped = pool.filter((m) => {
-    const key = `${m.name}::${m.prefecture}`;
+    const key = settings.mode === 'D' ? m.code : `${m.name}::${m.prefecture}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

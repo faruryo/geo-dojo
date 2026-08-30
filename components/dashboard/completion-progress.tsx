@@ -6,15 +6,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 export function CompletionProgress({
   mode,
   region,
+  title = '全国制覇',
 }: Readonly<{
   mode: 'all' | 'A' | 'B' | 'C' | 'D';
   region: string;
+  title?: string;
 }>) {
   const { data, isLoading } = useCompletionByMode(mode, region);
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-semibold">全国制覇</h2>
+      <h2 className="text-sm font-semibold">{title}</h2>
 
       {isLoading || !data ? (
         <Skeleton className="h-3 w-full rounded-full" />

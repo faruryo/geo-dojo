@@ -16,15 +16,19 @@ type LastModeSession = {
   difficulty: string;
 };
 
+type CellSessionKey = `${'B' | 'C'}:${string}:${string}`; // mode:region:difficulty
+
 type RecommendClientState = {
   lastA: LastModeSession | null;
-  lastByMode: Partial<Record<'B' | 'C', LastModeSession>>;
+  /** マス単位の直近 B/C。モード1件だと全国・複数難易度セッションで別マスを上書きする */
+  lastByCell: Partial<Record<CellSessionKey, LastModeSession>>;
   swapConsumedForASessionId: string | null;
 };
 ```
 
 - `lastA === null` → FR-013。B/C 差し替え禁止。
 - `questionCount === 0` のオブジェクトは送ってはならない。
+- 差し替え判定の「同じ地方×難易度の直近 B/C」は `lastByCell` のそのマスだけを見る。1セッションが複数マスにまたがるときは、答えた問があるマスごとにその問だけの正答率で更新する。
 
 出力: 既存 `Recommendation`。`mode` は A/B/C/D。苦戦前かつ最小マス規則前の初手モード分布は A/D が各々およそ 40–60%（SC-004）。
 

@@ -115,6 +115,17 @@ export async function buildLearnerState(userId: string): Promise<{
 
   const correctCodes = new Set(allResults.filter((r) => r.isCorrect).map((r) => r.municipalityCode));
   const cellCoverages = computeCellCoverages(allMasterRows, correctCodes);
+  const clearedCodesByMode = new Map<GameMode, Set<string>>([
+    ['A', new Set()],
+    ['B', new Set()],
+    ['C', new Set()],
+    ['D', new Set()],
+  ]);
+  for (const r of allResults) {
+    if (!r.isCorrect) continue;
+    const set = clearedCodesByMode.get(r.mode as GameMode);
+    set?.add(r.municipalityCode);
+  }
   const weaknessByMunicipality = calculateWeaknessMap(allResults);
 
   const lastSession = sessions[sessions.length - 1] ?? null;
@@ -133,6 +144,7 @@ export async function buildLearnerState(userId: string): Promise<{
     recentlyPlayedCodes: extractRecentlyPlayedCodes(allResults),
     playedModes: extractPlayedModes(allResults),
     crowdAccuracyByDifficulty,
+    clearedCodesByMode,
   };
 
   return { state, allMaster: allMasterRows };

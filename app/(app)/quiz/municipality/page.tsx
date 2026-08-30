@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, MapPin, List, HelpCircle, ChevronDown } from 'lucide-react';
+import { ChevronLeft, HelpCircle, ChevronDown } from 'lucide-react';
+import { MUNICIPALITY_MODE_CATALOG } from '@/lib/quiz/municipality-mode-catalog';
 import { Button } from '@/components/ui/button';
 import { RecommendHeroCard } from '@/components/recommend/recommend-hero-card';
 import {
@@ -20,45 +21,7 @@ const MiniJapanMap = dynamic(
 
 type Mode = 'A' | 'B' | 'C' | 'D';
 
-interface ModeInfo {
-  key: Mode;
-  shortLabel: string;
-  longLabel: string;
-  description: string;
-  // Lucide icon component
-  Icon: typeof MapPin;
-}
-
-const MODES: ModeInfo[] = [
-  {
-    key: 'A',
-    shortLabel: 'モードA',
-    longLabel: '逆引き地図',
-    description: '市区町村名から「どの都道府県にあるか」を日本地図で答える。同名の市区町村は複数県をすべて選ぶ。',
-    Icon: MapPin,
-  },
-  {
-    key: 'B',
-    shortLabel: 'モードB',
-    longLabel: '逆引き4択',
-    description: '市区町村名から「どの都道府県にあるか」を4択で答える。地図が苦手な人向け。',
-    Icon: List,
-  },
-  {
-    key: 'C',
-    shortLabel: 'モードC',
-    longLabel: '順引き4択',
-    description: '都道府県名から「どの市区町村があるか」を4択で答える。市区町村名を覚えるのに最適。',
-    Icon: List,
-  },
-  {
-    key: 'D',
-    shortLabel: 'モードD',
-    longLabel: '順引き地図',
-    description: '都道府県内の市区町村を地図でタップして答える。30秒以内、不正解は同じ問題で再挑戦。',
-    Icon: MapPin,
-  },
-];
+const MODES = MUNICIPALITY_MODE_CATALOG;
 
 // ─── Mini preview UIs (dummy data) ─────────────────────────────────
 

@@ -46,6 +46,7 @@ describe('dashboard prefetch policy (#66)', () => {
       'utf8',
     );
     expect(src).toMatch(/summaryPending \|\| hasPlayed/);
-    expect(src).toMatch(/InViewMount/);
+    expect(src).toMatch(/RecommendHeroCard/);
+    expect(src).not.toMatch(/InViewMount/);
   });
 });

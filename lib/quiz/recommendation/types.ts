@@ -62,6 +62,7 @@ export type LearnerState = {
   // counts a mode as "tried". Used for the completely-untried-mode rationale.
   playedModes: Set<GameMode>;
   crowdAccuracyByDifficulty: Record<Difficulty, number>;
+  clearedCodesByMode?: Map<GameMode, Set<string>>;
 };
 
 export type RationaleCategory =

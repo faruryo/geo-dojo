@@ -52,6 +52,9 @@ describe('toQuestionResult (二重カウント回帰防止)', () => {
     // 表示: 1問1件
     const displayResults = perQuestionEntries.map((e) => toQuestionResult(e));
     expect(displayResults).toHaveLength(19);
+    const sessionAccuracy =
+      displayResults.filter((r) => r.correct).length / displayResults.length;
+    expect(sessionAccuracy).toBeCloseTo(18 / 19);
 
     // 保存: entries の総数（複数県の市は県ごと）
     const saveCount = perQuestionEntries.reduce((n, e) => n + e.length, 0);

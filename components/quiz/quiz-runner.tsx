@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react';
 import { representativeDifficulty, type Municipality } from '@/lib/quiz/municipality-data';
+import { locationLabel } from '@/lib/quiz/location-labels';
 import { formatModeAFeedback, withKana } from '@/lib/quiz/feedback-labels';
 import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
 import {
@@ -127,9 +128,12 @@ export function QuizRunner({
         ? 'この市区町村を地図でタップ'
         : `${municipality.prefecture}の市区町村はどれ？`;
 
+  const displayName =
+    mode === 'D' ? locationLabel(municipality.code, municipality.name) : municipality.name;
+
   const title =
     mode === 'B' || effectiveMode === 'D'
-      ? municipality.name
+      ? displayName
       : municipality.prefecture;
 
   const subTitle = effectiveMode === 'D' ? `（${municipality.prefecture}）` : undefined;
@@ -137,7 +141,7 @@ export function QuizRunner({
   const feedbackDetail =
     mode === 'B'
       ? `${withKana(municipality.name, municipality.kana)} （正解: ${municipality.prefecture}）`
-      : withKana(municipality.name, municipality.kana);
+      : withKana(displayName, municipality.kana);
 
   const correctChoice = mode === 'B' ? municipality.prefecture : municipality.name;
 
