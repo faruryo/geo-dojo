@@ -16,4 +16,11 @@ describe('locationLabel', () => {
     expect(locationLabel('27127', '大阪市')).toBe('大阪市北区');
     expect(locationLabel('27128', '大阪市')).toBe('大阪市中央区');
   });
+
+  it('labels current Hamamatsu wards by 2024 codes', () => {
+    expect(locationLabel('22138', '浜松市')).toBe('浜松市中央区');
+    expect(locationLabel('22139', '浜松市')).toBe('浜松市浜名区');
+    expect(locationLabel('22140', '浜松市')).toBe('浜松市天竜区');
+    expect(locationLabel('22131', '浜松市')).toBe('浜松市');
+  });
 });
