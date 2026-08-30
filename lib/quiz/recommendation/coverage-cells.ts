@@ -19,6 +19,17 @@ type MasterEntry = {
   difficulty: string;
 };
 
+function codesByName(master: readonly MasterEntry[]): Map<string, string[]> {
+  const byName = new Map<string, string[]>();
+  for (const m of master) {
+    if (isSameNameMunicipality(m.name, m.prefecture)) continue;
+    const list = byName.get(m.name) ?? [];
+    list.push(m.code);
+    byName.set(m.name, list);
+  }
+  return byName;
+}
+
 function aNameUnits(
   master: readonly MasterEntry[],
   region: string,
@@ -45,8 +56,10 @@ export function coverageRate(
 ): { total: number; cleared: number; rate: number } {
   if (mode === 'A') {
     const units = aNameUnits(master, region, difficulty);
+    const allByName = codesByName(master);
     let n = 0;
-    for (const codes of units.values()) {
+    for (const [name, cellCodes] of units) {
+      const codes = allByName.get(name) ?? cellCodes;
       if (codes.some((c) => cleared.has(c))) n++;
     }
     const total = units.size;
