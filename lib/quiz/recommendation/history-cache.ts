@@ -6,6 +6,7 @@ import type { RecommendationHistoryCache } from './types';
 const STORAGE_KEY = 'geodojo:recommendation:history';
 const CLIENT_KEY = 'geodojo:recommendation:client-state';
 const ACTIVE_KEY = 'geodojo:recommendation:active-session';
+const ACTIVE_OWNER_KEY = 'geodojo:recommendation:active-owner';
 const TTL_MS = 24 * 60 * 60 * 1000;
 
 export function scopedRecommendKey(base: string, userId: string): string {
@@ -78,6 +79,7 @@ export function startRecommendSession(
       scopedRecommendKey(ACTIVE_KEY, userId),
       JSON.stringify({ sessionId, mode, questions: [] } satisfies ActiveSession),
     );
+    localStorage.setItem(ACTIVE_OWNER_KEY, userId);
   } catch {
     /* ignore */
   }
@@ -88,6 +90,15 @@ function readActiveSession(userId: string | null): ActiveSession | null {
   try {
     const raw = localStorage.getItem(scopedRecommendKey(ACTIVE_KEY, userId));
     return raw ? (JSON.parse(raw) as ActiveSession) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function readActiveRecommendUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(ACTIVE_OWNER_KEY);
   } catch {
     return null;
   }
@@ -108,6 +119,7 @@ function clearActiveSession(userId: string): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem(scopedRecommendKey(ACTIVE_KEY, userId));
+    localStorage.removeItem(ACTIVE_OWNER_KEY);
   } catch {
     /* ignore */
   }

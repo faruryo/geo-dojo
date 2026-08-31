@@ -14,8 +14,7 @@ import {
 import { playSe } from '@/lib/quiz/sound-effects';
 import { isModeDTapCorrect } from '@/lib/quiz/mode-d-judge';
 import { toQuestionResult } from '@/lib/quiz/quiz-results';
-import { appendRecommendQuestion } from '@/lib/quiz/recommendation/history-cache';
-import { getBrowserUserId } from '@/lib/auth/browser-user';
+import { appendRecommendQuestion, readActiveRecommendUserId } from '@/lib/quiz/recommendation/history-cache';
 import type { Question } from './use-quiz-session';
 import type { useQuizState } from './use-quiz-state';
 import { TIME_LIMIT_SEC } from './use-quiz-timer';
@@ -125,7 +124,7 @@ async function appendDisplayQuestion(entries: QuizSessionEntry[]): Promise<void>
   const head = entries[0];
   if (!head) return;
   const display = toQuestionResult(entries);
-  const userId = await getBrowserUserId();
+  const userId = readActiveRecommendUserId();
   appendRecommendQuestion(userId, {
     mode: head.mode,
     correct: display.correct,
