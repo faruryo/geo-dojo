@@ -326,14 +326,25 @@ export default function MunicipalityQuizPage() {
       identityCodeMap,
     });
     if (qs.length === 0) return;
-    autoStarted.current = true;
+    let cancelled = false;
     void (async () => {
-      const userId = await getBrowserUserId();
-      startRecommendSession(userId, crypto.randomUUID(), settings.mode);
-      setQuestions(qs);
-      setResults([]);
-      setPhase('playing');
+      try {
+        const userId = await getBrowserUserId();
+        if (cancelled) return;
+        startRecommendSession(userId, crypto.randomUUID(), settings.mode);
+        autoStarted.current = true;
+        setQuestions(qs);
+        setResults([]);
+        setPhase('playing');
+      } catch (err) {
+        if (!cancelled) {
+          console.error('[quiz] recommend auto-start failed', err);
+        }
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [
     isRecommendSource,
     masterLoading,

@@ -7,6 +7,7 @@ import {
   readRecommendClientState,
   markSwapConsumedIfRecommended,
 } from '@/lib/quiz/recommendation/history-cache';
+import { mergeIdentityRecommendationStatus } from '@/lib/quiz/recommendation/query-status';
 import { getBrowserUserId } from '@/lib/auth/browser-user';
 import { queryKeys } from '@/lib/query-keys';
 
@@ -18,7 +19,7 @@ export function useRecommendation() {
   });
   const userId = userQuery.data;
 
-  return useQuery({
+  const recQuery = useQuery({
     queryKey: queryKeys.recommendation.user(userId ?? ''),
     enabled: Boolean(userId),
     queryFn: async () => {
@@ -38,4 +39,23 @@ export function useRecommendation() {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+
+  const { isLoading, isError } = mergeIdentityRecommendationStatus({
+    identityPending: userQuery.isPending,
+    identityError: userQuery.isError,
+    hasUserId: Boolean(userId),
+    recommendationLoading: recQuery.isLoading,
+    recommendationError: recQuery.isError,
+  });
+
+  return {
+    data: recQuery.data,
+    isLoading,
+    isError,
+    refetch: async () => {
+      const identity = await userQuery.refetch();
+      if (!identity.data) return identity;
+      return recQuery.refetch();
+    },
+  };
 }
