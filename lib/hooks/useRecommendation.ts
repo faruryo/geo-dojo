@@ -11,10 +11,18 @@ import { getBrowserUserId } from '@/lib/auth/browser-user';
 import { queryKeys } from '@/lib/query-keys';
 
 export function useRecommendation() {
+  const userQuery = useQuery({
+    queryKey: ['browser-user-id'] as const,
+    queryFn: getBrowserUserId,
+    staleTime: Infinity,
+  });
+  const userId = userQuery.data;
+
   return useQuery({
-    queryKey: queryKeys.recommendation(),
+    queryKey: queryKeys.recommendation.user(userId ?? ''),
+    enabled: Boolean(userId),
     queryFn: async () => {
-      const userId = await getBrowserUserId();
+      if (!userId) throw new Error('recommendation query ran without user');
       const history = readRecommendationHistory(userId);
       const client = readRecommendClientState(userId);
       const rec = await getRecommendation({
