@@ -226,7 +226,7 @@ export function generateConquestRecommendation(
     count,
     codes,
     rationaleCategory: 'new-exploration',
-    rationaleText: `${cell.region}の${cell.difficulty}（モード${mode}）`,
+    rationaleText: `${cell.region}の${DIFFICULTY_LABEL[cell.difficulty] ?? cell.difficulty}（モード${mode}）`,
     poolBreakdown: {
       fitZoneWeakness: 0,
       coverageNew: codes.length,
