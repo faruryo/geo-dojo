@@ -1,16 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-function getSupabase() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-  );
-}
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -26,7 +19,7 @@ export default function SignupPage() {
 
     // emailRedirectTo を渡さないと確認メールのリンクが Supabase の Site URL
     // （デフォルト localhost:3000）にフォールバックする（B011）
-    const { error } = await getSupabase().auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },

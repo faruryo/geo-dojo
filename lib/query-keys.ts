@@ -36,4 +36,5 @@ export const queryKeys = {
     all: ['recommendation'] as const,
     user: (userId: string) => ['recommendation', userId] as const,
   },
+  browserUserId: ['browser-user-id'] as const,
 };

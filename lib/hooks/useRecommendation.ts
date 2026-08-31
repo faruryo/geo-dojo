@@ -12,7 +12,7 @@ import { queryKeys } from '@/lib/query-keys';
 
 export function useRecommendation() {
   const userQuery = useQuery({
-    queryKey: ['browser-user-id'] as const,
+    queryKey: queryKeys.browserUserId,
     queryFn: getBrowserUserId,
     staleTime: Infinity,
   });
