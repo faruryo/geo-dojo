@@ -19,4 +19,14 @@ describe('coverageRate Mode A', () => {
     expect(cleared).toBe(1);
     expect(rate).toBe(0.5);
   });
+
+  it('does not count Tokyo special wards as Mode A coverage units', () => {
+    const master = [
+      { code: '13101', name: '千代田区', prefecture: '東京都', region: '関東', difficulty: 'easy' },
+      { code: '13201', name: '八王子市', prefecture: '東京都', region: '関東', difficulty: 'easy' },
+    ];
+    const { total, cleared } = coverageRate('A', '関東', 'easy', master, new Set());
+    expect(total).toBe(1);
+    expect(cleared).toBe(0);
+  });
 });

@@ -32,5 +32,9 @@ export const queryKeys = {
     weakness: () => ['municipality', 'weakness'] as const,
     clearedCodes: (mode: string) => ['municipality', 'clearedCodes', mode] as const,
   },
-  recommendation: () => ['recommendation'] as const,
+  recommendation: {
+    all: ['recommendation'] as const,
+    user: (userId: string) => ['recommendation', userId] as const,
+  },
+  browserUserId: ['browser-user-id'] as const,
 };

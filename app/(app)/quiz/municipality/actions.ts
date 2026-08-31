@@ -20,7 +20,7 @@ export async function saveMunicipalityQuizResult(input: {
   mode: 'A' | 'B' | 'C' | 'D';
   isCorrect: boolean;
   answerTimeMs?: number;
-}): Promise<void> {
+}): Promise<{ quizPersisted: boolean; srsPersisted: boolean }> {
   // 本番では Next.js が server action の throw を digest に隠すため、原因を必ず明示ログしてから
   // 再 throw する。クライアントは Promise.allSettled で握り潰すので、ここが唯一の検知点になる。
   try {
@@ -47,9 +47,17 @@ export async function saveMunicipalityQuizResult(input: {
       answerTimeMs: normalizeAnswerTimeMs(input.answerTimeMs),
     });
 
-    // SM-2 更新（全クイズ共通: 復習セッション・通常クイズ双方）
-    // 逐次書き込みを維持（quiz 保存成功後に SRS 更新を実行し、失敗時は再 throw）
-    await upsertSrsRecord(userId, input);
+    try {
+      await upsertSrsRecord(userId, input);
+    } catch (srsErr) {
+      console.error('[saveMunicipalityQuizResult] srs failed after quiz insert', {
+        code: input.municipalityCode,
+        mode: input.mode,
+        error: srsErr instanceof Error ? `${srsErr.name}: ${srsErr.message}` : String(srsErr),
+      });
+      return { quizPersisted: true, srsPersisted: false };
+    }
+    return { quizPersisted: true, srsPersisted: true };
   } catch (e) {
     console.error('[saveMunicipalityQuizResult] failed', {
       code: input.municipalityCode,

@@ -30,7 +30,9 @@ import { LAST_SELECTED_MODE_KEY, parseGameMode } from '@/lib/quiz/last-selected-
 import {
   startRecommendSession,
   finalizeRecommendSession,
+  readActiveRecommendUserId,
 } from '@/lib/quiz/recommendation/history-cache';
+import { getBrowserUserId } from '@/lib/auth/browser-user';
 import {
   buildIdentityCodeMap,
   computePoolStats,
@@ -195,7 +197,7 @@ export default function MunicipalityQuizPage() {
 
   // ── Synchronized Exit / Abort Handler ──
   const handleExitToSetup = useCallback(async () => {
-    finalizeRecommendSession();
+    finalizeRecommendSession(readActiveRecommendUserId());
     setPhase('setup');
     void queryClient.invalidateQueries({
       queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
@@ -207,7 +209,7 @@ export default function MunicipalityQuizPage() {
       queryKey: queryKeys.dashboard.all,
     });
     void queryClient.invalidateQueries({
-      queryKey: queryKeys.recommendation(),
+      queryKey: queryKeys.recommendation.all,
     });
   }, [modeFromUrl, queryClient]);
 
@@ -230,7 +232,7 @@ export default function MunicipalityQuizPage() {
   const effectivePoolSize = poolStats.totalCount;
 
   // ── Start ──
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
     const qs = buildMunicipalityQuestions(
       allMunicipalities,
       settings,
@@ -241,7 +243,7 @@ export default function MunicipalityQuizPage() {
     if (qs.length === 0) return;
     setQuestions(qs);
     setResults([]);
-    startRecommendSession(crypto.randomUUID(), settings.mode);
+    startRecommendSession(await getBrowserUserId(), crypto.randomUUID(), settings.mode);
     setPhase('playing');
   }, [allMunicipalities, settings, weaknessMap, clearedCodesSet, identityCodeMap]);
 
@@ -286,7 +288,7 @@ export default function MunicipalityQuizPage() {
       if (qs.length === 0) return;
       setQuestions(qs);
       setResults([]);
-      startRecommendSession(crypto.randomUUID(), settings.mode);
+      startRecommendSession(await getBrowserUserId(), crypto.randomUUID(), settings.mode);
       setPhase('playing');
     } catch (err) {
       console.error('Failed to refetch mastery data for replay:', err);
@@ -325,10 +327,13 @@ export default function MunicipalityQuizPage() {
     });
     if (qs.length === 0) return;
     autoStarted.current = true;
-    setQuestions(qs);
-    setResults([]);
-    startRecommendSession(crypto.randomUUID(), settings.mode);
-    setPhase('playing');
+    void (async () => {
+      const userId = await getBrowserUserId();
+      startRecommendSession(userId, crypto.randomUUID(), settings.mode);
+      setQuestions(qs);
+      setResults([]);
+      setPhase('playing');
+    })();
   }, [
     isRecommendSource,
     masterLoading,
@@ -617,7 +622,7 @@ export default function MunicipalityQuizPage() {
       allMunicipalities={allMunicipalities}
       onAbort={handleExitToSetup}
       onComplete={(completedResults) => {
-        finalizeRecommendSession();
+        finalizeRecommendSession(readActiveRecommendUserId());
         setResults(completedResults);
         setPhase('result');
         void queryClient.invalidateQueries({
@@ -630,7 +635,7 @@ export default function MunicipalityQuizPage() {
           queryKey: queryKeys.dashboard.all,
         });
         void queryClient.invalidateQueries({
-          queryKey: queryKeys.recommendation(),
+          queryKey: queryKeys.recommendation.all,
         });
       }}
     />

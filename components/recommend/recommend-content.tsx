@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useRecommendation } from '@/lib/hooks/useRecommendation';
+import { getBrowserUserId } from '@/lib/auth/browser-user';
 import { writeRecommendationHistory } from '@/lib/quiz/recommendation/history-cache';
 import { DIFFICULTY_LABEL, isModeAvailable, type Region } from '@/lib/quiz/municipality-data';
 import { RecommendRationale } from './recommend-rationale';
@@ -52,8 +53,9 @@ export function RecommendContent({ onClose }: Props) {
   const hasPoolShortage = data.notes.length > 0;
   const modeAvailable = isModeAvailable(effectiveMode, effectiveRegions as Region[]);
 
-  function handleStart() {
-    writeRecommendationHistory(data!.codes);
+  async function handleStart() {
+    const userId = await getBrowserUserId();
+    writeRecommendationHistory(userId, data!.codes);
 
     const params = new URLSearchParams();
     params.set('source', 'recommend');

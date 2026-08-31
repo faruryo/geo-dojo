@@ -45,6 +45,7 @@ describe('quiz-session-core', () => {
       const saveCalls: unknown[] = [];
       const mockSaveFn = vi.fn(async (input) => {
         saveCalls.push(input);
+        return { quizPersisted: true, srsPersisted: true };
       });
 
       const { results: updated, persisted } = await executeQuizAdvance(
@@ -119,6 +120,20 @@ describe('quiz-session-core', () => {
           code: '01100',
           mode: 'B',
         }),
+      );
+    });
+
+    it('treats quiz as persisted when saveFn reports quizPersisted after a later SRS failure', async () => {
+      const entries: QuizSessionEntry[] = [
+        { municipality: mSapporo, isCorrect: true, mode: 'A', answerTimeMs: 800 },
+      ];
+      const mockLogger = { error: vi.fn() };
+      const mockSaveFn = vi.fn(async () => ({ quizPersisted: true, srsPersisted: false }));
+      const { persisted } = await executeQuizAdvance(entries, [], mockSaveFn, mockLogger);
+      expect(persisted).toBe(true);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        '[quiz-runner] srs failed after quiz insert',
+        expect.objectContaining({ code: '01100', mode: 'A' }),
       );
     });
   });
