@@ -135,3 +135,9 @@
   - 実装: クイズ完了画面（市区町村クイズ全モードおよび復習クイズ）に `UpcomingReviewMini` コンポーネントを配置し、最新の「明日の復習予定件数」と今後7日間のミニスケジュールを表示。結果フェーズ遷移時に `queryClient.invalidateQueries` で最新状態を即時反映。おすすめ経由時は `RecommendReplayButton` を最優先アクションとして配置し、ダッシュボードに戻ることなく即時ループプレイが可能。
   - 該当: `lib/quiz/srs/schedule-helper.ts`（明日件数抽出）、`components/quiz/upcoming-review-mini.tsx`（ミニカード）、`app/(app)/quiz/municipality/[mode]/page.tsx`、`app/(app)/quiz/review/page.tsx`
 
+- [ ] B020 Mode D（順引き地図）での市区町村単位の出題選択・絞り込み（gh issue #73）
+  - 概要: Mode D（順引き地図: 市区町村名 → 地図タップ）において、出題対象となる市区町村を都道府県単位や個別チェックで選択・絞り込めるようにする。
+  - 動機: 特定の都道府県や市区町村を集中的に練習・位置当て特訓したいニーズに対応する。
+  - 検討事項: 設定画面UI（都道府県選択・市区町村リスト選択）、出題プールのフィルタリング連携、URLパラメータ/状態永続化、他モード（A/B/C）への共通化可能性。
+
+
