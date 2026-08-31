@@ -1,4 +1,4 @@
-import type { Difficulty, GameMode } from '@/lib/quiz/municipality-data';
+import { DIFFICULTY_LABEL, type Difficulty, type GameMode } from '@/lib/quiz/municipality-data';
 import type { LearnerState, Recommendation, RegionValue } from './types';
 import { DIFFICULTY_ORDER, REGION_VALUES } from './types';
 import { coverageRate } from './coverage-cells';

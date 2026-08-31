@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateConquestRecommendation, cellSessionKey, modeFrequency } from '@/lib/quiz/recommendation/conquest-lottery';
 import type { LearnerState } from '@/lib/quiz/recommendation/types';
-import type { Difficulty } from '@/lib/quiz/municipality-data';
+import { DIFFICULTY_LABEL, type Difficulty } from '@/lib/quiz/municipality-data';
 
 type MasterEntry = { code: string; region: string; difficulty: string; name: string; prefecture: string };
 
@@ -64,6 +64,15 @@ describe('generateConquestRecommendation', () => {
     });
     expect(rec.mode).toBe('A');
     expect(rec.regions).not.toContain('北海道');
+  });
+
+  it('uses Japanese difficulty labels in the rationale instead of raw keys', () => {
+    const rec = generateConquestRecommendation(emptyState(tohokuCodes), [], allMaster, {
+      random: () => 0.1,
+    });
+    const diff = rec.difficulties[0] ?? 'easy';
+    expect(rec.rationaleText).not.toMatch(/\beasy\b|\bmedium\b|\bhard\b|\bexpert\b/);
+    expect(rec.rationaleText).toContain(DIFFICULTY_LABEL[diff]);
   });
 
   it('picks D when the first random draw is 0.5 or above', () => {
