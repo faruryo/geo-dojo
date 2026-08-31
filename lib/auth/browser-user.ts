@@ -1,11 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
 
 export async function getBrowserUserId(): Promise<string | null> {
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) return null;
-    return data.user.id;
-  } catch {
-    return null;
-  }
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  return data.user?.id ?? null;
 }
