@@ -208,7 +208,7 @@ export default function MunicipalityQuizPage() {
       queryKey: queryKeys.dashboard.all,
     });
     void queryClient.invalidateQueries({
-      queryKey: queryKeys.recommendation(),
+      queryKey: queryKeys.recommendation.all,
     });
   }, [modeFromUrl, queryClient]);
 
@@ -326,12 +326,13 @@ export default function MunicipalityQuizPage() {
     });
     if (qs.length === 0) return;
     autoStarted.current = true;
-    setQuestions(qs);
-    setResults([]);
-    void getBrowserUserId().then((userId) => {
+    void (async () => {
+      const userId = await getBrowserUserId();
       startRecommendSession(userId, crypto.randomUUID(), settings.mode);
-    });
-    setPhase('playing');
+      setQuestions(qs);
+      setResults([]);
+      setPhase('playing');
+    })();
   }, [
     isRecommendSource,
     masterLoading,
@@ -620,23 +621,24 @@ export default function MunicipalityQuizPage() {
       allMunicipalities={allMunicipalities}
       onAbort={handleExitToSetup}
       onComplete={(completedResults) => {
-        void getBrowserUserId().then((userId) => {
+        void (async () => {
+          const userId = await getBrowserUserId();
           finalizeRecommendSession(userId);
-        });
-        setResults(completedResults);
-        setPhase('result');
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
-        });
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.municipality.weakness(),
-        });
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.dashboard.all,
-        });
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.recommendation(),
-        });
+          setResults(completedResults);
+          setPhase('result');
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.municipality.weakness(),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.dashboard.all,
+          });
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.recommendation.all,
+          });
+        })();
       }}
     />
   );
