@@ -66,6 +66,14 @@ describe('generateConquestRecommendation', () => {
     expect(rec.regions).not.toContain('北海道');
   });
 
+  it('uses Japanese difficulty labels in the rationale instead of raw keys', () => {
+    const rec = generateConquestRecommendation(emptyState(tohokuCodes), [], allMaster, {
+      random: () => 0.1,
+    });
+    expect(rec.rationaleText).not.toMatch(/\beasy\b|\bmedium\b|\bhard\b|\bexpert\b/);
+    expect(rec.rationaleText).toMatch(/入門|中級|上級|達人/);
+  });
+
   it('picks D when the first random draw is 0.5 or above', () => {
     const rec = generateConquestRecommendation(emptyState(tohokuCodes), [], allMaster, {
       random: () => 0.6,

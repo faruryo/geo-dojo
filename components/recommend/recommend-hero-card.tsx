@@ -56,7 +56,7 @@ export function RecommendHeroCard() {
 
         <Button
           onClick={openSheet}
-          disabled={isLoading || isError}
+          disabled={isLoading}
           size="sm"
           className="w-full"
         >

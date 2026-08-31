@@ -1,4 +1,4 @@
-import type { Difficulty, GameMode } from '@/lib/quiz/municipality-data';
+import { DIFFICULTY_LABEL, type Difficulty, type GameMode } from '@/lib/quiz/municipality-data';
 import type { LearnerState, Recommendation, RegionValue } from './types';
 import { DIFFICULTY_ORDER, REGION_VALUES } from './types';
 import { coverageRate } from './coverage-cells';
@@ -226,7 +226,7 @@ export function generateConquestRecommendation(
     count,
     codes,
     rationaleCategory: 'new-exploration',
-    rationaleText: `${cell.region}の${cell.difficulty}（モード${mode}）`,
+    rationaleText: `${cell.region}の${DIFFICULTY_LABEL[cell.difficulty] ?? cell.difficulty}（モード${mode}）`,
     poolBreakdown: {
       fitZoneWeakness: 0,
       coverageNew: codes.length,
