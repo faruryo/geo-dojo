@@ -30,6 +30,7 @@ import { LAST_SELECTED_MODE_KEY, parseGameMode } from '@/lib/quiz/last-selected-
 import {
   startRecommendSession,
   finalizeRecommendSession,
+  readActiveRecommendUserId,
 } from '@/lib/quiz/recommendation/history-cache';
 import { getBrowserUserId } from '@/lib/auth/browser-user';
 import {
@@ -196,7 +197,7 @@ export default function MunicipalityQuizPage() {
 
   // ── Synchronized Exit / Abort Handler ──
   const handleExitToSetup = useCallback(async () => {
-    finalizeRecommendSession(await getBrowserUserId());
+    finalizeRecommendSession(readActiveRecommendUserId());
     setPhase('setup');
     void queryClient.invalidateQueries({
       queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
@@ -621,24 +622,21 @@ export default function MunicipalityQuizPage() {
       allMunicipalities={allMunicipalities}
       onAbort={handleExitToSetup}
       onComplete={(completedResults) => {
-        void (async () => {
-          const userId = await getBrowserUserId();
-          finalizeRecommendSession(userId);
-          setResults(completedResults);
-          setPhase('result');
-          void queryClient.invalidateQueries({
-            queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
-          });
-          void queryClient.invalidateQueries({
-            queryKey: queryKeys.municipality.weakness(),
-          });
-          void queryClient.invalidateQueries({
-            queryKey: queryKeys.dashboard.all,
-          });
-          void queryClient.invalidateQueries({
-            queryKey: queryKeys.recommendation.all,
-          });
-        })();
+        finalizeRecommendSession(readActiveRecommendUserId());
+        setResults(completedResults);
+        setPhase('result');
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.municipality.clearedCodes(modeFromUrl),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.municipality.weakness(),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard.all,
+        });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.recommendation.all,
+        });
       }}
     />
   );
