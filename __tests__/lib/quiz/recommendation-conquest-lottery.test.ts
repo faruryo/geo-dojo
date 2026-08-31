@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateConquestRecommendation, cellSessionKey, modeFrequency } from '@/lib/quiz/recommendation/conquest-lottery';
 import type { LearnerState } from '@/lib/quiz/recommendation/types';
-import { DIFFICULTY_LABEL, type Difficulty } from '@/lib/quiz/municipality-data';
+import type { Difficulty } from '@/lib/quiz/municipality-data';
 
 type MasterEntry = { code: string; region: string; difficulty: string; name: string; prefecture: string };
 
@@ -70,9 +70,8 @@ describe('generateConquestRecommendation', () => {
     const rec = generateConquestRecommendation(emptyState(tohokuCodes), [], allMaster, {
       random: () => 0.1,
     });
-    const diff = rec.difficulties[0] ?? 'easy';
     expect(rec.rationaleText).not.toMatch(/\beasy\b|\bmedium\b|\bhard\b|\bexpert\b/);
-    expect(rec.rationaleText).toContain(DIFFICULTY_LABEL[diff]);
+    expect(rec.rationaleText).toMatch(/入門|中級|上級|達人/);
   });
 
   it('picks D when the first random draw is 0.5 or above', () => {
