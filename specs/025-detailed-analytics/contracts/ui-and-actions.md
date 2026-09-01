@@ -62,12 +62,16 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
 ### `getDifficultyProgress(params: { mode: 'all' | 'A' | 'B' | 'C' | 'D'; region: string })`
 - **引数**: モード、地方
 - **戻り値**: `Promise<DifficultyProgressItem[]>`
+- **集計仕様**:
+  - Mode A において同名市複数県インスタンス（伊達市等）が異なる難易度を持つ場合、分母（母集団）と分子（クリア数）の両方で `representativeDifficulty()`（最も難しい難易度）を採用して1つの難易度バケットに割り当てる。
 
 ---
 
-## 4. 回答保存時のタイムスタンプ共通化契約 (`app/(app)/quiz/municipality/actions.ts` / `lib/quiz/quiz-session-core.ts`)
+## 4. 回答保存時のタイムスタンプ契約 (`app/(app)/quiz/municipality/actions.ts`)
 
-- Mode A で同名市（伊達市等）により複数件の `saveMunicipalityQuizResult` を呼び出す際、単一の共通 `answeredAt: Date` を明示的に渡して保存することで、DBスキーマ変更なしで同一出題レコードを確実にグループ化・正規化可能にする。
+- `saveMunicipalityQuizResults(results: NewResultInput[])`:
+  - サーバーアクション内部で単一のサーバー時刻（`const serverAnsweredAt = new Date()`）を生成し、全レコードに共通の `answeredAt` を付与して一括 insert する。
+  - クライアント側から `answeredAt` を渡さず、サーバー authoritative なタイムスタンプを保つことで端末時計の狂いによる日付集計・ストリークの破損を防ぎつつ、同一出題レコードを完全に同一のタイムスタンプでグループ化可能にする。
 
 ---
 

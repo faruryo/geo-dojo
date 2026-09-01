@@ -15,7 +15,7 @@
 | `prefecture` | `text` | 都道府県名 |
 | `mode` | `text` | モード ('A' \| 'B' \| 'C' \| 'D') |
 | `isCorrect` (`is_correct`) | `boolean` | 正誤フラグ |
-| `answeredAt` (`answered_at`) | `timestamp` | 回答日時 (UTC / JST換算) |
+| `answeredAt` (`answered_at`) | `timestamp` | 回答日時 (UTC / JST換算、Server Action側でサーバー時刻を付与) |
 | `answerTimeMs` (`answer_time_ms`) | `integer` | 回答所要時間（ミリ秒、NULL許容） |
 
 ### 2. `municipality_master` (市区町村マスター)
@@ -92,8 +92,8 @@ interface WeaknessFilterOpts {
 ```typescript
 interface DifficultyProgressItem {
   difficulty: 'easy' | 'medium' | 'hard' | 'expert';
-  clearedCount: number;         // クリア数
-  totalCount: number;           // 母集団数
+  clearedCount: number;         // クリア数（Mode A同名市はrepresentativeDifficulty採用で1バケット集約）
+  totalCount: number;           // 母集団数（Mode A同名市はrepresentativeDifficulty採用で1バケット集約）
 }
 ```
 
