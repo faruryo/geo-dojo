@@ -42,13 +42,17 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
   - `overallAccuracy`: 全体正答率
   - `conquestRateA`: 県当て(A)制覇率
   - `conquestRateD`: 場所当て(D)制覇率
-  - `prev`: 前日比比較用
-- **集計仕様（Mode A出題正規化）**:
-  - Mode Aで伊達市などの同名・複数県が出題された場合、同時保存されるレコード群（同一 `answered_at` かつ同一 `mode='A'` かつ同一 `municipality_name`）を1問として集約して出題数・正解数を算出する。
+  - `prev`: 前日比比較用（`totalQuestions`, `overallAccuracy`, `conquestRateA`, `conquestRateD`）
+- **集計仕様**:
+  - **Mode A出題正規化**: 同名・複数県（伊達市など）で保存された複数レコード（同一 `answered_at` かつ `mode='A'` かつ `municipality_name`）を1問として集約し、出題数・正答率を算出。
+  - **A/D制覇率算出**: `municipality_master` に対する Mode A（県当て）および Mode D（場所当て）のクリア自治体数比率を算出。
 
 ### `getAccuracyTrend(params: { period: '7d' | '30d' | 'all'; mode: QuizModeFilter; region: string })`
 - **引数**: フィルター条件（期間、モード、地方）
 - **戻り値**: `Promise<AccuracyTrendPoint[]>`
+- **集計仕様**:
+  - 指定期間・地方・モードにおける日別の正答率推移を返す。
+  - Mode A 同名市複数県のレコードは同一 `answered_at` + `municipality_name` で1問集約して日別正答率を算出。
 
 ### `getWeaknessRanking(params?: { mode?: QuizModeFilter; region?: string })`
 - **引数**: フィルター条件（モード、地方）※省略時は全体（'all', '全国'）
@@ -61,7 +65,13 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
 
 ---
 
-## 4. Query Key Factory 拡張 (`lib/query-keys.ts`)
+## 4. 回答保存時のタイムスタンプ共通化契約 (`app/(app)/quiz/municipality/actions.ts` / `lib/quiz/quiz-session-core.ts`)
+
+- Mode A で同名市（伊達市等）により複数件の `saveMunicipalityQuizResult` を呼び出す際、単一の共通 `answeredAt: Date` を明示的に渡して保存することで、DBスキーマ変更なしで同一出題レコードを確実にグループ化・正規化可能にする。
+
+---
+
+## 5. Query Key Factory 拡張 (`lib/query-keys.ts`)
 
 ```typescript
 export const queryKeys = {
@@ -81,7 +91,7 @@ export const queryKeys = {
 
 ---
 
-## 5. ナビゲーション更新契約 (`app/(app)/bottom-nav.tsx`)
+## 6. ナビゲーション更新契約 (`app/(app)/bottom-nav.tsx`)
 
 ```typescript
 const navItems = [

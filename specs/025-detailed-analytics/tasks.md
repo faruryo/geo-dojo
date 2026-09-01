@@ -2,10 +2,11 @@
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: 共通のデータ取得・プリフェッチ基盤およびクエリ・キーファクトリ拡張の準備
+**Purpose**: 共通のデータ取得・プリフェッチ基盤およびクエリ・キーファクトリ拡張、保存時共通タイムスタンプの準備
 
 - [ ] T001 `lib/query-keys.ts` の `queryKeys.dashboard.weakness(mode, region)` を拡張し、プリフェッチ関数 `getAnalyticsDehydratedState` を `lib/analytics/prefetch.ts` に実装
-- [ ] T002 `lib/db/queries/dashboard.ts` の `getDashboardSummaryData` における Mode A 同名市正規化（同一 `answeredAt` + `municipalityName` の1問集約）および `getWeaknessRankingData`・`app/(app)/dashboard/actions.ts` の `{ mode?: QuizModeFilter; region?: string }` フィルター引数・WHERE句適用を実装
+- [ ] T002 `app/(app)/quiz/municipality/actions.ts` の `saveMunicipalityQuizResult` および `lib/quiz/quiz-session-core.ts` において、Mode A 同名市の複数行保存時に単一の共通 `answeredAt` を渡すよう更新
+- [ ] T003 `lib/db/queries/dashboard.ts` の `getDashboardSummaryData`（Mode A 同名市正規化 & `conquestRateA`/`conquestRateD` 算出）、`getAccuracyTrendData`（Mode A 同名市正規化）、および `getWeaknessRankingData`（`{ mode?: QuizModeFilter; region?: string }` WHERE句適用）を実装し、対応する Server Actions（`app/(app)/dashboard/actions.ts`）を更新
 
 ---
 
@@ -15,7 +16,7 @@
 
 **⚠️ CRITICAL**: 画面遷移基盤を整えてから各ユーザーストーリーのUI実装を進める
 
-- [ ] T003 [P] [US3] ボトムナビゲーション `app/(app)/bottom-nav.tsx` に「分析」（`/analytics`、`BarChart2` アイコン）を追加
+- [ ] T004 [P] [US3] ボトムナビゲーション `app/(app)/bottom-nav.tsx` に「分析」（`/analytics`、`BarChart2` アイコン）を追加
 
 **Checkpoint**: ナビゲーションから `/analytics` への導線が確立
 
@@ -29,12 +30,12 @@
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T004 [P] [US1] 詳細分析画面の描画・EmptyStateテストを `__tests__/components/analytics/analytics-client.test.tsx` に作成
+- [ ] T005 [P] [US1] 詳細分析画面の描画・EmptyStateテストを `__tests__/components/analytics/analytics-client.test.tsx` に作成
 
 ### Implementation for User Story 1
 
-- [ ] T005 [US1] 4サマリーカード（累計出題数・全体正答率・県当て(A)制覇率・場所当て(D)制覇率）対応の `SummaryCards` を含む詳細分析クライアントコンポーネント `components/analytics/analytics-client.tsx` を作成
-- [ ] T006 [US1] 詳細分析 Server Component `app/(app)/analytics/page.tsx` を作成し、`getAnalyticsDehydratedState`（`queryKeys` 準拠）でプリフェッチと `HydrationBoundary` でクライアントをマウント
+- [ ] T006 [US1] 4サマリーカード（累計出題数・全体正答率・県当て(A)制覇率・場所当て(D)制覇率）対応の `SummaryCards` を含む詳細分析クライアントコンポーネント `components/analytics/analytics-client.tsx` を作成
+- [ ] T007 [US1] 詳細分析 Server Component `app/(app)/analytics/page.tsx` を作成し、`getAnalyticsDehydratedState`（`queryKeys` 準拠）でプリフェッチと `HydrationBoundary` でクライアントをマウント
 
 **Checkpoint**: User Story 1 単体で詳細分析画面の全データ閲覧が機能する (MVP)
 
@@ -48,11 +49,11 @@
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T007 [P] [US2] フィルター変更時のクエリ・苦手ランキングサーバー絞り込み連動テストを `__tests__/components/analytics/analytics-filter.test.tsx` に作成
+- [ ] T008 [P] [US2] フィルター変更時のクエリ・苦手ランキングサーバー絞り込み連動テストを `__tests__/components/analytics/analytics-filter.test.tsx` に作成
 
 ### Implementation for User Story 2
 
-- [ ] T008 [US2] `components/analytics/analytics-client.tsx` 内で `FilterBar` の選択状態（期間・地方・モード）を `AccuracyChart`, `WeaknessRanking`, `DifficultyProgress` にバインドして動的連動を実装（024モード表記対応・`WeaknessRanking` のサーバー側フィルター呼び出し・queryKeys連動）
+- [ ] T009 [US2] `components/analytics/analytics-client.tsx` 内で `FilterBar` の選択状態（期間・地方・モード）を `AccuracyChart`, `WeaknessRanking`, `DifficultyProgress` にバインドして動的連動を実装（024モード表記対応・`WeaknessRanking` のサーバー側フィルター呼び出し・queryKeys連動）
 
 **Checkpoint**: 絞り込みフィルターによる動的なデータ分析・苦手ランキング絞り込みが機能する
 
@@ -66,11 +67,11 @@
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T009 [P] [US3] ボトムナビゲーションの遷移とアクティブ状態のテストを `__tests__/components/analytics/bottom-nav-analytics.test.tsx` に作成
+- [ ] T010 [P] [US3] ボトムナビゲーションの遷移とアクティブ状態のテストを `__tests__/components/analytics/bottom-nav-analytics.test.tsx` に作成
 
 ### Implementation for User Story 3
 
-- [ ] T010 [US3] `app/(app)/bottom-nav.tsx` のアクティブ判定および `/analytics` 画面のレイアウト（パディング・セーフエリア）の統合確認
+- [ ] T011 [US3] `app/(app)/bottom-nav.tsx` のアクティブ判定および `/analytics` 画面のレイアウト（パディング・セーフエリア）の統合確認
 
 **Checkpoint**: ナビゲーションによる画面遷移とハイライトが完全動作する
 
@@ -80,8 +81,8 @@
 
 **Purpose**: モバイル表示最適化、コード品質・型検査、回帰テスト確認
 
-- [ ] T011 [P] 375px幅モバイル表示でのマージン・スクロール・ダークモードのUI調整
-- [ ] T012 `pnpm type-check`, `pnpm lint`, `pnpm test` を実行し、全テスト通過とlint/型エラーゼロを確認
+- [ ] T012 [P] 375px幅モバイル表示でのマージン・スクロール・ダークモードのUI調整
+- [ ] T013 `pnpm type-check`, `pnpm lint`, `pnpm test` を実行し、全テスト通過とlint/型エラーゼロを確認
 
 ---
 
@@ -100,5 +101,5 @@
 
 ## Parallel Opportunities
 
-- T003, T004, T007, T009 のテスト・ナビ定義は並列着手可能。
-- T011 のレスポンシブ微調整はコンポーネント実装と並行して確認可能。
+- T004, T005, T008, T010 のテスト・ナビ定義は並列着手可能。
+- T012 のレスポンシブ微調整はコンポーネント実装と並行して確認可能。

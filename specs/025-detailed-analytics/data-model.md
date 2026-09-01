@@ -9,26 +9,30 @@
 | カラム | 型 | 説明 |
 |---|---|---|
 | `id` | `uuid` (PK) | 回答ID |
-| `user_id` | `uuid` (FK) | ユーザーID (RLS対象) |
-| `municipality_code` | `varchar(5)` | 市区町村コード |
-| `municipality_name` | `varchar(100)` | 市区町村名 |
-| `prefecture` | `varchar(50)` | 都道府県名 |
-| `mode` | `varchar(10)` | モード ('A' \| 'B' \| 'C' \| 'D') |
-| `difficulty` | `varchar(20)` | 難易度 ('beginner' \| 'intermediate' \| 'advanced' \| 'expert') |
-| `is_correct` | `boolean` | 正誤フラグ |
-| `answered_at` | `timestamptz` | 回答日時 (UTC / JST換算) |
-| `answer_time_ms` | `integer` | 回答所要時間（ミリ秒） |
+| `userId` (`user_id`) | `uuid` (FK) | ユーザーID (RLS対象) |
+| `municipalityCode` (`municipality_code`) | `text` | 市区町村コード |
+| `municipalityName` (`municipality_name`) | `text` | 市区町村名 |
+| `prefecture` | `text` | 都道府県名 |
+| `mode` | `text` | モード ('A' \| 'B' \| 'C' \| 'D') |
+| `isCorrect` (`is_correct`) | `boolean` | 正誤フラグ |
+| `answeredAt` (`answered_at`) | `timestamp` | 回答日時 (UTC / JST換算) |
+| `answerTimeMs` (`answer_time_ms`) | `integer` | 回答所要時間（ミリ秒、NULL許容） |
 
 ### 2. `municipality_master` (市区町村マスター)
 
 | カラム | 型 | 説明 |
 |---|---|---|
-| `code` | `varchar(5)` (PK) | 5桁市区町村コード |
-| `name` | `varchar(100)` | 市区町村名 |
-| `prefecture` | `varchar(50)` | 都道府県名 |
-| `region` | `varchar(50)` | 地方名（東北、関東など） |
-| `difficulty` | `varchar(20)` | 難易度 |
-| `is_same_name` | `boolean` | 同名異自治体フラグ |
+| `code` | `text` (PK) | 5桁市区町村コード |
+| `name` | `text` | 市区町村名 |
+| `prefecture` | `text` | 都道府県名 |
+| `region` | `text` | 地方名（東北、関東など） |
+| `difficulty` | `text` | 難易度 ('easy' \| 'medium' \| 'hard' \| 'expert') |
+| `population` | `integer` | 人口（国勢調査） |
+| `populationYear` | `integer` | 人口調査年 |
+| `kana` | `text` | 読み仮名（ひらがな） |
+| `updatedAt` | `timestamp` | 更新日時 |
+
+※ 難易度（`difficulty`）や地方（`region`）に基づく集計は、`municipality_quiz_results.municipality_code` と `municipality_master.code` の JOIN により行う。
 
 ---
 
@@ -37,7 +41,7 @@
 ### 1. `AnalyticsSummary` (総合学習サマリー)
 ```typescript
 interface AnalyticsSummary {
-  totalQuestions: number;       // 累計出題数（Mode A同名市を同一answered_at+municipality_nameで1問集約）
+  totalQuestions: number;       // 累計出題数（Mode A同名市を同一answeredAt+municipalityNameで1問集約）
   overallAccuracy: number;      // 全体正答率 (0.0-1.0)
   conquestRateA: number;        // 県当て(A)制覇率 (0.0-1.0)
   conquestRateD: number;        // 場所当て(D)制覇率 (0.0-1.0)
@@ -54,7 +58,7 @@ interface AnalyticsSummary {
 ```typescript
 interface AccuracyTrendPoint {
   date: string;                 // 日付 ('YYYY-MM-DD')
-  all: number;                  // その日の全体正答率 (0-100%)
+  all: number;                  // その日の全体正答率 (0-100%, Mode A同名市正規化対応)
   easy?: number;                // 入門
   medium?: number;              // 中級
   hard?: number;                // 上級
@@ -70,7 +74,7 @@ interface WeaknessItem {
   prefecture: string;           // 都道府県名
   mode: 'A' | 'B' | 'C' | 'D';
   region: string;
-  difficulty: string;
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
   kana?: string;
   totalCount: number;           // 総出題回数
   errorCount: number;           // 不正解回数
