@@ -260,7 +260,7 @@ function useMunicipalityPickerState({
 
   useEffect(() => {
     if (isOpen) {
-      if (selectedCodes && selectedCodes.length > 0) {
+      if (selectedCodes !== undefined) {
         setTempSelected(new Set(selectedCodes));
       } else {
         setTempSelected(new Set(municipalities.map((m) => m.code)));

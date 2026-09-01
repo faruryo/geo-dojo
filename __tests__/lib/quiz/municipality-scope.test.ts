@@ -5,6 +5,7 @@ import {
   getScopePrefectures,
   parseScopeFromSearchParams,
   serializeScopeToQueryString,
+  updateSearchParamsWithScope,
   type Municipality,
   type MunicipalityScope,
 } from '@/lib/quiz/municipality-data';
@@ -128,6 +129,23 @@ describe('parseScopeFromSearchParams & serializeScopeToQueryString', () => {
     const query = serializeScopeToQueryString(originalScope);
     const parsed = parseScopeFromSearchParams(new URLSearchParams(query.slice(1)));
     expect(parsed).toEqual(originalScope);
+  });
+
+  it('updateSearchParamsWithScope が既存の source/count/difficulties などのパラメータを維持する', () => {
+    const existingParams = new URLSearchParams('source=recommend&count=20&difficulties=hard&region=関東');
+    const newScope: MunicipalityScope = {
+      type: 'prefecture',
+      prefecture: '長野県',
+      selectedCodes: ['20201'],
+    };
+    const updated = updateSearchParamsWithScope(existingParams, newScope);
+    expect(updated.get('source')).toBe('recommend');
+    expect(updated.get('count')).toBe('20');
+    expect(updated.get('difficulties')).toBe('hard');
+    expect(updated.get('scope')).toBe('prefecture');
+    expect(updated.get('pref')).toBe('長野県');
+    expect(updated.get('codes')).toBe('20201');
+    expect(updated.get('region')).toBeNull();
   });
 });
 

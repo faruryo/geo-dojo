@@ -167,18 +167,33 @@ export function parseScopeFromSearchParams(
 
 export const LAST_MODE_D_SCOPE_KEY = 'geodojo_last_mode_d_scope';
 
-export function serializeScopeToQueryString(scope: MunicipalityScope): string {
-  const params = new URLSearchParams();
+export function updateSearchParamsWithScope(
+  searchParams: URLSearchParams,
+  scope: MunicipalityScope,
+): URLSearchParams {
+  const next = new URLSearchParams(searchParams);
+  next.delete('scope');
+  next.delete('pref');
+  next.delete('prefecture');
+  next.delete('codes');
+  next.delete('region');
+  next.delete('regions');
+
   if (scope.type === 'prefecture' && scope.prefecture) {
-    params.set('scope', 'prefecture');
-    params.set('pref', scope.prefecture);
+    next.set('scope', 'prefecture');
+    next.set('pref', scope.prefecture);
     if (scope.selectedCodes !== undefined) {
-      params.set('codes', scope.selectedCodes.join(','));
+      next.set('codes', scope.selectedCodes.join(','));
     }
   } else if (scope.regions && scope.regions.length > 0 && !scope.regions.includes('全国')) {
-    params.set('scope', 'region');
-    params.set('region', scope.regions.join(','));
+    next.set('scope', 'region');
+    next.set('region', scope.regions.join(','));
   }
+  return next;
+}
+
+export function serializeScopeToQueryString(scope: MunicipalityScope): string {
+  const params = updateSearchParamsWithScope(new URLSearchParams(), scope);
   const str = params.toString();
   return str ? `?${str}` : '';
 }

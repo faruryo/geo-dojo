@@ -54,7 +54,7 @@ import {
   filterTextModeMunicipalities,
   isScopeAvailable,
   parseScopeFromSearchParams,
-  serializeScopeToQueryString,
+  updateSearchParamsWithScope,
   LAST_MODE_D_SCOPE_KEY,
 } from '@/lib/quiz/municipality-data';
 
@@ -233,9 +233,10 @@ export default function MunicipalityQuizPage() {
         // ignore storage error
       }
       if (typeof window !== 'undefined') {
-        const queryStr = serializeScopeToQueryString(settings.scope);
         const currentUrl = new URL(window.location.href);
-        const newSearch = queryStr ? queryStr : '';
+        const nextParams = updateSearchParamsWithScope(currentUrl.searchParams, settings.scope);
+        const newQuery = nextParams.toString();
+        const newSearch = newQuery ? `?${newQuery}` : '';
         if (currentUrl.search !== newSearch) {
           currentUrl.search = newSearch;
           window.history.replaceState(null, '', currentUrl.toString());
@@ -262,18 +263,15 @@ export default function MunicipalityQuizPage() {
     });
   }, [modeFromUrl, queryClient]);
 
+  // ── Mode D Scoped Municipalities & Pool Progress ──
   const currentScope = useMemo(() => resolveQuizScope(settings), [settings]);
 
-  // ── Pool and stats calculation ──
   const filteredPool = useMemo(() => {
-    if (allMunicipalities.length === 0) return [];
     const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
     const source = isTextMode ? filterTextModeMunicipalities(allMunicipalities) : allMunicipalities;
-    return filterByDifficulty(
-      filterByScope(source, currentScope),
-      settings.difficulties,
-    );
-  }, [allMunicipalities, currentScope, settings.difficulties, settings.mode]);
+    const scoped = filterByScope(source, currentScope);
+    return filterByDifficulty(scoped, settings.difficulties);
+  }, [allMunicipalities, settings.mode, settings.difficulties, currentScope]);
 
   const poolStats = useMemo(
     () => computePoolStats(filteredPool, settings.mode, clearedCodesSet, identityCodeMap),
@@ -289,7 +287,7 @@ export default function MunicipalityQuizPage() {
 
   const selectedMunicipalityCount = useMemo(() => {
     if (currentScope.type !== 'prefecture') return undefined;
-    if (!currentScope.selectedCodes || currentScope.selectedCodes.length === 0) {
+    if (currentScope.selectedCodes === undefined) {
       return prefectureMunicipalities.length;
     }
     return currentScope.selectedCodes.length;
