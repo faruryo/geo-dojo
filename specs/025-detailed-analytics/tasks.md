@@ -4,9 +4,9 @@
 
 **Purpose**: 共通のデータ取得・プリフェッチ基盤およびクエリ・キーファクトリ拡張、保存時共通タイムスタンプの準備
 
-- [ ] T001 `lib/query-keys.ts` の `queryKeys.dashboard.weakness(mode, region)` を拡張し、プリフェッチ関数 `getAnalyticsDehydratedState` を `lib/analytics/prefetch.ts` に実装
+- [ ] T001 `lib/query-keys.ts` の `queryKeys.dashboard.weakness(period, mode, region)` を拡張し、プリフェッチ関数 `getAnalyticsDehydratedState` を `lib/analytics/prefetch.ts` に実装
 - [ ] T002 `app/(app)/quiz/municipality/actions.ts` の `saveMunicipalityQuizResult` および `lib/quiz/quiz-session-core.ts` において、Mode A 同名市の複数行保存時に単一の共通 `answeredAt` を渡すよう更新
-- [ ] T003 `lib/db/queries/dashboard.ts` の `getDashboardSummaryData`（Mode A 同名市正規化 & `conquestRateA`/`conquestRateD` 算出）、`getAccuracyTrendData`（Mode A 同名市正規化）、および `getWeaknessRankingData`（`{ mode?: QuizModeFilter; region?: string }` WHERE句適用）を実装し、対応する Server Actions（`app/(app)/dashboard/actions.ts`）を更新
+- [ ] T003 `lib/db/queries/dashboard.ts` の `getDashboardSummaryData`（Mode A 同名市正規化・過去レガシー近似集約 & `conquestRateA`/`conquestRateD` 算出）、`getAccuracyTrendData`（日別/週別対応、Mode A 同名市正規化、`representativeDifficulty` 難易度割り当て）、および `getWeaknessRankingData`（期間・モード・地方の WHERE 句適用）を実装し、対応する Server Actions（`app/(app)/dashboard/actions.ts`）を更新
 
 ---
 
@@ -43,7 +43,7 @@
 
 ## Phase 4: User Story 2 - 条件（期間・地方・モード）を絞り込んで分析する (Priority: P2)
 
-**Goal**: 期間（7日/30日/全期間）や地方・モード（全て/県当て/県当て練習/市当て練習/場所当て）を切り替えて、特定スコープに絞った推移グラフや苦手ランキング（サーバー側絞り込み）を動的に更新する
+**Goal**: 期間（7日/30日/全期間）や地方・モード（全て/県当て/県当て練習/市当て練習/場所当て）を切り替えて、特定スコープに絞った推移グラフや苦手ランキング（期間・モード・地方のサーバー側絞り込み）を動的に更新する
 
 **Independent Test**: フィルター操作時にグラフと苦手ランキングが即座に連動して絞り込まれることを確認する
 
@@ -53,7 +53,7 @@
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] `components/analytics/analytics-client.tsx` 内で `FilterBar` の選択状態（期間・地方・モード）を `AccuracyChart`, `WeaknessRanking`, `DifficultyProgress` にバインドして動的連動を実装（024モード表記対応・`WeaknessRanking` のサーバー側フィルター呼び出し・queryKeys連動）
+- [ ] T009 [US2] `components/analytics/analytics-client.tsx` 内で `FilterBar` の選択状態（期間・地方・モード）を `AccuracyChart`, `WeaknessRanking`, `DifficultyProgress` にバインドして動的連動を実装（024モード表記対応・`WeaknessRanking` のサーバー側期間・フィルター呼び出し・queryKeys連動）
 
 **Checkpoint**: 絞り込みフィルターによる動的なデータ分析・苦手ランキング絞り込みが機能する
 

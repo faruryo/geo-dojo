@@ -11,7 +11,7 @@
      - `queryKeys.dashboard.streak()`: 連続学習日数
      - `queryKeys.dashboard.difficulty('all', '全国')`: 難易度別クリア状況
      - `queryKeys.dashboard.trend('7d', 'all', '全国')`: 初期7日間の推移
-     - `queryKeys.dashboard.weakness('all', '全国')`: 苦手ランキング（初期全国/全モード）
+     - `queryKeys.dashboard.weakness('7d', 'all', '全国')`: 苦手ランキング（初期7日間/全国/全モード）
   3. `<HydrationBoundary state={dehydratedState}>` 内で `<AnalyticsClient />` をレンダリング。
 
 ---
@@ -28,7 +28,7 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
     ├── FilterBar (期間: 7d/30d/all, 地方, モード: 全て/A/B/C/D)
     ├── AccuracyChart (選択期間・地方・モードの推移グラフ)
     ├── DifficultyProgress (選択モード・地方ごとの難易度別クリア状況)
-    └── WeaknessRanking (選択モード・地方でサーバー側絞り込みを行った誤答率上位の自治体リスト)
+    └── WeaknessRanking (選択期間・モード・地方でサーバー側絞り込みを行った誤答率上位の自治体リスト)
 ```
 
 ---
@@ -44,20 +44,20 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
   - `conquestRateD`: 場所当て(D)制覇率
   - `prev`: 前日比比較用（`totalQuestions`, `overallAccuracy`, `conquestRateA`, `conquestRateD`）
 - **集計仕様**:
-  - **Mode A出題正規化**: 同名・複数県（伊達市など）で保存された複数レコード（同一 `answered_at` かつ `mode='A'` かつ `municipality_name`）を1問として集約し、出題数・正答率を算出。
+  - **Mode A出題正規化**: 同名・複数県（伊達市など）で保存された複数レコード（同一 `answered_at` かつ `mode='A'` かつ `municipality_name`、および過去のレガシーレコードに対する同一ユーザー・同一自治体名・2秒以内回答の近似グループ化）を1問として集約し、出題数・正答率を算出。
   - **A/D制覇率算出**: `municipality_master` に対する Mode A（県当て）および Mode D（場所当て）のクリア自治体数比率を算出。
 
 ### `getAccuracyTrend(params: { period: '7d' | '30d' | 'all'; mode: QuizModeFilter; region: string })`
 - **引数**: フィルター条件（期間、モード、地方）
 - **戻り値**: `Promise<AccuracyTrendPoint[]>`
 - **集計仕様**:
-  - 指定期間・地方・モードにおける日別の正答率推移を返す。
-  - Mode A 同名市複数県のレコードは同一 `answered_at` + `municipality_name` で1問集約して日別正答率を算出。
+  - `period = '7d' | '30d'` の場合は日別（`date_trunc('day', ...)`）、`period = 'all'` の場合は週別（`date_trunc('week', ...)`）の推移を返す。
+  - Mode A 同名市複数県のレコードは同一出題として1問集約（過去レガシーの2秒以内近似集約含む）し、難易度別系列の割り当てには `representativeDifficulty()`（最も難しい難易度）を採用して正答率を算出。
 
-### `getWeaknessRanking(params?: { mode?: QuizModeFilter; region?: string })`
-- **引数**: フィルター条件（モード、地方）※省略時は全体（'all', '全国'）
+### `getWeaknessRanking(params?: { period?: '7d' | '30d' | 'all'; mode?: QuizModeFilter; region?: string })`
+- **引数**: フィルター条件（期間、モード、地方）※省略時は ('all', 'all', '全国')
 - **戻り値**: `Promise<WeaknessItem[]>`
-- **動作**: サーバークエリ内で指定のモード・地方条件を WHERE 句に適用した上で `ORDER BY errorRate DESC, totalCount DESC LIMIT 20` を実行し、選択条件に適合する上位20件を返す。
+- **動作**: サーバークエリ内で指定の期間（`answered_at >= NOW() - INTERVAL '...'`）・モード・地方条件を WHERE 句に適用した上で `ORDER BY errorRate DESC, totalCount DESC LIMIT 20` を実行し、選択条件に適合する上位20件を返す。
 
 ### `getDifficultyProgress(params: { mode: 'all' | 'A' | 'B' | 'C' | 'D'; region: string })`
 - **引数**: モード、地方
@@ -78,8 +78,8 @@ export const queryKeys = {
   dashboard: {
     // 既存キー ...
     summary: () => ['dashboard', 'summary'] as const,
-    weakness: (mode: string = 'all', region: string = '全国') =>
-      ['dashboard', 'weakness', mode, region] as const,
+    weakness: (period: string = 'all', mode: string = 'all', region: string = '全国') =>
+      ['dashboard', 'weakness', period, mode, region] as const,
     difficulty: (mode: string = 'all', region: string = '全国') =>
       ['dashboard', 'difficulty', mode, region] as const,
     trend: (period: string, mode: string, region: string = '全国') =>

@@ -57,9 +57,9 @@ interface AnalyticsSummary {
 ### 2. `AccuracyTrendPoint` (正答率推移データ点)
 ```typescript
 interface AccuracyTrendPoint {
-  date: string;                 // 日付 ('YYYY-MM-DD')
+  date: string;                 // 日付 ('YYYY-MM-DD') または 週初日
   all: number;                  // その日の全体正答率 (0-100%, Mode A同名市正規化対応)
-  easy?: number;                // 入門
+  easy?: number;                // 入門 (Mode A同名市はrepresentativeDifficulty採用)
   medium?: number;              // 中級
   hard?: number;                // 上級
   expert?: number;              // 達人
@@ -82,6 +82,7 @@ interface WeaknessItem {
 }
 
 interface WeaknessFilterOpts {
+  period?: '7d' | '30d' | 'all';
   mode?: 'all' | 'A' | 'B' | 'C' | 'D';
   region?: string;              // '全国' | '北海道' | '東北' | ...
 }
