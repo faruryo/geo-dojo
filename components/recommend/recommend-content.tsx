@@ -15,6 +15,12 @@ const MODE_LABEL: Record<string, string> = {
   C: 'モードC・順引き4択', D: 'モードD・順引き地図',
 };
 
+function getStartButtonLabel(modeAvailable: boolean, hasDifficulties: boolean): string {
+  if (!modeAvailable) return '対象地方を2つ以上選んでください';
+  if (!hasDifficulties) return '難易度を1つ以上選んでください';
+  return 'そのまま開始';
+}
+
 interface Props {
   onClose: () => void;
 }
@@ -48,10 +54,11 @@ export function RecommendContent({ onClose }: Props) {
   const effectiveMode = overrides?.mode ?? data.mode;
   const effectiveCount = overrides?.count ?? data.count;
   const effectiveRegions = overrides ? overrides.targetRegions : data.regions;
-  const effectiveDifficulties = data.difficulties;
+  const effectiveDifficulties = overrides ? overrides.difficulties : data.difficulties;
 
   const hasPoolShortage = data.notes.length > 0;
   const modeAvailable = isModeAvailable(effectiveMode, effectiveRegions as Region[]);
+  const hasDifficulties = effectiveDifficulties.length > 0;
 
   async function handleStart() {
     const userId = await getBrowserUserId();
@@ -108,14 +115,23 @@ export function RecommendContent({ onClose }: Props) {
 
       {/* Override form */}
       <RecommendOverride
-        initial={{ mode: data.mode, count: data.count, regions: data.regions }}
+        initial={{
+          mode: data.mode,
+          count: data.count,
+          regions: data.regions,
+          difficulties: data.difficulties,
+        }}
         onChange={setOverrides}
       />
 
       {/* CTAs — sticky bottom */}
       <div className="flex flex-col gap-2 pt-2">
-        <Button onClick={handleStart} className="w-full" disabled={!modeAvailable}>
-          {modeAvailable ? 'そのまま開始' : '対象地方を2つ以上選んでください'}
+        <Button
+          onClick={handleStart}
+          className="w-full"
+          disabled={!modeAvailable || !hasDifficulties}
+        >
+          {getStartButtonLabel(modeAvailable, hasDifficulties)}
         </Button>
         <Button variant="ghost" onClick={onClose} className="w-full">
           キャンセル

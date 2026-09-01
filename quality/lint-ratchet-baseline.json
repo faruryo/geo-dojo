@@ -88,11 +88,6 @@
     },
     {
       "file": "app/(auth)/login/page.tsx",
-      "rule": "@typescript-eslint/no-non-null-assertion",
-      "count": 2
-    },
-    {
-      "file": "app/(auth)/login/page.tsx",
       "rule": "max-lines-per-function",
       "count": 1
     },
@@ -123,11 +118,6 @@
     },
     {
       "file": "app/(auth)/signup/page.tsx",
-      "rule": "@typescript-eslint/no-non-null-assertion",
-      "count": 2
-    },
-    {
-      "file": "app/(auth)/signup/page.tsx",
       "rule": "max-lines-per-function",
       "count": 1
     },
@@ -154,11 +144,6 @@
     {
       "file": "components/dashboard/completion-chart.tsx",
       "rule": "sonarjs/prefer-read-only-props",
-      "count": 1
-    },
-    {
-      "file": "components/dashboard/dashboard-client.tsx",
-      "rule": "max-lines-per-function",
       "count": 1
     },
     {
@@ -219,17 +204,17 @@
     {
       "file": "components/map/MunicipalityMap.tsx",
       "rule": "@typescript-eslint/no-non-null-assertion",
-      "count": 2
+      "count": 1
     },
     {
       "file": "components/map/MunicipalityMap.tsx",
       "rule": "@typescript-eslint/no-unnecessary-type-assertion",
-      "count": 2
+      "count": 1
     },
     {
       "file": "components/map/MunicipalityMap.tsx",
       "rule": "max-lines-per-function",
-      "count": 3
+      "count": 1
     },
     {
       "file": "components/map/MunicipalityMap.tsx",
@@ -244,7 +229,7 @@
     {
       "file": "components/map/MunicipalityMap.tsx",
       "rule": "sonarjs/no-nested-functions",
-      "count": 2
+      "count": 1
     },
     {
       "file": "components/map/MunicipalityMap.tsx",
@@ -379,26 +364,6 @@
     {
       "file": "lib/quiz/recommendation/cell-stats.ts",
       "rule": "sonarjs/cognitive-complexity",
-      "count": 1
-    },
-    {
-      "file": "lib/quiz/recommendation/engine.ts",
-      "rule": "complexity",
-      "count": 1
-    },
-    {
-      "file": "lib/quiz/recommendation/engine.ts",
-      "rule": "max-lines-per-function",
-      "count": 1
-    },
-    {
-      "file": "lib/quiz/recommendation/engine.ts",
-      "rule": "sonarjs/cognitive-complexity",
-      "count": 1
-    },
-    {
-      "file": "lib/quiz/recommendation/engine.ts",
-      "rule": "sonarjs/use-type-alias",
       "count": 1
     },
     {
