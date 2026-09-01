@@ -48,8 +48,8 @@ interface AnalyticsSummary {
   prev: {
     totalQuestions: number;
     overallAccuracy: number;
-    conquestRateA: number;
-    conquestRateD: number;
+    conquestRateA: number;      // 前日終了時点 (asOf = startOfTodayJst) の制覇率
+    conquestRateD: number;      // 前日終了時点 (asOf = startOfTodayJst) の制覇率
   };
 }
 ```

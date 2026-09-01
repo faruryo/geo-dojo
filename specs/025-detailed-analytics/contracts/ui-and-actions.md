@@ -45,7 +45,11 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
   - `prev`: 前日比比較用（`totalQuestions`, `overallAccuracy`, `conquestRateA`, `conquestRateD`）
 - **集計仕様**:
   - **Mode A出題正規化**: 同名・複数県（伊達市など）で保存された複数レコード（同一 `answered_at` かつ `mode='A'` かつ `municipality_name`、および過去のレガシーレコードに対する同一ユーザー・同一自治体名・2秒以内回答の近似グループ化）を1問として集約し、出題数・正答率を算出。
-  - **A/D制覇率算出**: 既存の `getCompletionByModeData(userId, 'A', '全国')` および `getCompletionByModeData(userId, 'D', '全国')` の制覇率算出ロジックを再利用。
+  - **A/D制覇率算出**: 既存の `getCompletionByModeData(userId, 'A', '全国')` および `getCompletionByModeData(userId, 'D', '全国')` の制覇率算出ロジックを再利用。前日比の `prev.conquestRateA` / `prev.conquestRateD` は `asOf` 引数（`startOfTodayJst`）を指定して前日時点の確定値を算出。
+
+### `getCompletionByModeData(userId: string, mode: 'A' | 'B' | 'C' | 'D', region: string, asOf?: Date)`
+- **引数**: ユーザーID、モード、地方、オプショナルの基準日時（`asOf`）
+- **動作**: `asOf` が指定されている場合は `answered_at < asOf` の条件を適用し、指定日時時点での制覇率・クリア自治体数を返す。
 
 ### `getAccuracyTrend(params: { period: '7d' | '30d' | 'all'; mode: QuizModeFilter; region: string })`
 - **引数**: フィルター条件（期間、モード、地方）
@@ -67,18 +71,18 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
 
 ---
 
-## 4. 回答保存時のバッチ処理 & タイムスタンプ契約 (`app/(app)/quiz/municipality/actions.ts`)
+## 4. 回答保存時のバッチ処理 & トランザクション契約 (`app/(app)/quiz/municipality/actions.ts`)
 
 ### `saveMunicipalityQuizResults(results: NewResultInput[])`
-- **入力制約 & バリデーション**:
-  - 配列サイズ: 1件以上10件以内（1問あたりの妥当な同名自治体数上限）。
-  - 同一出題不変条件: 全要素の `mode` が一致していること。
-  - アイテム検証: 各要素の `municipalityCode`（5桁文字列）、`mode`（'A'\|'B'\|'C'\|'D'）、`isCorrect`（boolean）、`answerTimeMs`（0以上の整数またはnull）を厳格に検証。
-- **サーバータイムスタンプ付与**:
-  - サーバーアクション内部で単一のサーバー時刻（`const serverAnsweredAt = new Date()`）を生成し、全レコードに共通の `answeredAt` を付与して一括 insert する。
-- **SRSレコード更新の維持**:
-  - 入力された全アイテムに対して `upsertSrsRecord` を呼び出し、SM-2 間隔反復の復習スケジュールと習得状態を確実に更新する。
-  - いずれかの処理が失敗した場合は、エラー理由を `console.error` で記録した上で再 throw し、サイレントな失敗を防ぐ。
+- **同一出題の厳格バリデーション**:
+  - **Mode A の場合**: 配列サイズ 1〜10件。全要素の `mode === 'A'` かつ全要素の `municipalityName` が同一であること。各要素の `(municipalityCode, prefecture)` が `municipality_master` に実在することを検証。
+  - **Mode B / C / D の場合**: 配列サイズが厳密に `1` であること。
+  - 各要素の `municipalityCode`（5桁文字列）、`isCorrect`（boolean）、`answerTimeMs`（0以上の整数またはnull）の型・値を検証。
+- **アトミックトランザクション実行**:
+  - 単一の `db.transaction` 内で以下を不可分に実行する：
+    1. サーバー時刻（`const serverAnsweredAt = new Date()`）を一括生成し、全要素に同一の `answeredAt` を設定して `municipalityQuizResults` に一括 insert。
+    2. 入力された全アイテムに対して `upsertSrsRecord(tx, ...)` を実行し、SM-2 復習スケジュールを更新。
+  - トランザクション失敗時は自動ロールバックされ、エラー理由を `console.error` で記録した上で再 throw してサイレント障害を防ぐ。
 
 ---
 
