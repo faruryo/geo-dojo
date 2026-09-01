@@ -6,7 +6,7 @@
 
 ## Summary
 
-PR #70（`024-conquest-mode-a`）でトップ画面を薄くしたことに伴い、学習の内訳データ（正答率推移グラフ、苦手市区町村ランキング、モード別・難易度別クリア状況、ストリーク等の詳細）を独立した詳細分析画面（`/analytics`）に移行・集約する。ボトムナビゲーションに「分析」タブを追加し、既存の最適化済みコンポーネント・クエリ（`queryKeys` ファクトリ準拠）を再利用・拡張して素早く安全に実装する。
+PR #70（`024-conquest-mode-a`）でトップ画面を薄くしたことに伴い、学習の内訳データ（正答率推移グラフ、苦手市区町村ランキング、モード別・難易度別クリア状況、ストリーク等の詳細）を独立した詳細分析画面（`/analytics`）に移行・集約する。ボトムナビゲーションに「分析」タブを追加し、既存の最適化済みコンポーネント・クエリ（`queryKeys` ファクトリの `weakness(mode, region)` 拡張を含む）を再利用・拡張して素早く安全に実装する。
 
 ## Technical Context
 
@@ -24,9 +24,9 @@ PR #70（`024-conquest-mode-a`）でトップ画面を薄くしたことに伴�
 
 **Performance Goals**: ファーストビュー（`/analytics`）初期表示 < 1s（Server Component prefetch活用）、フィルター操作時のグラフ・苦手ランキング更新 < 500ms
 
-**Constraints**: RLS準拠（ユーザー別データ隔離）、375px幅でのレスポンシブ崩れ防止、Mode A同名・複数県の出題正規化準拠、新規集計テーブルなし
+**Constraints**: RLS準拠（ユーザー別データ隔離）、375px幅でのレスポンシブ崩れ防止、Mode A同名・複数県の出題正規化（同一 `answered_at` + `municipality_name` 集約）、新規集計テーブルなし
 
-**Scale/Scope**: 1新画面（`/analytics`）、1ナビゲーション変更（`BottomNav`）、既存コンポーネント再配置・配線、`getWeaknessRankingData` フィルター引数拡張
+**Scale/Scope**: 1新画面（`/analytics`）、1ナビゲーション変更（`BottomNav`）、既存コンポーネント再配置・配線、`getWeaknessRankingData` フィルター引数拡張、`queryKeys.dashboard.weakness(mode, region)` 拡張
 
 ## Constitution Check
 
@@ -68,8 +68,9 @@ components/
     └── analytics-client.tsx      # 詳細分析画面のクライアントコンポーネント
 
 lib/
-└── analytics/
-    └── prefetch.ts               # 詳細分析用プリフェッチ（queryKeys ファクトリ準拠）
+├── analytics/
+│   └── prefetch.ts               # 詳細分析用プリフェッチ（queryKeys ファクトリ準拠）
+└── query-keys.ts                 # weakness(mode, region) キー拡張
 ```
 
 **Structure Decision**:

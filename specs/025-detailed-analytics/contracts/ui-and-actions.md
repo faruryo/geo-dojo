@@ -11,7 +11,7 @@
      - `queryKeys.dashboard.streak()`: 連続学習日数
      - `queryKeys.dashboard.difficulty('all', '全国')`: 難易度別クリア状況
      - `queryKeys.dashboard.trend('7d', 'all', '全国')`: 初期7日間の推移
-     - `queryKeys.dashboard.weakness()`: 苦手ランキング（初期全国/全モード）
+     - `queryKeys.dashboard.weakness('all', '全国')`: 苦手ランキング（初期全国/全モード）
   3. `<HydrationBoundary state={dehydratedState}>` 内で `<AnalyticsClient />` をレンダリング。
 
 ---
@@ -38,18 +38,20 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
 ### `getDashboardSummary()`
 - **引数**: なし（Cookieから `userId` 解決）
 - **戻り値**: `Promise<AnalyticsSummary>`
-  - `totalQuestions`: 累計出題数（Mode A同名・複数県の出題正規化を考慮）
+  - `totalQuestions`: 累計出題数
   - `overallAccuracy`: 全体正答率
   - `conquestRateA`: 県当て(A)制覇率
   - `conquestRateD`: 場所当て(D)制覇率
   - `prev`: 前日比比較用
+- **集計仕様（Mode A出題正規化）**:
+  - Mode Aで伊達市などの同名・複数県が出題された場合、同時保存されるレコード群（同一 `answered_at` かつ同一 `mode='A'` かつ同一 `municipality_name`）を1問として集約して出題数・正解数を算出する。
 
 ### `getAccuracyTrend(params: { period: '7d' | '30d' | 'all'; mode: QuizModeFilter; region: string })`
 - **引数**: フィルター条件（期間、モード、地方）
 - **戻り値**: `Promise<AccuracyTrendPoint[]>`
 
 ### `getWeaknessRanking(params?: { mode?: QuizModeFilter; region?: string })`
-- **引数**: フィルター条件（モード、地方）※省略時は全体
+- **引数**: フィルター条件（モード、地方）※省略時は全体（'all', '全国'）
 - **戻り値**: `Promise<WeaknessItem[]>`
 - **動作**: サーバークエリ内で指定のモード・地方条件を WHERE 句に適用した上で `ORDER BY errorRate DESC, totalCount DESC LIMIT 20` を実行し、選択条件に適合する上位20件を返す。
 
@@ -59,7 +61,27 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
 
 ---
 
-## 4. ナビゲーション更新契約 (`app/(app)/bottom-nav.tsx`)
+## 4. Query Key Factory 拡張 (`lib/query-keys.ts`)
+
+```typescript
+export const queryKeys = {
+  dashboard: {
+    // 既存キー ...
+    summary: () => ['dashboard', 'summary'] as const,
+    weakness: (mode: string = 'all', region: string = '全国') =>
+      ['dashboard', 'weakness', mode, region] as const,
+    difficulty: (mode: string = 'all', region: string = '全国') =>
+      ['dashboard', 'difficulty', mode, region] as const,
+    trend: (period: string, mode: string, region: string = '全国') =>
+      ['dashboard', 'trend', period, mode, region] as const,
+  },
+  // ...
+};
+```
+
+---
+
+## 5. ナビゲーション更新契約 (`app/(app)/bottom-nav.tsx`)
 
 ```typescript
 const navItems = [

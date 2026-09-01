@@ -2,10 +2,10 @@
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: 共通のデータ取得・プリフェッチ基盤およびクエリ拡張の準備
+**Purpose**: 共通のデータ取得・プリフェッチ基盤およびクエリ・キーファクトリ拡張の準備
 
-- [ ] T001 プリフェッチ関数 `getAnalyticsDehydratedState` を `lib/analytics/prefetch.ts` に実装（`lib/query-keys.ts` のファクトリキーを使用）
-- [ ] T002 `lib/db/queries/dashboard.ts` の `getWeaknessRankingData` および `app/(app)/dashboard/actions.ts` の `getWeaknessRanking` に `{ mode?: QuizModeFilter; region?: string }` フィルター引数を追加し、SQLのWHERE句で絞り込み後にLIMIT適用するよう拡張
+- [ ] T001 `lib/query-keys.ts` の `queryKeys.dashboard.weakness(mode, region)` を拡張し、プリフェッチ関数 `getAnalyticsDehydratedState` を `lib/analytics/prefetch.ts` に実装
+- [ ] T002 `lib/db/queries/dashboard.ts` の `getDashboardSummaryData` における Mode A 同名市正規化（同一 `answeredAt` + `municipalityName` の1問集約）および `getWeaknessRankingData`・`app/(app)/dashboard/actions.ts` の `{ mode?: QuizModeFilter; region?: string }` フィルター引数・WHERE句適用を実装
 
 ---
 
@@ -33,7 +33,7 @@
 
 ### Implementation for User Story 1
 
-- [ ] T005 [US1] 4サマリーカード（Mode A同名市正規化対応の出題数・正答率・A制覇・D制覇）対応の `SummaryCards` を含む詳細分析クライアントコンポーネント `components/analytics/analytics-client.tsx` を作成
+- [ ] T005 [US1] 4サマリーカード（累計出題数・全体正答率・県当て(A)制覇率・場所当て(D)制覇率）対応の `SummaryCards` を含む詳細分析クライアントコンポーネント `components/analytics/analytics-client.tsx` を作成
 - [ ] T006 [US1] 詳細分析 Server Component `app/(app)/analytics/page.tsx` を作成し、`getAnalyticsDehydratedState`（`queryKeys` 準拠）でプリフェッチと `HydrationBoundary` でクライアントをマウント
 
 **Checkpoint**: User Story 1 単体で詳細分析画面の全データ閲覧が機能する (MVP)
@@ -52,7 +52,7 @@
 
 ### Implementation for User Story 2
 
-- [ ] T008 [US2] `components/analytics/analytics-client.tsx` 内で `FilterBar` の選択状態（期間・地方・モード）を `AccuracyChart`, `WeaknessRanking`, `DifficultyProgress` にバインドして動的連動を実装（024モード表記対応・`WeaknessRanking` のサーバー側フィルター呼び出し）
+- [ ] T008 [US2] `components/analytics/analytics-client.tsx` 内で `FilterBar` の選択状態（期間・地方・モード）を `AccuracyChart`, `WeaknessRanking`, `DifficultyProgress` にバインドして動的連動を実装（024モード表記対応・`WeaknessRanking` のサーバー側フィルター呼び出し・queryKeys連動）
 
 **Checkpoint**: 絞り込みフィルターによる動的なデータ分析・苦手ランキング絞り込みが機能する
 
