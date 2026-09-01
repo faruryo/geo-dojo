@@ -6,7 +6,7 @@
 
 ## Summary
 
-PR #70（`024-conquest-mode-a`）でトップ画面を薄くしたことに伴い、学習の内訳データ（正答率推移グラフ、苦手市区町村ランキング、モード別・難易度別クリア状況、ストリーク等の詳細）を独立した詳細分析画面（`/analytics`）に移行・集約する。ボトムナビゲーションに「分析」タブを追加し、既存の最適化済みコンポーネント・クエリを再利用して素早く安全に実装する。
+PR #70（`024-conquest-mode-a`）でトップ画面を薄くしたことに伴い、学習の内訳データ（正答率推移グラフ、苦手市区町村ランキング、モード別・難易度別クリア状況、ストリーク等の詳細）を独立した詳細分析画面（`/analytics`）に移行・集約する。ボトムナビゲーションに「分析」タブを追加し、既存の最適化済みコンポーネント・クエリ（`queryKeys` ファクトリ準拠）を再利用・拡張して素早く安全に実装する。
 
 ## Technical Context
 
@@ -22,18 +22,18 @@ PR #70（`024-conquest-mode-a`）でトップ画面を薄くしたことに伴�
 
 **Project Type**: Web Application (Next.js App Router)
 
-**Performance Goals**: ファーストビュー（`/analytics`）初期表示 < 1s（Server Component prefetch活用）、フィルター操作時のグラフ更新 < 500ms
+**Performance Goals**: ファーストビュー（`/analytics`）初期表示 < 1s（Server Component prefetch活用）、フィルター操作時のグラフ・苦手ランキング更新 < 500ms
 
-**Constraints**: RLS準拠（ユーザー別データ隔離）、375px幅でのレスポンシブ崩れ防止、新規集計テーブルなし
+**Constraints**: RLS準拠（ユーザー別データ隔離）、375px幅でのレスポンシブ崩れ防止、Mode A同名・複数県の出題正規化準拠、新規集計テーブルなし
 
-**Scale/Scope**: 1新画面（`/analytics`）、1ナビゲーション変更（`BottomNav`）、既存コンポーネント再配置・配線
+**Scale/Scope**: 1新画面（`/analytics`）、1ナビゲーション変更（`BottomNav`）、既存コンポーネント再配置・配線、`getWeaknessRankingData` フィルター引数拡張
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 - **I. セキュリティ & コンプライアンス**: ✅ パス。既存の認証スコープ済みクエリ（`requireUserId()`）を経由し、RLSが有効な `municipality_quiz_results` から自身のリザルトのみを取得する。
-- **II. アーキテクチャ & パフォーマンス**: ✅ パス。ReadはTanStack Query + Server Component prefetch（`HydrationBoundary`）を使用。DBスキーマ変更なし。
+- **II. アーキテクチャ & パフォーマンス**: ✅ パス。ReadはTanStack Query + Server Component prefetch（`HydrationBoundary`、`queryKeys` ファクトリ準拠）を使用。DBスキーマ変更なし。
 - **III. ロジック & UI**: ✅ パス。375px幅基準のモバイルファースト設計、ダークモード（`#111111`）対応。
 
 ## Project Structure
@@ -51,7 +51,7 @@ specs/025-detailed-analytics/
 ├── contracts/
 │   └── ui-and-actions.md # インターフェース契約
 ├── quickstart.md        # 動作検証・手順書
-└── tasks.md             # タスクリスト（/speckit-tasks で生成）
+└── tasks.md             # タスクリスト
 ```
 
 ### Source Code Layout
@@ -66,10 +66,14 @@ app/
 components/
 └── analytics/
     └── analytics-client.tsx      # 詳細分析画面のクライアントコンポーネント
+
+lib/
+└── analytics/
+    └── prefetch.ts               # 詳細分析用プリフェッチ（queryKeys ファクトリ準拠）
 ```
 
 **Structure Decision**:
-既存の `components/dashboard/` 配下のコンポーネント（`AccuracyChart`, `WeaknessRanking`, `DifficultyProgress`, `SummaryCards`, `StreakDisplay`, `FilterBar`, `EmptyState`）および `lib/db/queries/dashboard.ts` のクエリを直接利用し、新設する `components/analytics/analytics-client.tsx` にてレイアウト・配線を行う。
+既存の `components/dashboard/` 配下のコンポーネント（`AccuracyChart`, `WeaknessRanking`, `DifficultyProgress`, `SummaryCards`, `StreakDisplay`, `FilterBar`, `EmptyState`）および `lib/db/queries/dashboard.ts` のクエリを利用し、`WeaknessRanking` のサーバー側フィルター拡張と `queryKeys` を用いて、新設する `components/analytics/analytics-client.tsx` にてレイアウト・配線を行う。
 
 ## Complexity Tracking
 

@@ -37,7 +37,7 @@
 ### 1. `AnalyticsSummary` (総合学習サマリー)
 ```typescript
 interface AnalyticsSummary {
-  totalQuestions: number;       // 累計出題数
+  totalQuestions: number;       // 累計出題数（Mode A同名市重複を正規化した出題ベース）
   overallAccuracy: number;      // 全体正答率 (0.0-1.0)
   conquestRateA: number;        // 県当て(A)制覇率 (0.0-1.0)
   conquestRateD: number;        // 場所当て(D)制覇率 (0.0-1.0)
@@ -75,6 +75,11 @@ interface WeaknessItem {
   totalCount: number;           // 総出題回数
   errorCount: number;           // 不正解回数
   errorRate: number;            // 誤答率 (0.0-1.0)
+}
+
+interface WeaknessFilterOpts {
+  mode?: 'all' | 'A' | 'B' | 'C' | 'D';
+  region?: string;              // '全国' | '北海道' | '東北' | ...
 }
 ```
 
