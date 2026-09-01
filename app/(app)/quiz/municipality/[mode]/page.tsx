@@ -54,6 +54,7 @@ import {
   filterTextModeMunicipalities,
   isScopeAvailable,
   parseScopeFromSearchParams,
+  serializeScopeToQueryString,
   LAST_MODE_D_SCOPE_KEY,
 } from '@/lib/quiz/municipality-data';
 
@@ -223,13 +224,22 @@ export default function MunicipalityQuizPage() {
     }
   }, [modeFromUrl, searchParams]);
 
-  // ── Persist Mode D scope to localStorage on change ──
+  // ── Persist Mode D scope to localStorage and sync to URL query string ──
   useEffect(() => {
     if (modeFromUrl === 'D' && settings.scope) {
       try {
         localStorage.setItem(LAST_MODE_D_SCOPE_KEY, JSON.stringify(settings.scope));
       } catch {
         // ignore storage error
+      }
+      if (typeof window !== 'undefined') {
+        const queryStr = serializeScopeToQueryString(settings.scope);
+        const currentUrl = new URL(window.location.href);
+        const newSearch = queryStr ? queryStr : '';
+        if (currentUrl.search !== newSearch) {
+          currentUrl.search = newSearch;
+          window.history.replaceState(null, '', currentUrl.toString());
+        }
       }
     }
   }, [modeFromUrl, settings.scope]);

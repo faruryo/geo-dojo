@@ -97,7 +97,7 @@ export function filterByScope(
   if (scope.type === 'prefecture') {
     if (!scope.prefecture) return municipalities;
     const prefMunicipalities = municipalities.filter((m) => m.prefecture === scope.prefecture);
-    if (scope.selectedCodes && scope.selectedCodes.length > 0) {
+    if (scope.selectedCodes !== undefined) {
       const codeSet = new Set(scope.selectedCodes);
       return prefMunicipalities.filter((m) => codeSet.has(m.code));
     }
@@ -118,36 +118,50 @@ export function isModeAvailable(mode: GameMode, regions: Region[]): boolean {
 
 export function isScopeAvailable(mode: GameMode, scope: MunicipalityScope): boolean {
   if (mode === 'A' || mode === 'B') {
-    const prefs = getScopePrefectures(scope);
-    return prefs.length >= 2;
+    if (scope.type === 'prefecture') return false;
+    const regions = scope.regions ?? ['全国'];
+    if (regions.includes('全国')) return true;
+    return getRegionsPrefectures(regions).length >= 2;
   }
   return true;
 }
 
-export function parseScopeFromSearchParams(searchParams: {
-  get: (key: string) => string | null;
-}): MunicipalityScope {
-  const scopeType = searchParams.get('scope') === 'prefecture' ? 'prefecture' : 'region';
-  const pref = searchParams.get('pref') || searchParams.get('prefecture');
+export function parseScopeFromSearchParams(
+  searchParams: URLSearchParams | { get: (key: string) => string | null },
+): MunicipalityScope {
+  const scopeType = searchParams.get('scope');
+  const pref = searchParams.get('pref') ?? searchParams.get('prefecture');
   const codesParam = searchParams.get('codes');
-  const regionParam = searchParams.get('region');
+  const regionParam = searchParams.get('region') ?? searchParams.get('regions');
 
-  if (scopeType === 'prefecture' && pref && ALL_PREFECTURES.includes(pref)) {
-    const selectedCodes = codesParam ? codesParam.split(',').filter(Boolean) : undefined;
+  if (scopeType === 'prefecture' || pref) {
+    const selectedCodes =
+      codesParam !== null
+        ? codesParam.split(',').map((c) => c.trim()).filter(Boolean)
+        : undefined;
     return {
       type: 'prefecture',
-      prefecture: pref,
-      selectedCodes: selectedCodes && selectedCodes.length > 0 ? selectedCodes : undefined,
+      prefecture: pref ?? '東京都',
+      selectedCodes,
     };
   }
 
-  const regions: Region[] = regionParam
-    ? (regionParam.split(',').filter((r) => (REGIONS as readonly string[]).includes(r)) as Region[])
-    : ['全国'];
+  if (regionParam) {
+    const regions: Region[] = regionParam
+      .split(',')
+      .map((r) => r.trim())
+      .filter((r): r is Region => (REGIONS as readonly string[]).includes(r));
+    if (regions.length > 0) {
+      return {
+        type: 'region',
+        regions,
+      };
+    }
+  }
 
   return {
     type: 'region',
-    regions: regions.length > 0 ? regions : ['全国'],
+    regions: ['全国'],
   };
 }
 
@@ -158,7 +172,7 @@ export function serializeScopeToQueryString(scope: MunicipalityScope): string {
   if (scope.type === 'prefecture' && scope.prefecture) {
     params.set('scope', 'prefecture');
     params.set('pref', scope.prefecture);
-    if (scope.selectedCodes && scope.selectedCodes.length > 0) {
+    if (scope.selectedCodes !== undefined) {
       params.set('codes', scope.selectedCodes.join(','));
     }
   } else if (scope.regions && scope.regions.length > 0 && !scope.regions.includes('全国')) {

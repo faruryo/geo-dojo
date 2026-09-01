@@ -287,8 +287,11 @@ function useMunicipalityPickerState({
   };
 
   const handleApply = () => {
-    const isAllOrNone = tempSelected.size === municipalities.length || tempSelected.size === 0;
-    onSave(isAllOrNone ? undefined : Array.from(tempSelected));
+    if (tempSelected.size === municipalities.length) {
+      onSave(undefined);
+    } else {
+      onSave(Array.from(tempSelected));
+    }
     onOpenChange(false);
   };
 

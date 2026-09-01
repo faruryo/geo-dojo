@@ -4,7 +4,9 @@ import {
   isScopeAvailable,
   getScopePrefectures,
   parseScopeFromSearchParams,
+  serializeScopeToQueryString,
   type Municipality,
+  type MunicipalityScope,
 } from '@/lib/quiz/municipality-data';
 
 const mockMunicipalities: Municipality[] = [
@@ -52,11 +54,20 @@ describe('filterByScope', () => {
     expect(result[0].name).toBe('松本市');
   });
 
-  it('selectedCodes が空配列の場合は県内全件を返す', () => {
+  it('selectedCodes が空配列の場合は0件を返す', () => {
     const result = filterByScope(mockMunicipalities, {
       type: 'prefecture',
       prefecture: '長野県',
       selectedCodes: [],
+    });
+    expect(result).toEqual([]);
+  });
+
+  it('selectedCodes が undefined の場合は県内全件を返す', () => {
+    const result = filterByScope(mockMunicipalities, {
+      type: 'prefecture',
+      prefecture: '長野県',
+      selectedCodes: undefined,
     });
     expect(result.map((m) => m.code)).toEqual(['20201', '20202', '20203']);
   });
@@ -79,7 +90,7 @@ describe('isScopeAvailable & getScopePrefectures', () => {
   });
 });
 
-describe('parseScopeFromSearchParams', () => {
+describe('parseScopeFromSearchParams & serializeScopeToQueryString', () => {
   it('prefecture スコープパラメータを正しくパースする', () => {
     const searchParams = new URLSearchParams('scope=prefecture&pref=長野県&codes=20201,20202');
     const scope = parseScopeFromSearchParams(searchParams);
@@ -106,6 +117,17 @@ describe('parseScopeFromSearchParams', () => {
       type: 'region',
       regions: ['全国'],
     });
+  });
+
+  it('serializeScopeToQueryString と parseScopeFromSearchParams の往復が一致する', () => {
+    const originalScope: MunicipalityScope = {
+      type: 'prefecture',
+      prefecture: '長野県',
+      selectedCodes: ['20201', '20202'],
+    };
+    const query = serializeScopeToQueryString(originalScope);
+    const parsed = parseScopeFromSearchParams(new URLSearchParams(query.slice(1)));
+    expect(parsed).toEqual(originalScope);
   });
 });
 

@@ -157,7 +157,7 @@ describe('Scope UI Components', () => {
         applyBtn?.click();
       });
 
-      expect(handleSave).toHaveBeenCalledWith(undefined);
+      expect(handleSave).toHaveBeenCalledWith([]);
       expect(handleOpenChange).toHaveBeenCalledWith(false);
     });
   });
