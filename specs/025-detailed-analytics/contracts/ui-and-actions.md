@@ -74,10 +74,15 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
 ## 4. 回答保存時のバッチ処理 & トランザクション契約 (`app/(app)/quiz/municipality/actions.ts`)
 
 ### `saveMunicipalityQuizResults(results: NewResultInput[])`
-- **同一出題の厳格バリデーション**:
-  - **Mode A の場合**: 配列サイズ 1〜10件。全要素の `mode === 'A'` かつ全要素の `municipalityName` が同一であること。各要素の `(municipalityCode, prefecture)` が `municipality_master` に実在することを検証。
-  - **Mode B / C / D の場合**: 配列サイズが厳密に `1` であること。
-  - 各要素の `municipalityCode`（5桁文字列）、`isCorrect`（boolean）、`answerTimeMs`（0以上の整数またはnull）の型・値を検証。
+- **同一出題の厳格バリデーション & マスター照合**:
+  - **Mode A の場合**:
+    1. 配列サイズ 1〜10件。全要素の `mode === 'A'`。
+    2. 全要素の `municipalityCode` が重複なく一意であること。
+    3. `municipality_master` から各 `municipalityCode` のマスターレコードを取得し、全件実在すること、および全マスター行の正規名称 `municipality_master.name` が同一であること（クライアント入力の `municipalityName` との一致検証を含む）を検証。
+  - **Mode B / C / D の場合**:
+    1. 配列サイズが厳密に `1` であること。
+    2. 対象の `municipalityCode` が `municipality_master` に実在することを検証。
+  - 各要素の `isCorrect`（boolean）、`answerTimeMs`（0以上の整数またはnull）の型・値を検証。
 - **アトミックトランザクション実行**:
   - 単一の `db.transaction` 内で以下を不可分に実行する：
     1. サーバー時刻（`const serverAnsweredAt = new Date()`）を一括生成し、全要素に同一の `answeredAt` を設定して `municipalityQuizResults` に一括 insert。

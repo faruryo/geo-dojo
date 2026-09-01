@@ -6,7 +6,7 @@
 
 ## Summary
 
-PR #70（`024-conquest-mode-a`）でトップ画面を薄くしたことに伴い、学習の内訳データ（正答率推移グラフ、苦手市区町村ランキング、モード別・難易度別クリア状況、ストリーク等の詳細）を独立した詳細分析画面（`/analytics`）に移行・集約する。ボトムナビゲーションに「分析」タブを追加し、既存の最適化済みコンポーネント・クエリ（`queryKeys` ファクトリの `weakness(period, mode, region)` 拡張、サマリー・推移・難易度別進捗における Mode A 正規化、トランザクションによるアトミック保存 & SRS 更新、`asOf` カットオフ対応の `getCompletionByModeData` 再利用による A/D 制覇率算出を含む）を再利用・拡張して素早く安全に実装する。
+PR #70（`024-conquest-mode-a`）でトップ画面を薄くしたことに伴い、学習の内訳データ（正答率推移グラフ、苦手市区町村ランキング、モード別・難易度別クリア状況、ストリーク等の詳細）を独立した詳細分析画面（`/analytics`）に移行・集約する。ボトムナビゲーションに「分析」タブを追加し、既存の最適化済みコンポーネント・クエリ（`queryKeys` ファクトリの `weakness(period, mode, region)` 拡張、サマリー・推移・難易度別進捗における Mode A 正規化、マスター正規名照合を伴うトランザクションアトミック保存 & SRS 更新、`asOf` カットオフ対応の `getCompletionByModeData` 再利用による A/D 制覇率算出を含む）を再利用・拡張して素早く安全に実装する。
 
 ## Technical Context
 
@@ -24,9 +24,9 @@ PR #70（`024-conquest-mode-a`）でトップ画面を薄くしたことに伴�
 
 **Performance Goals**: ファーストビュー（`/analytics`）初期表示 < 1s（Server Component prefetch活用）、フィルター操作時のグラフ・苦手ランキング更新 < 500ms
 
-**Constraints**: RLS準拠（ユーザー別データ隔離）、375px幅でのレスポンシブ崩れ防止、Mode A同名・複数県の出題正規化（アトミックトランザクション保存・SRS更新と過去レガシー近似集約）、新規集計テーブルなし
+**Constraints**: RLS準拠（ユーザー別データ隔離）、375px幅でのレスポンシブ崩れ防止、Mode A同名・複数県の出題正規化（マスター照合アトミックトランザクション保存・SRS更新と過去レガシー近似集約）、新規集計テーブルなし
 
-**Scale/Scope**: 1新画面（`/analytics`）、1ナビゲーション変更（`BottomNav`）、既存コンポーネント再配置・配線、`saveMunicipalityQuizResults` アトミックバッチ保存 & SRS更新、`getWeaknessRankingData` 期間・モード・地方フィルター拡張、`getDashboardSummaryData` / `getAccuracyTrendData` / `getDifficultyProgressData` の Mode A 正規化 & A/D 制覇率算出（`asOf` カットオフ対応）、`queryKeys.dashboard.weakness(period, mode, region)` 拡張
+**Scale/Scope**: 1新画面（`/analytics`）、1ナビゲーション変更（`BottomNav`）、既存コンポーネント再配置・配線、`saveMunicipalityQuizResults` アトミックバッチ保存 & SRS更新 & マスター正規名検証、`getWeaknessRankingData` 期間・モード・地方フィルター拡張、`getDashboardSummaryData` / `getAccuracyTrendData` / `getDifficultyProgressData` の Mode A 正規化 & A/D 制覇率算出（`asOf` カットオフ対応）、`queryKeys.dashboard.weakness(period, mode, region)` 拡張
 
 ## Constitution Check
 

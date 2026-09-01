@@ -2,10 +2,10 @@
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: 共通のデータ取得・プリフェッチ基盤およびクエリ・キーファクトリ拡張、保存時アトミックトランザクション・バリデーションの準備
+**Purpose**: 共通のデータ取得・プリフェッチ基盤およびクエリ・キーファクトリ拡張、保存時アトミックトランザクション・マスター正規名バリデーションの準備
 
 - [ ] T001 `lib/query-keys.ts` の `queryKeys.dashboard.weakness(period, mode, region)` を拡張し、プリフェッチ関数 `getAnalyticsDehydratedState` を `lib/analytics/prefetch.ts` に実装
-- [ ] T002 `app/(app)/quiz/municipality/actions.ts` に `saveMunicipalityQuizResults` を追加（Mode A: 同名市区町村1〜10件+master検証、Mode B/C/D: 厳密に1件、単一 `db.transaction` 内でサーバー時刻一括付与insert & `upsertSrsRecord` アトミック実行）し、`lib/quiz/quiz-session-core.ts` から呼び出し更新
+- [ ] T002 `app/(app)/quiz/municipality/actions.ts` に `saveMunicipalityQuizResults` を追加（Mode A: 重複コードなし一意・全件のマスター正規名 `municipality_master.name` 一致検証・1〜10件、Mode B/C/D: 厳密に1件、単一 `db.transaction` 内でサーバー時刻一括付与insert & `upsertSrsRecord` アトミック実行）し、`lib/quiz/quiz-session-core.ts` から呼び出し更新
 - [ ] T003 `lib/db/queries/dashboard.ts` の `getDashboardSummaryData`（Mode A 同名市正規化・過去レガシー近似集約 & `getCompletionByModeData` に `asOf` カットオフを追加して `conquestRateA`/`conquestRateD` および前日比算出）、`getAccuracyTrendData`（日別/週別対応、Mode A 同名市正規化、`representativeDifficulty` 難易度割り当て）、`getDifficultyProgressData`（Mode A 同名市代表難易度集約）、および `getWeaknessRankingData`（期間・モード・地方の WHERE 句適用）を実装し、対応する Server Actions（`app/(app)/dashboard/actions.ts`）を更新
 
 ---
