@@ -140,4 +140,9 @@
   - 動機: 特定の都道府県や市区町村を集中的に練習・位置当て特訓したいニーズに対応する。
   - 検討事項: 設定画面UI（都道府県選択・市区町村リスト選択）、出題プールのフィルタリング連携、URLパラメータ/状態永続化、他モード（A/B/C）への共通化可能性。
 
+- [x] B021 今日のおすすめクイズにおける難易度変更（オーバーライド）機能 → **025-recommend-difficulty-override で実装**
+  - 概要: 「今日のおすすめクイズ」の調整ダイアログ（`RecommendOverride`）において、ユーザーが難易度（☆入門、☆☆中級、☆☆☆上級、☆☆☆☆達人）をトグル選択・変更してクイズを開始できるようにする。
+  - 該当: `components/recommend/recommend-override.tsx`, `components/recommend/recommend-content.tsx`
+
+
 
