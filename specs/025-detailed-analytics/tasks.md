@@ -2,11 +2,11 @@
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: 共通のデータ取得・プリフェッチ基盤およびクエリ・キーファクトリ拡張、保存時サーバータイムスタンプの準備
+**Purpose**: 共通のデータ取得・プリフェッチ基盤およびクエリ・キーファクトリ拡張、保存時サーバータイムスタンプとSRS連携の準備
 
 - [ ] T001 `lib/query-keys.ts` の `queryKeys.dashboard.weakness(period, mode, region)` を拡張し、プリフェッチ関数 `getAnalyticsDehydratedState` を `lib/analytics/prefetch.ts` に実装
-- [ ] T002 `app/(app)/quiz/municipality/actions.ts` に `saveMunicipalityQuizResults` を追加（Server Action 側で単一サーバータイムスタンプを一括付与して insert）し、`lib/quiz/quiz-session-core.ts` から呼び出し更新
-- [ ] T003 `lib/db/queries/dashboard.ts` の `getDashboardSummaryData`（Mode A 同名市正規化・過去レガシー近似集約 & `conquestRateA`/`conquestRateD` 算出）、`getAccuracyTrendData`（日別/週別対応、Mode A 同名市正規化、`representativeDifficulty` 難易度割り当て）、`getDifficultyProgressData`（Mode A 同名市代表難易度集約）、および `getWeaknessRankingData`（期間・モード・地方の WHERE 句適用）を実装し、対応する Server Actions（`app/(app)/dashboard/actions.ts`）を更新
+- [ ] T002 `app/(app)/quiz/municipality/actions.ts` に `saveMunicipalityQuizResults` を追加（配列1〜10件・同一mode・各フィールド検証、単一サーバー時刻を一括付与して insert、各行に対する `upsertSrsRecord` 実行）し、`lib/quiz/quiz-session-core.ts` から呼び出し更新
+- [ ] T003 `lib/db/queries/dashboard.ts` の `getDashboardSummaryData`（Mode A 同名市正規化・過去レガシー近似集約 & `getCompletionByModeData` 再利用による `conquestRateA`/`conquestRateD` 算出）、`getAccuracyTrendData`（日別/週別対応、Mode A 同名市正規化、`representativeDifficulty` 難易度割り当て）、`getDifficultyProgressData`（Mode A 同名市代表難易度集約）、および `getWeaknessRankingData`（期間・モード・地方の WHERE 句適用）を実装し、対応する Server Actions（`app/(app)/dashboard/actions.ts`）を更新
 
 ---
 

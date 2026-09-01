@@ -40,12 +40,12 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
 - **戻り値**: `Promise<AnalyticsSummary>`
   - `totalQuestions`: 累計出題数
   - `overallAccuracy`: 全体正答率
-  - `conquestRateA`: 県当て(A)制覇率
-  - `conquestRateD`: 場所当て(D)制覇率
+  - `conquestRateA`: 県当て(A)制覇率（024確立の出題対象一意自治体名 `name` 単位、`getCompletionByModeData` 準拠）
+  - `conquestRateD`: 場所当て(D)制覇率（5桁自治体コード `code` 単位、`getCompletionByModeData` 準拠）
   - `prev`: 前日比比較用（`totalQuestions`, `overallAccuracy`, `conquestRateA`, `conquestRateD`）
 - **集計仕様**:
   - **Mode A出題正規化**: 同名・複数県（伊達市など）で保存された複数レコード（同一 `answered_at` かつ `mode='A'` かつ `municipality_name`、および過去のレガシーレコードに対する同一ユーザー・同一自治体名・2秒以内回答の近似グループ化）を1問として集約し、出題数・正答率を算出。
-  - **A/D制覇率算出**: `municipality_master` に対する Mode A（県当て）および Mode D（場所当て）のクリア自治体数比率を算出。
+  - **A/D制覇率算出**: 既存の `getCompletionByModeData(userId, 'A', '全国')` および `getCompletionByModeData(userId, 'D', '全国')` の制覇率算出ロジックを再利用。
 
 ### `getAccuracyTrend(params: { period: '7d' | '30d' | 'all'; mode: QuizModeFilter; region: string })`
 - **引数**: フィルター条件（期間、モード、地方）
@@ -67,11 +67,18 @@ AnalyticsClient (app/(app)/analytics/page.tsx から呼び出し)
 
 ---
 
-## 4. 回答保存時のタイムスタンプ契約 (`app/(app)/quiz/municipality/actions.ts`)
+## 4. 回答保存時のバッチ処理 & タイムスタンプ契約 (`app/(app)/quiz/municipality/actions.ts`)
 
-- `saveMunicipalityQuizResults(results: NewResultInput[])`:
+### `saveMunicipalityQuizResults(results: NewResultInput[])`
+- **入力制約 & バリデーション**:
+  - 配列サイズ: 1件以上10件以内（1問あたりの妥当な同名自治体数上限）。
+  - 同一出題不変条件: 全要素の `mode` が一致していること。
+  - アイテム検証: 各要素の `municipalityCode`（5桁文字列）、`mode`（'A'\|'B'\|'C'\|'D'）、`isCorrect`（boolean）、`answerTimeMs`（0以上の整数またはnull）を厳格に検証。
+- **サーバータイムスタンプ付与**:
   - サーバーアクション内部で単一のサーバー時刻（`const serverAnsweredAt = new Date()`）を生成し、全レコードに共通の `answeredAt` を付与して一括 insert する。
-  - クライアント側から `answeredAt` を渡さず、サーバー authoritative なタイムスタンプを保つことで端末時計の狂いによる日付集計・ストリークの破損を防ぎつつ、同一出題レコードを完全に同一のタイムスタンプでグループ化可能にする。
+- **SRSレコード更新の維持**:
+  - 入力された全アイテムに対して `upsertSrsRecord` を呼び出し、SM-2 間隔反復の復習スケジュールと習得状態を確実に更新する。
+  - いずれかの処理が失敗した場合は、エラー理由を `console.error` で記録した上で再 throw し、サイレントな失敗を防ぐ。
 
 ---
 

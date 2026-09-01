@@ -1,6 +1,6 @@
 # Data Model: 詳細分析ページ (025-detailed-analytics)
 
-本機能では新規テーブルの追加はなく、既存の `municipality_quiz_results` および `municipality_master` テーブルに対する集計クエリを使用する。
+本機能では新規テーブルの追加はなく、既存の `municipality_quiz_results`, `municipality_master`, `srs_records` テーブルに対する集計クエリを使用する。
 
 ## 既存エンティティ（参照のみ）
 
@@ -43,8 +43,8 @@
 interface AnalyticsSummary {
   totalQuestions: number;       // 累計出題数（Mode A同名市を同一answeredAt+municipalityNameで1問集約）
   overallAccuracy: number;      // 全体正答率 (0.0-1.0)
-  conquestRateA: number;        // 県当て(A)制覇率 (0.0-1.0)
-  conquestRateD: number;        // 場所当て(D)制覇率 (0.0-1.0)
+  conquestRateA: number;        // 県当て(A)制覇率 (0.0-1.0, 024確立の一意市区町村名単位)
+  conquestRateD: number;        // 場所当て(D)制覇率 (0.0-1.0, 5桁市区町村コード単位)
   prev: {
     totalQuestions: number;
     overallAccuracy: number;
