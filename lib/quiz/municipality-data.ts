@@ -54,6 +54,15 @@ export const PREFECTURE_KANA: Record<string, string> = {
   福岡県: 'ふくおかけん', 佐賀県: 'さがけん', 長崎県: 'ながさきけん', 熊本県: 'くまもとけん', 大分県: 'おおいたけん', 宮崎県: 'みやざきけん', 鹿児島県: 'かごしまけん', 沖縄県: 'おきなわけん',
 };
 
+export type ScopeType = 'region' | 'prefecture';
+
+export interface MunicipalityScope {
+  type: ScopeType;
+  regions?: Region[];
+  prefecture?: string;
+  selectedCodes?: string[];
+}
+
 // Returns the prefectures belonging to a single region. '全国' → all 47.
 export function getRegionPrefectures(region: Region): string[] {
   if (region === '全国') return ALL_PREFECTURES;
@@ -66,12 +75,35 @@ export function getRegionsPrefectures(regions: Region[]): string[] {
   return [...new Set(regions.flatMap((r) => getRegionPrefectures(r)))];
 }
 
+export function getScopePrefectures(scope: MunicipalityScope): string[] {
+  if (scope.type === 'prefecture') {
+    return scope.prefecture ? [scope.prefecture] : [];
+  }
+  return getRegionsPrefectures(scope.regions ?? ['全国']);
+}
+
 // Filter by multiple regions. '全国' in the array → return all.
 export function filterByRegions(municipalities: Municipality[], regions: Region[]): Municipality[] {
   if (regions.length === 0) return [];
   if (regions.includes('全国')) return municipalities;
   const regionSet = new Set(regions as string[]);
   return municipalities.filter((m) => regionSet.has(m.region));
+}
+
+export function filterByScope(
+  municipalities: Municipality[],
+  scope: MunicipalityScope,
+): Municipality[] {
+  if (scope.type === 'prefecture') {
+    if (!scope.prefecture) return municipalities;
+    const prefMunicipalities = municipalities.filter((m) => m.prefecture === scope.prefecture);
+    if (scope.selectedCodes && scope.selectedCodes.length > 0) {
+      const codeSet = new Set(scope.selectedCodes);
+      return prefMunicipalities.filter((m) => codeSet.has(m.code));
+    }
+    return prefMunicipalities;
+  }
+  return filterByRegions(municipalities, scope.regions ?? ['全国']);
 }
 
 // Mode A and B require ≥2 prefectures across all selected regions.
@@ -82,6 +114,59 @@ export function isModeAvailable(mode: GameMode, regions: Region[]): boolean {
     return getRegionsPrefectures(regions).length >= 2;
   }
   return true;
+}
+
+export function isScopeAvailable(mode: GameMode, scope: MunicipalityScope): boolean {
+  if (mode === 'A' || mode === 'B') {
+    const prefs = getScopePrefectures(scope);
+    return prefs.length >= 2;
+  }
+  return true;
+}
+
+export function parseScopeFromSearchParams(searchParams: {
+  get: (key: string) => string | null;
+}): MunicipalityScope {
+  const scopeType = searchParams.get('scope') === 'prefecture' ? 'prefecture' : 'region';
+  const pref = searchParams.get('pref') || searchParams.get('prefecture');
+  const codesParam = searchParams.get('codes');
+  const regionParam = searchParams.get('region');
+
+  if (scopeType === 'prefecture' && pref && ALL_PREFECTURES.includes(pref)) {
+    const selectedCodes = codesParam ? codesParam.split(',').filter(Boolean) : undefined;
+    return {
+      type: 'prefecture',
+      prefecture: pref,
+      selectedCodes: selectedCodes && selectedCodes.length > 0 ? selectedCodes : undefined,
+    };
+  }
+
+  const regions: Region[] = regionParam
+    ? (regionParam.split(',').filter((r) => (REGIONS as readonly string[]).includes(r)) as Region[])
+    : ['全国'];
+
+  return {
+    type: 'region',
+    regions: regions.length > 0 ? regions : ['全国'],
+  };
+}
+
+export const LAST_MODE_D_SCOPE_KEY = 'geodojo_last_mode_d_scope';
+
+export function serializeScopeToQueryString(scope: MunicipalityScope): string {
+  const params = new URLSearchParams();
+  if (scope.type === 'prefecture' && scope.prefecture) {
+    params.set('scope', 'prefecture');
+    params.set('pref', scope.prefecture);
+    if (scope.selectedCodes && scope.selectedCodes.length > 0) {
+      params.set('codes', scope.selectedCodes.join(','));
+    }
+  } else if (scope.regions && scope.regions.length > 0 && !scope.regions.includes('全国')) {
+    params.set('scope', 'region');
+    params.set('region', scope.regions.join(','));
+  }
+  const str = params.toString();
+  return str ? `?${str}` : '';
 }
 
 export function filterByRegion(municipalities: Municipality[], region: Region): Municipality[] {

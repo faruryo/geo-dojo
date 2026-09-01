@@ -3,14 +3,15 @@ import {
   type Difficulty,
   type GameMode,
   type Municipality,
+  type MunicipalityScope,
   type Region,
   type SessionCount,
   ALL_PREFECTURES,
   buildModeCDistractors,
   filterByDifficulty,
-  filterByRegions,
+  filterByScope,
   filterTextModeMunicipalities,
-  getRegionsPrefectures,
+  getScopePrefectures,
   shuffle,
 } from '@/lib/quiz/municipality-data';
 import {
@@ -21,11 +22,22 @@ import {
 
 export interface MunicipalityQuizSettings {
   mode: GameMode;
-  regions: Region[];
+  regions?: Region[];
+  scope?: MunicipalityScope;
   count: SessionCount;
   unclearedFirst: boolean;
   weaknessFirst: boolean;
   difficulties: Difficulty[];
+}
+
+export function resolveQuizScope(settings: MunicipalityQuizSettings): MunicipalityScope {
+  if (settings.scope) {
+    return settings.scope;
+  }
+  return {
+    type: 'region',
+    regions: settings.regions && settings.regions.length > 0 ? settings.regions : ['全国'],
+  };
 }
 
 function buildModeAQuestions(
@@ -63,7 +75,8 @@ function buildBCDQuestions(
     return true;
   });
   const sliced = deduped.slice(0, settings.count);
-  const regionPrefs = getRegionsPrefectures(settings.regions);
+  const scope = resolveQuizScope(settings);
+  const regionPrefs = getScopePrefectures(scope);
 
   return sliced.map((m): Question => {
     if (settings.mode === 'B') {
@@ -91,8 +104,8 @@ export function buildMunicipalityQuestions(
 ): Question[] {
   const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
   const source = isTextMode ? filterTextModeMunicipalities(all) : all;
-  const byRegion = filterByRegions(source, settings.regions);
-  const filtered = filterByDifficulty(byRegion, settings.difficulties);
+  const scoped = filterByScope(source, resolveQuizScope(settings));
+  const filtered = filterByDifficulty(scoped, settings.difficulties);
 
   const sampledItems = sampleMunicipalityPool(filtered, {
     count: settings.count,
