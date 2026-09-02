@@ -215,6 +215,15 @@ export function parseScopeFromSearchParams(
 
 export const LAST_MODE_D_SCOPE_KEY = 'geodojo_last_mode_d_scope';
 
+/**
+ * Mode D のスコープを localStorage に保存すべきか判定する。
+ * おすすめ（source=recommend）から起動されたセッションでは、ユーザーが以前設定した
+ * カスタムプール（都道府県や市区町村選択）を上書きして消失させないため false を返す。
+ */
+export function shouldPersistModeDScope(sourceParam: string | null): boolean {
+  return sourceParam !== 'recommend';
+}
+
 export function updateSearchParamsWithScope(
   searchParams: URLSearchParams,
   scope: MunicipalityScope,

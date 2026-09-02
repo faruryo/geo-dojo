@@ -7,6 +7,7 @@ import {
   serializeScopeToQueryString,
   updateSearchParamsWithScope,
   sanitizeScope,
+  shouldPersistModeDScope,
   type Municipality,
   type MunicipalityScope,
 } from '@/lib/quiz/municipality-data';
@@ -256,4 +257,17 @@ describe('parseScopeFromSearchParams & sanitizeScope normalization', () => {
       regions: ['関東'],
     });
   });
+
+  describe('shouldPersistModeDScope', () => {
+    it('通常アクセス時（source が null または recommend 以外）は true を返す', () => {
+      expect(shouldPersistModeDScope(null)).toBe(true);
+      expect(shouldPersistModeDScope('history')).toBe(true);
+      expect(shouldPersistModeDScope('')).toBe(true);
+    });
+
+    it('おすすめからの起動時（source=recommend）は false を返し、以前の保存済みカスタムプールを上書きしない', () => {
+      expect(shouldPersistModeDScope('recommend')).toBe(false);
+    });
+  });
 });
+
