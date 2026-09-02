@@ -23,7 +23,7 @@ pnpm vitest run __tests__/lib/quiz/municipality-questions.test.ts
    - 個別コード指定（`type: 'prefecture'`, `prefecture: '長野県'`, `selectedCodes: ['20201', '20202']`）で指定2件のみが返ること。
 2. `buildMunicipalityQuestions`:
    - Mode D で特定都道府県またはカスタムコードを指定した際、指定自治体のみから問題が生成されること。
-   - 問題数（10問）より少ない自治体数（3件）が指定された場合でもエラーにならず10問構成されること。
+   - 問題数（10問）より少ない自治体数（3件）が指定された場合でもエラーにならず、重複なしの3問で構成され完了できること。
 
 ---
 

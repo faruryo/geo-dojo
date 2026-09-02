@@ -20,12 +20,12 @@ export interface MunicipalityScope {
    - `type === 'prefecture'`
    - `prefecture` must be a valid prefecture name in `ALL_PREFECTURES` (e.g. `'長野県'`).
    - `selectedCodes` (if specified) contains valid JIS municipality codes that belong to the specified `prefecture`.
-   - If `selectedCodes` is empty or undefined, all municipalities in the specified prefecture are included in the pool.
+   - If `selectedCodes` is `undefined`, all municipalities in the specified prefecture are included in the pool. If `selectedCodes` is specified as an empty array (`[]`), 0 municipalities are included (pool size is 0).
 3. **Availability**:
    - For Mode D, single prefecture selection is always available (`isScopeAvailable('D', scope)` returns `true`).
    - For Mode A / Mode B, at least 2 prefectures are required across the scope.
-4. **Pool Size & Fallback**:
-   - When the filtered pool size is positive but smaller than the session question count (e.g., 5 municipalities selected for a 10-question quiz), the question generator will sample with repetition/shuffling from the selected pool.
+4. **Pool Size & Capping**:
+   - When the filtered pool size is positive but smaller than the session question count (e.g., 5 municipalities selected for a 10-question quiz), the question generator samples all available unique municipalities without repetition, and the session runs for that pool size with an explicit UI notice.
 
 ---
 

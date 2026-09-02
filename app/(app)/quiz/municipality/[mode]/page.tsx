@@ -608,7 +608,7 @@ export default function MunicipalityQuizPage() {
         </Button>
         {effectivePoolSize > 0 && effectivePoolSize < settings.count && canStart && (
           <p className="text-xs text-yellow-500 text-center">
-            該当 {effectivePoolSize} 件のみ — 毎回同じ問題が繰り返されます。難易度か地域を広げてください
+            該当 {effectivePoolSize} 件のみ — 全 {effectivePoolSize} 問で出題されます
           </p>
         )}
       </div>
