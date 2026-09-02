@@ -18,9 +18,15 @@
   - 実装: 設定画面（全国/地方別地域選択、出題数10/20/全問、通常/タイムアタックモード切替、苦手優先トグル）を追加。タイマー表示・クリアタイム計測・タイムアタック時の自己ベスト保存（localStorage）およびベスト更新バッジ表示を実装。過去の誤答データに基づく苦手優先出題に対応。
   - 該当: `lib/quiz/prefecture-quiz.ts`（純粋関数）、`app/(app)/quiz/prefecture/page.tsx`（UI画面）、`__tests__/lib/quiz/prefecture-quiz.test.ts`
 
-- [ ] B014 市区町村クイズの未制覇（未クリア）優先出題と進捗可視化 → **022-uncompleted-priority-quiz で着手**
+- [ ] B025 詳細分析ページ（ダッシュボードから外した学習データの集約） → **025-detailed-analytics で spec/plan/tasks 策定済み（次期実装）**
+  - 概要: 024 でトップ画面から外した学習の内訳データ（正答率推移グラフ、苦手市区町村ランキング、モード別・難易度別クリア状況、全体サマリー）を独立した詳細分析画面（`/analytics`）に移行・集約。ボトムナビに「分析」タブを追加。
+  - 仕様: `specs/025-detailed-analytics/spec.md`, `plan.md`, `tasks.md`
+
+- [x] B014 (022) 市区町村クイズの未制覇（未クリア）優先出題と進捗可視化 → **022-uncompleted-priority-quiz (#63, #64) で実装完了**
   - 関東・中部など母数の大きい地域・難易度における100%制覇の難易度（クーポンコレクター問題）を解消。
-  - 「未クリア優先出題」トグルと設定画面でのリアルタイム進捗（クリア件数/総数）表示を提供。
+  - 実装: クイズ設定画面に「未クリア優先出題」トグル（デフォルトON）とリアルタイム進捗（クリア件数/総数/進捗率）表示を追加。「今日のおすすめ」でも未クリア優先を自動適用。
+  - 該当: `lib/quiz/sampling.ts`, `components/quiz/quiz-pool-progress.tsx`, `app/(app)/quiz/municipality/[mode]/page.tsx`, `lib/quiz/recommend-auto-start.ts`
+  - 注: 効果音（014-sound-effects）と番号が重複していたため `B014 (022)` と表記。
 
 
 - [x] B009 【バグ/UX・修正済】Mode A の全国地図がタッチ端末でピンチズームできない（iPhone Chrome で報告）
@@ -82,10 +88,9 @@
 
 ## アイデアストック
 
-- [ ] B004 政令指定都市の区レベル詳細化（高難易度モード）
-  - 現状: 仙台市5区が全て `name:'仙台市'` → Mode C/D で重複出題・Mode D でタップ精度問題
-  - 案: expert 難易度のみ区名（`仙台市青葉区`）を個別エントリとして出題
-  - 対応ファイル: `scripts/generate-municipalities.ts`、`scripts/sync-municipality-master.ts`、`lib/quiz/municipality-data.ts`
+- [x] B004 政令指定都市の区レベル詳細化（Mode D 対応） → **024-conquest-mode-a (#74) / 026-mode-d-custom-pool (#79) で解決済み**
+  - 実装: Mode D（場所当て地図）において、`designated-city-ward-names.json` と `locationLabel` により政令市の区名（例:「札幌市中央区」）を出題表示し、5桁市区町村コード単位で正誤判定および個別地図タップが可能に。また 026 にて市区町村選択ダイアログでも区単位での選択に対応。
+  - 設計方針: Mode A/B/C（テキスト・県当てモード）については親市名（「札幌市」等）に集約する仕様で確定（同名区の不条理回避およびマスタ整合性維持のため、DBの `municipality_master.name` は市名のまま維持）。
 
 - [x] B008 Mode A/B/C で東京23特別区が区ごとに出題される（gh issue #32 にて対応完了）
   - 概要: テキスト形式クイズ（Mode A, B, C）において、`isTokyoSpecialWard` / `filterTokyoSpecialWards` により東京23区（`東京都` かつ `〇〇区`）を出題プールから除外。自明性および同名区（大阪市港区等）の不理不尽さを解消。Mode D（順引き地図）などの位置当てモードでは引き続き出題可能。
@@ -135,14 +140,17 @@
   - 実装: クイズ完了画面（市区町村クイズ全モードおよび復習クイズ）に `UpcomingReviewMini` コンポーネントを配置し、最新の「明日の復習予定件数」と今後7日間のミニスケジュールを表示。結果フェーズ遷移時に `queryClient.invalidateQueries` で最新状態を即時反映。おすすめ経由時は `RecommendReplayButton` を最優先アクションとして配置し、ダッシュボードに戻ることなく即時ループプレイが可能。
   - 該当: `lib/quiz/srs/schedule-helper.ts`（明日件数抽出）、`components/quiz/upcoming-review-mini.tsx`（ミニカード）、`app/(app)/quiz/municipality/[mode]/page.tsx`、`app/(app)/quiz/review/page.tsx`
 
-- [ ] B020 Mode D（順引き地図）での市区町村単位の出題選択・絞り込み（gh issue #73）
-  - 概要: Mode D（順引き地図: 市区町村名 → 地図タップ）において、出題対象となる市区町村を都道府県単位や個別チェックで選択・絞り込めるようにする。
-  - 動機: 特定の都道府県や市区町村を集中的に練習・位置当て特訓したいニーズに対応する。
-  - 検討事項: 設定画面UI（都道府県選択・市区町村リスト選択）、出題プールのフィルタリング連携、URLパラメータ/状態永続化、他モード（A/B/C）への共通化可能性。
+- [x] B020 Mode D（順引き地図）での市区町村単位の出題選択・絞り込み → **026-mode-d-custom-pool (#79, #80) で実装完了**
+  - 実装: Mode D 設定画面にスコープセレクター（全国 / 地方 / 都道府県 / 市区町村選択）を追加。`MunicipalityPickerDialog` による複数自治体のチェック選択、50音インデックス、かな検索に対応。選択状態は localStorage に永続化され、おすすめクイズセッション終了後も保持。
+  - 該当: `components/quiz/scope-selector.tsx`, `components/quiz/municipality-picker-dialog.tsx`, `lib/quiz/municipality-scope.ts`, `app/(app)/quiz/municipality/[mode]/page.tsx`
 
 - [x] B021 今日のおすすめクイズにおける難易度変更（オーバーライド）機能 → **025-recommend-difficulty-override で実装**
   - 概要: 「今日のおすすめクイズ」の調整ダイアログ（`RecommendOverride`）において、ユーザーが難易度（☆入門、☆☆中級、☆☆☆上級、☆☆☆☆達人）をトグル選択・変更してクイズを開始できるようにする。
   - 該当: `components/recommend/recommend-override.tsx`, `components/recommend/recommend-content.tsx`
+
+- [x] B024 全国制覇のA/D分離とおすすめA/D抽選 → **024-conquest-mode-a (#74) で実装完了**
+  - 実装: ダッシュボードトップの全国制覇ゲージを「県当て（A）」と「場所当て（D）」の2本に分離（B/C練習モードや合算%をトップから除外）。「今日のおすすめ」をA/D半々の抽選＋未制覇地方/難易度優先に刷新（A苦戦時のみB/C練習へフォールバック）。トップ画面をスリム化し、詳細分析は後続仕様（025）へ移行。
+  - 該当: `lib/quiz/recommendation/conquest-lottery.ts`, `lib/quiz/recommendation/coverage-cells.ts`, `components/dashboard/dashboard-client.tsx`, `components/dashboard/completion-progress.tsx`
 
 - [ ] B022 【UI/UX】地図クイズのフルスクリーン化とHUD（オーバーレイ）UI（GeoGuessr風レイアウト）
   - 概要: 地図を操作するクイズ（市区町村 Mode A / Mode D、都道府県クイズ）において、地図を画面いっぱいに広げ、問題文やお題、進捗ゲージ、タイマー、フィードバックなどを地図の上に浮かぶオーバーレイ（HUD: Heads-Up Display）として配置する。
