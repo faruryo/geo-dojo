@@ -290,7 +290,8 @@ export default function MunicipalityQuizPage() {
     if (currentScope.selectedCodes === undefined) {
       return prefectureMunicipalities.length;
     }
-    return currentScope.selectedCodes.length;
+    const prefCodeSet = new Set(prefectureMunicipalities.map((m) => m.code));
+    return currentScope.selectedCodes.filter((c) => prefCodeSet.has(c)).length;
   }, [currentScope, prefectureMunicipalities]);
 
   // ── Start ──

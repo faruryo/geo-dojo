@@ -112,6 +112,11 @@ describe('Scope UI Components', () => {
   });
 
   describe('MunicipalityPickerDialog', () => {
+    const sapporoMunicipalities: Municipality[] = [
+      { code: '01101', name: '札幌市', prefecture: '北海道', region: '北海道', difficulty: 'easy', kana: 'さっぽろし' },
+      { code: '01102', name: '札幌市', prefecture: '北海道', region: '北海道', difficulty: 'easy', kana: 'さっぽろし' },
+    ];
+
     it('市区町村リストとチェックボックスを表示し、全選択/解除や個別トグルができる', async () => {
       const handleSave = vi.fn();
       const handleOpenChange = vi.fn();
@@ -162,11 +167,6 @@ describe('Scope UI Components', () => {
     });
 
     it('政令指定都市の区（例: 札幌市中央区, 札幌市北区）を区別したラベルで表示できる', async () => {
-      const sapporoMunicipalities: Municipality[] = [
-        { code: '01101', name: '札幌市', prefecture: '北海道', region: '北海道', difficulty: 'easy', kana: 'さっぽろし' },
-        { code: '01102', name: '札幌市', prefecture: '北海道', region: '北海道', difficulty: 'easy', kana: 'さっぽろし' },
-      ];
-
       await act(async () => {
         root?.render(
           <MunicipalityPickerDialog
@@ -183,6 +183,24 @@ describe('Scope UI Components', () => {
 
       expect(document.body.textContent).toContain('札幌市中央区');
       expect(document.body.textContent).toContain('札幌市北区');
+    });
+
+    it('別都道府県や無効なコードが selectedCodes に含まれていても除外して開く', async () => {
+      await act(async () => {
+        root?.render(
+          <MunicipalityPickerDialog
+            isOpen={true}
+            onOpenChange={vi.fn()}
+            prefecture="北海道"
+            municipalities={sapporoMunicipalities}
+            selectedCodes={['01101', '99999', '13101']}
+            onSave={vi.fn()}
+            clearedCodesSet={new Set()}
+          />
+        );
+      });
+
+      expect(document.body.textContent).toContain('1 / 2 選択中');
     });
   });
 });
