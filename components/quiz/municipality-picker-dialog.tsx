@@ -14,6 +14,7 @@ import {
   type Municipality,
   DIFFICULTY_LABEL,
 } from '@/lib/quiz/municipality-data';
+import { locationLabel } from '@/lib/quiz/location-labels';
 
 interface SearchInputProps {
   readonly searchQuery: string;
@@ -160,7 +161,7 @@ function MunicipalityItem({
         />
         <div className="flex flex-col min-w-0">
           <span className="text-sm font-medium text-foreground truncate">
-            {municipality.name}
+            {locationLabel(municipality.code, municipality.name)}
           </span>
           {municipality.kana && (
             <span className="text-[10px] text-muted-foreground truncate">
@@ -272,9 +273,14 @@ function useMunicipalityPickerState({
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return municipalities;
     const q = searchQuery.trim().toLowerCase();
-    return municipalities.filter(
-      (m) => m.name.toLowerCase().includes(q) || (m.kana && m.kana.toLowerCase().includes(q)),
-    );
+    return municipalities.filter((m) => {
+      const label = locationLabel(m.code, m.name).toLowerCase();
+      return (
+        label.includes(q) ||
+        m.name.toLowerCase().includes(q) ||
+        (m.kana && m.kana.toLowerCase().includes(q))
+      );
+    });
   }, [municipalities, searchQuery]);
 
   const handleToggleCode = (code: string) => {

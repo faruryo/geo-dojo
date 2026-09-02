@@ -160,5 +160,29 @@ describe('Scope UI Components', () => {
       expect(handleSave).toHaveBeenCalledWith([]);
       expect(handleOpenChange).toHaveBeenCalledWith(false);
     });
+
+    it('政令指定都市の区（例: 札幌市中央区, 札幌市北区）を区別したラベルで表示できる', async () => {
+      const sapporoMunicipalities: Municipality[] = [
+        { code: '01101', name: '札幌市', prefecture: '北海道', region: '北海道', difficulty: 'easy', kana: 'さっぽろし' },
+        { code: '01102', name: '札幌市', prefecture: '北海道', region: '北海道', difficulty: 'easy', kana: 'さっぽろし' },
+      ];
+
+      await act(async () => {
+        root?.render(
+          <MunicipalityPickerDialog
+            isOpen={true}
+            onOpenChange={vi.fn()}
+            prefecture="北海道"
+            municipalities={sapporoMunicipalities}
+            selectedCodes={['01101']}
+            onSave={vi.fn()}
+            clearedCodesSet={new Set()}
+          />
+        );
+      });
+
+      expect(document.body.textContent).toContain('札幌市中央区');
+      expect(document.body.textContent).toContain('札幌市北区');
+    });
   });
 });
