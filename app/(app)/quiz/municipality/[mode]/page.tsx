@@ -18,6 +18,7 @@ import { RecommendReplayButton } from '@/components/recommend/recommend-replay-b
 import { buildRecommendAutoStartQuestions, isQueryResultReady } from '@/lib/quiz/recommend-auto-start';
 import {
   buildMunicipalityQuestions,
+  resolveQuizScope,
   type MunicipalityQuizSettings,
 } from '@/lib/quiz/municipality-questions';
 import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
@@ -25,6 +26,8 @@ import { QuizRunner } from '@/components/quiz/quiz-runner';
 import { SessionCountSelector } from '@/components/quiz/session-count-selector';
 import { QuizResultCard } from '@/components/quiz/quiz-result-card';
 import { QuizPoolProgress } from '@/components/quiz/quiz-pool-progress';
+import { ScopeSelector } from '@/components/quiz/scope-selector';
+import { MunicipalityPickerDialog } from '@/components/quiz/municipality-picker-dialog';
 import type { Question } from '@/components/quiz/quiz-runner';
 import { LAST_SELECTED_MODE_KEY, parseGameMode } from '@/lib/quiz/last-selected-mode';
 import {
@@ -42,15 +45,17 @@ import {
   type Difficulty,
   type GameMode,
   type Municipality,
-  type Region,
   DIFFICULTIES,
   DIFFICULTY_LABEL,
-  REGIONS,
   SESSION_COUNTS,
   filterByDifficulty,
-  filterByRegions,
+  filterByScope,
   filterTextModeMunicipalities,
-  isModeAvailable,
+  isScopeAvailable,
+  parseScopeFromSearchParams,
+  sanitizeScope,
+  updateSearchParamsWithScope,
+  LAST_MODE_D_SCOPE_KEY,
 } from '@/lib/quiz/municipality-data';
 
 type Settings = MunicipalityQuizSettings;
@@ -88,7 +93,7 @@ function getStartLabel({
   if (isBlocked) return 'データ取得に失敗しました（再試行してください）';
   if (!modeAvailable) return '地域を追加してください';
   if (!hasDifficulties) return '難易度を選択してください';
-  if (poolSize === 0) return '該当する市区町村なし — 地域か難易度を変更してください';
+  if (poolSize === 0) return '該当する市区町村なし — 条件を変更してください';
   return 'スタート';
 }
 
@@ -100,15 +105,15 @@ export default function MunicipalityQuizPage() {
 
   const initDifficulty = searchParams.get('difficulty') as Difficulty | null;
   const initDifficultiesParam = searchParams.get('difficulties');
-  const initRegion = searchParams.get('region') as Region | null;
   const sourceParam = searchParams.get('source');
   const countParam = searchParams.get('count');
   const isRecommendSource = sourceParam === 'recommend';
   const recommendCount = countParam ? (parseInt(countParam, 10) as 10 | 20 | 30) : null;
 
-  const initRegions = initRegion
-    ? (initRegion.split(',').filter((r) => (REGIONS as readonly string[]).includes(r)) as Region[])
-    : null;
+  const initialScope = useMemo(
+    () => parseScopeFromSearchParams(searchParams, modeFromUrl),
+    [searchParams, modeFromUrl],
+  );
 
   const initDifficulties: Difficulty[] | null = initDifficultiesParam
     ? (initDifficultiesParam.split(',').filter((d) => DIFFICULTIES.includes(d as Difficulty)) as Difficulty[])
@@ -120,7 +125,7 @@ export default function MunicipalityQuizPage() {
   const [phase, setPhase] = useState<Phase>('setup');
   const [settings, setSettings] = useState<Settings>({
     mode: modeFromUrl,
-    regions: initRegions && initRegions.length > 0 ? initRegions : ['全国'],
+    scope: initialScope,
     count: recommendCount && [10, 20, 30].includes(recommendCount) ? recommendCount : 10,
     unclearedFirst: true,
     weaknessFirst: false,
@@ -128,6 +133,7 @@ export default function MunicipalityQuizPage() {
   });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [results, setResults] = useState<ResultEntry[]>([]);
+  const [isMunicipalityPickerOpen, setIsMunicipalityPickerOpen] = useState(false);
 
   const {
     data: weaknessData = [],
@@ -195,6 +201,51 @@ export default function MunicipalityQuizPage() {
     }
   }, [modeFromUrl]);
 
+  // ── Restore Mode D scope from localStorage if not provided in searchParams ──
+  useEffect(() => {
+    if (
+      modeFromUrl === 'D' &&
+      searchParams.get('source') !== 'recommend' &&
+      !searchParams.get('scope') &&
+      !searchParams.get('pref') &&
+      !searchParams.get('prefecture') &&
+      !searchParams.get('region')
+    ) {
+      try {
+        const saved = localStorage.getItem(LAST_MODE_D_SCOPE_KEY);
+        if (saved) {
+          const parsed = sanitizeScope(JSON.parse(saved));
+          if (parsed) {
+            setSettings((s) => ({ ...s, scope: parsed }));
+          }
+        }
+      } catch {
+        // ignore storage error
+      }
+    }
+  }, [modeFromUrl, searchParams]);
+
+  // ── Persist Mode D scope to localStorage and sync to URL query string ──
+  useEffect(() => {
+    if (modeFromUrl === 'D' && settings.scope) {
+      try {
+        localStorage.setItem(LAST_MODE_D_SCOPE_KEY, JSON.stringify(settings.scope));
+      } catch {
+        // ignore storage error
+      }
+      if (typeof window !== 'undefined') {
+        const currentUrl = new URL(window.location.href);
+        const nextParams = updateSearchParamsWithScope(currentUrl.searchParams, settings.scope);
+        const newQuery = nextParams.toString();
+        const newSearch = newQuery ? `?${newQuery}` : '';
+        if (currentUrl.search !== newSearch) {
+          currentUrl.search = newSearch;
+          window.history.replaceState(null, '', currentUrl.toString());
+        }
+      }
+    }
+  }, [modeFromUrl, settings.scope]);
+
   // ── Synchronized Exit / Abort Handler ──
   const handleExitToSetup = useCallback(async () => {
     finalizeRecommendSession(readActiveRecommendUserId());
@@ -213,16 +264,15 @@ export default function MunicipalityQuizPage() {
     });
   }, [modeFromUrl, queryClient]);
 
-  // ── Pool and stats calculation ──
+  // ── Mode D Scoped Municipalities & Pool Progress ──
+  const currentScope = useMemo(() => resolveQuizScope(settings), [settings]);
+
   const filteredPool = useMemo(() => {
-    if (allMunicipalities.length === 0) return [];
     const isTextMode = settings.mode === 'A' || settings.mode === 'B' || settings.mode === 'C';
     const source = isTextMode ? filterTextModeMunicipalities(allMunicipalities) : allMunicipalities;
-    return filterByDifficulty(
-      filterByRegions(source, settings.regions),
-      settings.difficulties,
-    );
-  }, [allMunicipalities, settings.regions, settings.difficulties, settings.mode]);
+    const scoped = filterByScope(source, currentScope);
+    return filterByDifficulty(scoped, settings.difficulties);
+  }, [allMunicipalities, settings.mode, settings.difficulties, currentScope]);
 
   const poolStats = useMemo(
     () => computePoolStats(filteredPool, settings.mode, clearedCodesSet, identityCodeMap),
@@ -230,6 +280,42 @@ export default function MunicipalityQuizPage() {
   );
 
   const effectivePoolSize = poolStats.totalCount;
+
+  const currentPrefecture = currentScope.prefecture ?? '東京都';
+  const prefectureMunicipalities = useMemo(() => {
+    return allMunicipalities.filter((m) => m.prefecture === currentPrefecture);
+  }, [allMunicipalities, currentPrefecture]);
+
+  const selectedMunicipalityCount = useMemo(() => {
+    if (currentScope.type !== 'prefecture') return undefined;
+    if (currentScope.selectedCodes === undefined) {
+      return prefectureMunicipalities.length;
+    }
+    const prefCodeSet = new Set(prefectureMunicipalities.map((m) => m.code));
+    return currentScope.selectedCodes.filter((c) => prefCodeSet.has(c)).length;
+  }, [currentScope, prefectureMunicipalities]);
+
+  // ── Normalize selectedCodes to exclude out-of-prefecture codes once master is loaded ──
+  useEffect(() => {
+    if (
+      currentScope.type === 'prefecture' &&
+      currentScope.selectedCodes !== undefined &&
+      prefectureMunicipalities.length > 0
+    ) {
+      const prefCodeSet = new Set(prefectureMunicipalities.map((m) => m.code));
+      const filtered = currentScope.selectedCodes.filter((c) => prefCodeSet.has(c));
+      if (filtered.length !== currentScope.selectedCodes.length) {
+        setSettings((s) => ({
+          ...s,
+          scope: {
+            type: 'prefecture',
+            prefecture: currentPrefecture,
+            selectedCodes: filtered,
+          },
+        }));
+      }
+    }
+  }, [currentScope, prefectureMunicipalities]);
 
   // ── Start ──
   const handleStart = useCallback(async () => {
@@ -306,7 +392,7 @@ export default function MunicipalityQuizPage() {
       alreadyStarted: autoStarted.current,
       phase,
       masterReady: !masterLoading && allMunicipalities.length > 0,
-      modeAvailable: isModeAvailable(modeFromUrl, settings.regions),
+      modeAvailable: isScopeAvailable(modeFromUrl, currentScope),
       unclearedFirst: settings.unclearedFirst,
       clearedQuerySettledOk: isQueryResultReady({
         isSuccess: clearedSuccess,
@@ -351,6 +437,7 @@ export default function MunicipalityQuizPage() {
     allMunicipalities,
     modeFromUrl,
     settings,
+    currentScope,
     weaknessMap,
     clearedCodesSet,
     identityCodeMap,
@@ -363,7 +450,7 @@ export default function MunicipalityQuizPage() {
     weaknessPaused,
   ]);
 
-  const modeAvailable = isModeAvailable(modeFromUrl, settings.regions);
+  const modeAvailable = isScopeAvailable(modeFromUrl, currentScope);
 
   const isClearedQueryLoading =
     settings.unclearedFirst &&
@@ -421,50 +508,38 @@ export default function MunicipalityQuizPage() {
           <p className="text-sm text-muted-foreground mt-0.5">{MODE_LABEL[modeFromUrl]}</p>
         </div>
 
-        <div>
-          <p className="text-sm font-medium mb-2">地域（複数選択可）</p>
-          <div className="flex flex-wrap gap-2">
-            {REGIONS.map((r) => {
-              const isSelected =
-                r === '全国'
-                  ? settings.regions.includes('全国')
-                  : !settings.regions.includes('全国') && settings.regions.includes(r);
-              return (
-                <button
-                  key={r}
-                  onClick={() =>
-                    setSettings((s) => {
-                      let newRegions: Region[];
-                      if (r === '全国') {
-                        newRegions = ['全国'];
-                      } else {
-                        const without全国 = s.regions.filter((x) => x !== '全国');
-                        const already = without全国.includes(r);
-                        const toggled = already
-                          ? without全国.filter((x) => x !== r)
-                          : [...without全国, r];
-                        newRegions = toggled.length === 0 ? ['全国'] : toggled;
-                      }
-                      return { ...s, regions: newRegions };
-                    })
-                  }
-                  className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                    isSelected
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  {r}
-                </button>
-              );
-            })}
-          </div>
-          {!isModeAvailable(modeFromUrl, settings.regions) && (
-            <p className="text-xs text-yellow-500 mt-2">
-              {MODE_LABEL[modeFromUrl]} は2県以上の地域が必要です。地域を追加してください。
-            </p>
-          )}
-        </div>
+        <ScopeSelector
+          mode={modeFromUrl}
+          scope={currentScope}
+          onScopeChange={(newScope) => setSettings((s) => ({ ...s, scope: newScope }))}
+          onOpenMunicipalityPicker={() => setIsMunicipalityPickerOpen(true)}
+          selectedCount={selectedMunicipalityCount}
+          totalPrefectureCount={prefectureMunicipalities.length}
+        />
+        {!modeAvailable && (
+          <p className="text-xs text-yellow-500 -mt-1">
+            {MODE_LABEL[modeFromUrl]} は2県以上の地域が必要です。地域を追加してください。
+          </p>
+        )}
+
+        <MunicipalityPickerDialog
+          isOpen={isMunicipalityPickerOpen}
+          onOpenChange={setIsMunicipalityPickerOpen}
+          prefecture={currentPrefecture}
+          municipalities={prefectureMunicipalities}
+          selectedCodes={currentScope.selectedCodes}
+          onSave={(codes) => {
+            setSettings((s) => ({
+              ...s,
+              scope: {
+                type: 'prefecture',
+                prefecture: currentPrefecture,
+                selectedCodes: codes,
+              },
+            }));
+          }}
+          clearedCodesSet={clearedCodesSet}
+        />
 
         <SessionCountSelector
           title="問題数"
@@ -557,7 +632,7 @@ export default function MunicipalityQuizPage() {
         </Button>
         {effectivePoolSize > 0 && effectivePoolSize < settings.count && canStart && (
           <p className="text-xs text-yellow-500 text-center">
-            該当 {effectivePoolSize} 件のみ — 毎回同じ問題が繰り返されます。難易度か地域を広げてください
+            該当 {effectivePoolSize} 件のみ — 全 {effectivePoolSize} 問で出題されます
           </p>
         )}
       </div>
