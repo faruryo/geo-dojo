@@ -12,7 +12,7 @@ export interface MunicipalityScope {
   type: ScopeType;
   regions: Region[];          // type === 'region' の場合（デフォルト: ['全国']）
   prefecture?: string;        // type === 'prefecture' の場合（例: '長野県'）
-  selectedCodes?: string[];   // type === 'prefecture' かつ個別選択時（未指定/空配列なら県内全自治体）
+  selectedCodes?: string[];   // type === 'prefecture' かつ個別選択時（undefinedなら県内全自治体、[]なら0件選択）
 }
 ```
 

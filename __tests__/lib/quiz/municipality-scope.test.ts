@@ -6,6 +6,7 @@ import {
   parseScopeFromSearchParams,
   serializeScopeToQueryString,
   updateSearchParamsWithScope,
+  sanitizeScope,
   type Municipality,
   type MunicipalityScope,
 } from '@/lib/quiz/municipality-data';
@@ -198,5 +199,61 @@ describe('Custom Pool + Sampling Integration', () => {
     expect(stats.totalCount).toBe(2);
     expect(stats.clearedCount).toBe(1);
     expect(stats.percentage).toBe(50);
+  });
+});
+
+describe('parseScopeFromSearchParams & sanitizeScope normalization', () => {
+  it('Mode A/B では都道府県クエリが来ても地域スコープ（全国）へ安全に正規化される', () => {
+    const params = new URLSearchParams('scope=prefecture&pref=長野県');
+    const scopeA = parseScopeFromSearchParams(params, 'A');
+    expect(scopeA).toEqual({ type: 'region', regions: ['全国'] });
+
+    const scopeB = parseScopeFromSearchParams(params, 'B');
+    expect(scopeB).toEqual({ type: 'region', regions: ['全国'] });
+  });
+
+  it('Mode D では重複コードが除外され、無効な都道府県名はフォールバックされる', () => {
+    const params = new URLSearchParams('scope=prefecture&pref=長野県&codes=20201,20201,20202,');
+    const scopeD = parseScopeFromSearchParams(params, 'D');
+    expect(scopeD).toEqual({
+      type: 'prefecture',
+      prefecture: '長野県',
+      selectedCodes: ['20201', '20202'],
+    });
+
+    const invalidPrefParams = new URLSearchParams('scope=prefecture&pref=火星');
+    const scopeFallback = parseScopeFromSearchParams(invalidPrefParams, 'D');
+    expect(scopeFallback.type).toBe('prefecture');
+    if (scopeFallback.type === 'prefecture') {
+      expect(scopeFallback.prefecture).toBe('東京都');
+    }
+  });
+
+  it('sanitizeScope は破損した localStorage オブジェクトを拒否し、正当なスコープを正規化する', () => {
+    expect(sanitizeScope(null)).toBeNull();
+    expect(sanitizeScope(undefined)).toBeNull();
+    expect(sanitizeScope({ type: 'region', regions: 123 })).toBeNull();
+    expect(sanitizeScope({ type: 'region', regions: ['存在しない地方'] })).toBeNull();
+    expect(sanitizeScope({ type: 'prefecture', prefecture: '無効な県' })).toBeNull();
+
+    const validPref = sanitizeScope({
+      type: 'prefecture',
+      prefecture: '長野県',
+      selectedCodes: ['20201', '20201', '20202', ''],
+    });
+    expect(validPref).toEqual({
+      type: 'prefecture',
+      prefecture: '長野県',
+      selectedCodes: ['20201', '20202'],
+    });
+
+    const validRegion = sanitizeScope({
+      type: 'region',
+      regions: ['関東', '無効な地方'],
+    });
+    expect(validRegion).toEqual({
+      type: 'region',
+      regions: ['関東'],
+    });
   });
 });

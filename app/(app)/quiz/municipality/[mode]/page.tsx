@@ -45,7 +45,6 @@ import {
   type Difficulty,
   type GameMode,
   type Municipality,
-  type MunicipalityScope,
   DIFFICULTIES,
   DIFFICULTY_LABEL,
   SESSION_COUNTS,
@@ -54,6 +53,7 @@ import {
   filterTextModeMunicipalities,
   isScopeAvailable,
   parseScopeFromSearchParams,
+  sanitizeScope,
   updateSearchParamsWithScope,
   LAST_MODE_D_SCOPE_KEY,
 } from '@/lib/quiz/municipality-data';
@@ -111,8 +111,8 @@ export default function MunicipalityQuizPage() {
   const recommendCount = countParam ? (parseInt(countParam, 10) as 10 | 20 | 30) : null;
 
   const initialScope = useMemo(
-    () => parseScopeFromSearchParams(searchParams),
-    [searchParams],
+    () => parseScopeFromSearchParams(searchParams, modeFromUrl),
+    [searchParams, modeFromUrl],
   );
 
   const initDifficulties: Difficulty[] | null = initDifficultiesParam
@@ -213,8 +213,8 @@ export default function MunicipalityQuizPage() {
       try {
         const saved = localStorage.getItem(LAST_MODE_D_SCOPE_KEY);
         if (saved) {
-          const parsed = JSON.parse(saved) as MunicipalityScope;
-          if (parsed && (parsed.type === 'region' || parsed.type === 'prefecture')) {
+          const parsed = sanitizeScope(JSON.parse(saved));
+          if (parsed) {
             setSettings((s) => ({ ...s, scope: parsed }));
           }
         }

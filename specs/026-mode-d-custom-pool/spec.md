@@ -104,7 +104,7 @@ Mode D は都道府県地図上のポリゴンを直接探索してタップす�
   - `type`: `'region'`（地方単位） | `'prefecture'`（都道府県単位）
   - `regions`: `Region[]`（地方選択時の配列）
   - `prefecture`: `string | null`（都道府県選択時の県名）
-  - `selectedCodes`: `string[] | null`（個別選択された自治体コード群。null/空の場合は県内全件）
+  - `selectedCodes`: `string[] | undefined`（個別選択された自治体コード群。undefinedの場合は県内全件、空配列`[]`の場合は0件選択）
 - **MunicipalityQuizSettings**: 拡張されたクイズ設定。
   - 既存の `mode`, `count`, `unclearedFirst`, `weaknessFirst`, `difficulties` に加え、上記の範囲フィルタ条件を包含。
 

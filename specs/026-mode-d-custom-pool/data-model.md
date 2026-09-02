@@ -31,7 +31,7 @@ export interface MunicipalityQuizSettings {
 | `scope.type` | `'region' \| 'prefecture'` | 必須 | 出題範囲の種別。デフォルトは `'region'`。 |
 | `scope.regions` | `Region[]` | 必須 | `type === 'region'` の際に有効。デフォルトは `['全国']`。 |
 | `scope.prefecture` | `string` | 任意 | `type === 'prefecture'` の際に有効。`ALL_PREFECTURES` に含まれる県名（例: `'長野県'`）。 |
-| `scope.selectedCodes` | `string[]` | 任意 | 個別選択された自治体コードの配列。未指定または空配列の場合は指定都道府県の全自治体。 |
+| `scope.selectedCodes` | `string[]` | 任意 | 個別選択された自治体コードの配列。undefined の場合は指定都道府県の全自治体。空配列（`[]`）の場合は0件選択。 |
 
 ---
 

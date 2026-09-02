@@ -126,22 +126,70 @@ export function isScopeAvailable(mode: GameMode, scope: MunicipalityScope): bool
   return true;
 }
 
+export function sanitizeScope(raw: unknown): MunicipalityScope | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  if (obj.type === 'prefecture') {
+    if (typeof obj.prefecture !== 'string' || !ALL_PREFECTURES.includes(obj.prefecture)) {
+      return null;
+    }
+    let selectedCodes: string[] | undefined;
+    if (Array.isArray(obj.selectedCodes)) {
+      selectedCodes = Array.from(
+        new Set(
+          obj.selectedCodes
+            .filter((c): c is string => typeof c === 'string')
+            .map((c) => c.trim())
+            .filter(Boolean),
+        ),
+      );
+    }
+    return {
+      type: 'prefecture',
+      prefecture: obj.prefecture,
+      selectedCodes,
+    };
+  }
+  if (obj.type === 'region') {
+    if (!Array.isArray(obj.regions)) return null;
+    const validRegions = obj.regions.filter((r): r is Region =>
+      typeof r === 'string' && (REGIONS as readonly string[]).includes(r),
+    );
+    if (validRegions.length === 0) return null;
+    return {
+      type: 'region',
+      regions: validRegions,
+    };
+  }
+  return null;
+}
+
 export function parseScopeFromSearchParams(
   searchParams: URLSearchParams | { get: (key: string) => string | null },
+  mode?: GameMode,
 ): MunicipalityScope {
   const scopeType = searchParams.get('scope');
   const pref = searchParams.get('pref') ?? searchParams.get('prefecture');
   const codesParam = searchParams.get('codes');
   const regionParam = searchParams.get('region') ?? searchParams.get('regions');
 
+  // Mode A and Mode B do not support prefecture scope; fallback safely to region scope
+  if ((mode === 'A' || mode === 'B') && (scopeType === 'prefecture' || pref)) {
+    return {
+      type: 'region',
+      regions: ['全国'],
+    };
+  }
+
   if (scopeType === 'prefecture' || pref) {
+    const validPref = pref && ALL_PREFECTURES.includes(pref) ? pref : '東京都';
     const selectedCodes =
       codesParam !== null
-        ? codesParam.split(',').map((c) => c.trim()).filter(Boolean)
+        ? Array.from(new Set(codesParam.split(',').map((c) => c.trim()).filter(Boolean)))
         : undefined;
     return {
       type: 'prefecture',
-      prefecture: pref ?? '東京都',
+      prefecture: validPref,
       selectedCodes,
     };
   }
