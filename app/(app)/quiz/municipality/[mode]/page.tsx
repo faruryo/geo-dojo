@@ -205,6 +205,7 @@ export default function MunicipalityQuizPage() {
   useEffect(() => {
     if (
       modeFromUrl === 'D' &&
+      searchParams.get('source') !== 'recommend' &&
       !searchParams.get('scope') &&
       !searchParams.get('pref') &&
       !searchParams.get('prefecture') &&
@@ -292,6 +293,28 @@ export default function MunicipalityQuizPage() {
     }
     const prefCodeSet = new Set(prefectureMunicipalities.map((m) => m.code));
     return currentScope.selectedCodes.filter((c) => prefCodeSet.has(c)).length;
+  }, [currentScope, prefectureMunicipalities]);
+
+  // ── Normalize selectedCodes to exclude out-of-prefecture codes once master is loaded ──
+  useEffect(() => {
+    if (
+      currentScope.type === 'prefecture' &&
+      currentScope.selectedCodes !== undefined &&
+      prefectureMunicipalities.length > 0
+    ) {
+      const prefCodeSet = new Set(prefectureMunicipalities.map((m) => m.code));
+      const filtered = currentScope.selectedCodes.filter((c) => prefCodeSet.has(c));
+      if (filtered.length !== currentScope.selectedCodes.length) {
+        setSettings((s) => ({
+          ...s,
+          scope: {
+            type: 'prefecture',
+            prefecture: currentPrefecture,
+            selectedCodes: filtered,
+          },
+        }));
+      }
+    }
   }, [currentScope, prefectureMunicipalities]);
 
   // ── Start ──

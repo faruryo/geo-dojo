@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, MapPin, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -241,21 +241,40 @@ function computeToggledRegions(currentRegions: Region[], r: Region): Region[] {
   return toggled.length === 0 ? ['全国'] : toggled;
 }
 
-export function ScopeSelector({
-  mode,
-  scope,
-  onScopeChange,
-  onOpenMunicipalityPicker,
-  selectedCount,
-  totalPrefectureCount,
-}: Readonly<ScopeSelectorProps>) {
+function useScopeSelectorState(
+  scope: MunicipalityScope,
+  onScopeChange: (scope: MunicipalityScope) => void,
+) {
   const [isPrefSheetOpen, setIsPrefSheetOpen] = useState(false);
-  const currentPrefecture = scope.prefecture ?? '東京都';
+  const [lastPrefScope, setLastPrefScope] = useState<{
+    prefecture: string;
+    selectedCodes?: string[];
+  }>({
+    prefecture: scope.prefecture ?? '東京都',
+    selectedCodes: scope.selectedCodes,
+  });
+
+  useEffect(() => {
+    if (scope.type === 'prefecture' && scope.prefecture) {
+      setLastPrefScope({
+        prefecture: scope.prefecture,
+        selectedCodes: scope.selectedCodes,
+      });
+    }
+  }, [scope]);
+
   const isPrefectureMode = scope.type === 'prefecture';
+  const currentPrefecture = isPrefectureMode
+    ? (scope.prefecture ?? '東京都')
+    : lastPrefScope.prefecture;
 
   const handleScopeTypeChange = (type: 'region' | 'prefecture') => {
     if (type === 'prefecture') {
-      onScopeChange({ type: 'prefecture', prefecture: currentPrefecture });
+      onScopeChange({
+        type: 'prefecture',
+        prefecture: lastPrefScope.prefecture,
+        selectedCodes: lastPrefScope.selectedCodes,
+      });
     } else {
       const regions: Region[] =
         scope.regions && scope.regions.length > 0 ? scope.regions : ['全国'];
@@ -271,9 +290,39 @@ export function ScopeSelector({
   };
 
   const handlePrefectureSelect = (pref: string) => {
+    setLastPrefScope({ prefecture: pref, selectedCodes: undefined });
     onScopeChange({ type: 'prefecture', prefecture: pref });
     setIsPrefSheetOpen(false);
   };
+
+  return {
+    isPrefSheetOpen,
+    setIsPrefSheetOpen,
+    isPrefectureMode,
+    currentPrefecture,
+    handleScopeTypeChange,
+    handleRegionToggle,
+    handlePrefectureSelect,
+  };
+}
+
+export function ScopeSelector({
+  mode,
+  scope,
+  onScopeChange,
+  onOpenMunicipalityPicker,
+  selectedCount,
+  totalPrefectureCount,
+}: Readonly<ScopeSelectorProps>) {
+  const {
+    isPrefSheetOpen,
+    setIsPrefSheetOpen,
+    isPrefectureMode,
+    currentPrefecture,
+    handleScopeTypeChange,
+    handleRegionToggle,
+    handlePrefectureSelect,
+  } = useScopeSelectorState(scope, onScopeChange);
 
   return (
     <div className="flex flex-col gap-3">

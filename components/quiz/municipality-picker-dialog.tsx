@@ -14,7 +14,7 @@ import {
   type Municipality,
   DIFFICULTY_LABEL,
 } from '@/lib/quiz/municipality-data';
-import { locationLabel } from '@/lib/quiz/location-labels';
+import { locationLabel, locationKana } from '@/lib/quiz/location-labels';
 
 interface SearchInputProps {
   readonly searchQuery: string;
@@ -150,6 +150,9 @@ function MunicipalityItem({
   isCleared,
   onToggle,
 }: Readonly<MunicipalityItemProps>) {
+  const label = locationLabel(municipality.code, municipality.name);
+  const kana = locationKana(municipality.code, municipality.kana);
+
   return (
     <label className="flex items-center justify-between py-2.5 px-1 cursor-pointer hover:bg-muted/30 rounded-sm transition-colors">
       <div className="flex items-center gap-2.5 min-w-0">
@@ -161,11 +164,11 @@ function MunicipalityItem({
         />
         <div className="flex flex-col min-w-0">
           <span className="text-sm font-medium text-foreground truncate">
-            {locationLabel(municipality.code, municipality.name)}
+            {label}
           </span>
-          {municipality.kana && (
+          {kana && (
             <span className="text-[10px] text-muted-foreground truncate">
-              {municipality.kana}
+              {kana}
             </span>
           )}
         </div>
@@ -249,6 +252,24 @@ interface UsePickerStateParams {
   readonly onOpenChange: (open: boolean) => void;
 }
 
+function filterMunicipalities(
+  municipalities: readonly Municipality[],
+  searchQuery: string,
+): readonly Municipality[] {
+  if (!searchQuery.trim()) return municipalities;
+  const q = searchQuery.trim().toLowerCase();
+  return municipalities.filter((m) => {
+    const label = locationLabel(m.code, m.name).toLowerCase();
+    const kana = (locationKana(m.code, m.kana) ?? '').toLowerCase();
+    return (
+      label.includes(q) ||
+      m.name.toLowerCase().includes(q) ||
+      (m.kana && m.kana.toLowerCase().includes(q)) ||
+      kana.includes(q)
+    );
+  });
+}
+
 function useMunicipalityPickerState({
   isOpen,
   selectedCodes,
@@ -271,18 +292,10 @@ function useMunicipalityPickerState({
     }
   }, [isOpen, selectedCodes, municipalities]);
 
-  const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return municipalities;
-    const q = searchQuery.trim().toLowerCase();
-    return municipalities.filter((m) => {
-      const label = locationLabel(m.code, m.name).toLowerCase();
-      return (
-        label.includes(q) ||
-        m.name.toLowerCase().includes(q) ||
-        (m.kana && m.kana.toLowerCase().includes(q))
-      );
-    });
-  }, [municipalities, searchQuery]);
+  const filtered = useMemo(
+    () => filterMunicipalities(municipalities, searchQuery),
+    [municipalities, searchQuery],
+  );
 
   const handleToggleCode = (code: string) => {
     setTempSelected((prev) => {

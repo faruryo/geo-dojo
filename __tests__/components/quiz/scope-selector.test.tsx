@@ -109,6 +109,70 @@ describe('Scope UI Components', () => {
 
       expect(handleOpenPicker).toHaveBeenCalledTimes(1);
     });
+
+    it('スコープ種別（地域/都道府県）を切り替えても直前の都道府県と選択コードを保持して復元する', async () => {
+      const handleScopeChange = vi.fn();
+
+      await act(async () => {
+        root?.render(
+          <ScopeSelector
+            mode="D"
+            scope={{
+              type: 'prefecture',
+              prefecture: '長野県',
+              selectedCodes: ['20201', '20202'],
+            }}
+            onScopeChange={handleScopeChange}
+            onOpenMunicipalityPicker={vi.fn()}
+            selectedCount={2}
+            totalPrefectureCount={77}
+          />
+        );
+      });
+
+      const regionToggle = Array.from(container?.querySelectorAll('button') ?? []).find(
+        (btn) => btn.textContent?.includes('地域（地方）で選ぶ')
+      );
+      expect(regionToggle).toBeDefined();
+
+      await act(async () => {
+        regionToggle?.click();
+      });
+
+      expect(handleScopeChange).toHaveBeenCalledWith({
+        type: 'region',
+        regions: ['全国'],
+      });
+
+      await act(async () => {
+        root?.render(
+          <ScopeSelector
+            mode="D"
+            scope={{
+              type: 'region',
+              regions: ['全国'],
+            }}
+            onScopeChange={handleScopeChange}
+            onOpenMunicipalityPicker={vi.fn()}
+          />
+        );
+      });
+
+      const prefToggle = Array.from(container?.querySelectorAll('button') ?? []).find(
+        (btn) => btn.textContent?.includes('都道府県で選ぶ')
+      );
+      expect(prefToggle).toBeDefined();
+
+      await act(async () => {
+        prefToggle?.click();
+      });
+
+      expect(handleScopeChange).toHaveBeenLastCalledWith({
+        type: 'prefecture',
+        prefecture: '長野県',
+        selectedCodes: ['20201', '20202'],
+      });
+    });
   });
 
   describe('MunicipalityPickerDialog', () => {
@@ -182,7 +246,9 @@ describe('Scope UI Components', () => {
       });
 
       expect(document.body.textContent).toContain('札幌市中央区');
+      expect(document.body.textContent).toContain('さっぽろしちゅうおうく');
       expect(document.body.textContent).toContain('札幌市北区');
+      expect(document.body.textContent).toContain('さっぽろしきたく');
     });
 
     it('別都道府県や無効なコードが selectedCodes に含まれていても除外して開く', async () => {
