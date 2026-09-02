@@ -56,6 +56,7 @@ import {
   sanitizeScope,
   updateSearchParamsWithScope,
   LAST_MODE_D_SCOPE_KEY,
+  shouldPersistModeDScope,
 } from '@/lib/quiz/municipality-data';
 
 type Settings = MunicipalityQuizSettings;
@@ -228,10 +229,12 @@ export default function MunicipalityQuizPage() {
   // ── Persist Mode D scope to localStorage and sync to URL query string ──
   useEffect(() => {
     if (modeFromUrl === 'D' && settings.scope) {
-      try {
-        localStorage.setItem(LAST_MODE_D_SCOPE_KEY, JSON.stringify(settings.scope));
-      } catch {
-        // ignore storage error
+      if (shouldPersistModeDScope(searchParams.get('source'))) {
+        try {
+          localStorage.setItem(LAST_MODE_D_SCOPE_KEY, JSON.stringify(settings.scope));
+        } catch {
+          // ignore storage error
+        }
       }
       if (typeof window !== 'undefined') {
         const currentUrl = new URL(window.location.href);
@@ -244,7 +247,7 @@ export default function MunicipalityQuizPage() {
         }
       }
     }
-  }, [modeFromUrl, settings.scope]);
+  }, [modeFromUrl, settings.scope, searchParams]);
 
   // ── Synchronized Exit / Abort Handler ──
   const handleExitToSetup = useCallback(async () => {
