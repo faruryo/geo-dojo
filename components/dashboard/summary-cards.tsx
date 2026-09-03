@@ -50,30 +50,41 @@ function SummaryCard({
   );
 }
 
-export function SummaryCards() {
-  const { data, isLoading } = useDashboardSummary();
+type SummaryData = NonNullable<ReturnType<typeof useDashboardSummary>['data']>;
 
-  if (isLoading) {
-    return (
-      <section className="grid grid-cols-2 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card size="sm" key={i}>
-            <CardContent className="flex flex-col gap-2">
-              <Skeleton className="h-3 w-16" />
-              <Skeleton className="h-7 w-20" />
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-    );
-  }
+function AnalyticsCards({ data }: Readonly<{ data: SummaryData }>) {
+  const conquestA = data.conquestRateA ?? 0;
+  const prevConquestA = data.prev?.conquestRateA ?? 0;
+  const conquestD = data.conquestRateD ?? 0;
+  const prevConquestD = data.prev?.conquestRateD ?? 0;
 
-  if (!data || data.totalQuestions === 0) {
-    return (
-      <EmptyState message="まだクイズを受けていません。クイズを始めましょう！" />
-    );
-  }
+  return (
+    <section className="grid grid-cols-2 gap-3">
+      <SummaryCard
+        label="累計出題数"
+        value={data.totalQuestions.toLocaleString()}
+        delta={getDelta(data.totalQuestions, data.prev.totalQuestions)}
+      />
+      <SummaryCard
+        label="全体正答率"
+        value={formatPercent(data.overallAccuracy)}
+        delta={getDelta(data.overallAccuracy, data.prev.overallAccuracy)}
+      />
+      <SummaryCard
+        label="県当て(A)制覇率"
+        value={formatPercent(conquestA)}
+        delta={getDelta(conquestA, prevConquestA)}
+      />
+      <SummaryCard
+        label="場所当て(D)制覇率"
+        value={formatPercent(conquestD)}
+        delta={getDelta(conquestD, prevConquestD)}
+      />
+    </section>
+  );
+}
 
+function DashboardCards({ data }: Readonly<{ data: SummaryData }>) {
   return (
     <section className="grid grid-cols-2 gap-3">
       <SummaryCard
@@ -98,4 +109,34 @@ export function SummaryCards() {
       />
     </section>
   );
+}
+
+function SummarySkeleton() {
+  return (
+    <section className="grid grid-cols-2 gap-3">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Card size="sm" key={i}>
+          <CardContent className="flex flex-col gap-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-7 w-20" />
+          </CardContent>
+        </Card>
+      ))}
+    </section>
+  );
+}
+
+export function SummaryCards({
+  variant = 'dashboard',
+}: {
+  variant?: 'dashboard' | 'analytics';
+} = {}) {
+  const { data, isLoading } = useDashboardSummary();
+
+  if (isLoading) return <SummarySkeleton />;
+  if (!data || data.totalQuestions === 0) {
+    return <EmptyState message="まだクイズを受けていません。クイズを始めましょう！" />;
+  }
+
+  return variant === 'analytics' ? <AnalyticsCards data={data} /> : <DashboardCards data={data} />;
 }

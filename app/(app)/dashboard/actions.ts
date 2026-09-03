@@ -14,13 +14,20 @@ import {
   getReviewItemListData,
   getReviewModeBreakdownData,
   type QuizModeFilter,
+  type WeaknessFilterOpts,
   type ReviewItemFilterOpts,
   type ReviewItem,
   type ReviewItemListResult,
   type ReviewModeBreakdownEntry,
 } from './queries';
 
-export type { ReviewItemFilterOpts, ReviewItem, ReviewItemListResult, ReviewModeBreakdownEntry };
+export type {
+  WeaknessFilterOpts,
+  ReviewItemFilterOpts,
+  ReviewItem,
+  ReviewItemListResult,
+  ReviewModeBreakdownEntry,
+};
 
 // 以下の read 系 Server Action は、認証非依存の純粋クエリ（lib/db/queries）への
 // 薄いラッパ。フィルタ変更・手動更新のオンデマンド取得経路として維持しつつ、
@@ -53,9 +60,9 @@ export async function getCompletionTrend(params: {
 }
 
 // 3. getWeaknessRanking
-export async function getWeaknessRanking() {
+export async function getWeaknessRanking(opts?: WeaknessFilterOpts) {
   const userId = await requireUserId();
-  return getWeaknessRankingData(userId);
+  return getWeaknessRankingData(userId, opts);
 }
 
 // 4. getStreak
@@ -77,6 +84,7 @@ export async function getDifficultyProgress(params: {
 export async function getCompletionByMode(params: {
   mode: 'all' | 'A' | 'B' | 'C' | 'D';
   region: string;
+  asOf?: Date;
 }) {
   const userId = await requireUserId();
   return getCompletionByModeData(userId, params);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
-import { saveMunicipalityQuizResult } from '@/app/(app)/quiz/municipality/actions';
+import { saveMunicipalityQuizResults } from '@/app/(app)/quiz/municipality/actions';
 import {
   dedupeInstancesByPrefecture,
   type Municipality,
@@ -159,7 +159,7 @@ export function useQuizActions({
 
   const recordAndAdvance = useCallback(
     async (entries: QuizSessionEntry[], delayMs: number) => {
-      const savePromise = executeQuizAdvance(entries, state.results, saveMunicipalityQuizResult);
+      const savePromise = executeQuizAdvance(entries, state.results, saveMunicipalityQuizResults);
       inFlightSavesRef.current.add(savePromise);
       void savePromise.finally(() => {
         inFlightSavesRef.current.delete(savePromise);

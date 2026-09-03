@@ -18,7 +18,8 @@ export const queryKeys = {
       ['dashboard', 'completion', mode, region] as const,
     difficulty: (mode: string = 'all', region: string = '全国') =>
       ['dashboard', 'difficulty', mode, region] as const,
-    weakness: () => ['dashboard', 'weakness'] as const,
+    weakness: (period: string = 'all', mode: string = 'all', region: string = '全国') =>
+      ['dashboard', 'weakness', period, mode, region] as const,
     streak: () => ['dashboard', 'streak'] as const,
     srsSummary: () => ['dashboard', 'srs-summary'] as const,
     srsSchedule: (days: number = 7) => ['dashboard', 'srs-schedule', days] as const,

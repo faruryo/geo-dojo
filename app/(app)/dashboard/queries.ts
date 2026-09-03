@@ -15,6 +15,7 @@ export {
 } from '@/lib/db/queries/sql-helpers';
 
 export {
+  type WeaknessFilterOpts,
   getDashboardSummaryData,
   getAccuracyTrendData,
   getCompletionTrendData,

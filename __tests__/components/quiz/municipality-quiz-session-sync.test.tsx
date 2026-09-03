@@ -17,6 +17,7 @@ const mockSaveResult = vi.fn(
 
 vi.mock('@/app/(app)/quiz/municipality/actions', () => ({
   saveMunicipalityQuizResult: () => mockSaveResult(),
+  saveMunicipalityQuizResults: () => mockSaveResult(),
 }));
 
 interface TestRunnerProps {

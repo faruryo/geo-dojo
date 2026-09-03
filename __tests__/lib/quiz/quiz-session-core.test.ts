@@ -4,6 +4,7 @@ import {
   createTimeoutEntry,
   type QuizSessionEntry,
   type QuizResultEntry,
+  type SaveResultInput,
 } from '@/lib/quiz/quiz-session-core';
 import type { Municipality } from '@/lib/quiz/municipality-data';
 
@@ -33,7 +34,7 @@ describe('quiz-session-core', () => {
   };
 
   describe('executeQuizAdvance', () => {
-    it('Mode A の同名・複数県（府中市: 東京+広島）で、保存は2件実行され、表示結果は1件に集約されること', async () => {
+    it('Mode A の同名・複数県（府中市: 東京+広島）で、保存はバッチ1回で2件渡され、表示結果は1件に集約されること', async () => {
       const entries: QuizSessionEntry[] = [
         { municipality: mFuchuTokyo, isCorrect: true, mode: 'A', answerTimeMs: 2500 },
         { municipality: mFuchuHiroshima, isCorrect: true, mode: 'A', answerTimeMs: 2500 },
@@ -43,8 +44,8 @@ describe('quiz-session-core', () => {
       ];
 
       const saveCalls: unknown[] = [];
-      const mockSaveFn = vi.fn(async (input) => {
-        saveCalls.push(input);
+      const mockSaveFn = vi.fn(async (inputs: SaveResultInput[]) => {
+        saveCalls.push(...inputs);
         return { quizPersisted: true, srsPersisted: true };
       });
 
@@ -64,8 +65,8 @@ describe('quiz-session-core', () => {
         kana: undefined,
       });
 
-      // DB保存は各県ごとに2件呼ばれること
-      expect(mockSaveFn).toHaveBeenCalledTimes(2);
+      // DB保存はバッチ1回で2件のデータが渡されること
+      expect(mockSaveFn).toHaveBeenCalledTimes(1);
       expect(saveCalls).toEqual([
         {
           municipalityCode: '13206',
@@ -117,7 +118,7 @@ describe('quiz-session-core', () => {
       expect(mockLogger.error).toHaveBeenCalledWith(
         '[quiz-runner] failed to save result',
         expect.objectContaining({
-          code: '01100',
+          codes: ['01100'],
           mode: 'B',
         }),
       );
@@ -133,7 +134,7 @@ describe('quiz-session-core', () => {
       expect(persisted).toBe(true);
       expect(mockLogger.error).toHaveBeenCalledWith(
         '[quiz-runner] srs failed after quiz insert',
-        expect.objectContaining({ code: '01100', mode: 'A' }),
+        expect.objectContaining({ codes: ['01100'], mode: 'A' }),
       );
     });
   });

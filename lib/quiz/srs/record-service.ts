@@ -13,8 +13,15 @@ export interface UpsertSrsRecordInput {
   answerTimeMs?: number;
 }
 
-async function checkEverWrong(userId: string, municipalityCode: string, mode: string): Promise<boolean> {
-  const [wrongRow] = await db
+type DbClient = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function checkEverWrong(
+  userId: string,
+  municipalityCode: string,
+  mode: string,
+  client: DbClient = db,
+): Promise<boolean> {
+  const [wrongRow] = await (client as typeof db)
     .select({ one: sql<number>`1` })
     .from(municipalityQuizResults)
     .where(
@@ -33,8 +40,9 @@ async function persistSrsRecord(
   userId: string,
   input: UpsertSrsRecordInput,
   action: Exclude<SrsUpdateAction, { kind: 'skip' }>,
+  client: DbClient = db,
 ): Promise<void> {
-  await db
+  await (client as typeof db)
     .insert(srsRecords)
     .values({
       userId,
@@ -72,8 +80,9 @@ async function persistSrsRecord(
 export async function upsertSrsRecord(
   userId: string,
   input: UpsertSrsRecordInput,
+  client: DbClient = db,
 ): Promise<void> {
-  const [existing] = await db
+  const [existing] = await (client as typeof db)
     .select()
     .from(srsRecords)
     .where(
@@ -86,7 +95,7 @@ export async function upsertSrsRecord(
     .limit(1);
 
   const everWrong = input.isCorrect
-    ? await checkEverWrong(userId, input.municipalityCode, input.mode)
+    ? await checkEverWrong(userId, input.municipalityCode, input.mode, client)
     : false;
 
   const action = computeSrsUpdate(
@@ -108,5 +117,5 @@ export async function upsertSrsRecord(
 
   if (action.kind === 'skip') return;
 
-  await persistSrsRecord(userId, input, action);
+  await persistSrsRecord(userId, input, action, client);
 }

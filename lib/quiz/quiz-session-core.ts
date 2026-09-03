@@ -15,64 +15,71 @@ export interface QuizResultEntry {
   kana?: string;
 }
 
-export type SaveResultFn = (input: {
+export interface SaveResultInput {
   municipalityCode: string;
   municipalityName: string;
   prefecture: string;
   mode: 'A' | 'B' | 'C' | 'D';
   isCorrect: boolean;
   answerTimeMs?: number;
-}) => Promise<{ quizPersisted: boolean; srsPersisted: boolean }>;
+}
+
+export type SaveResultsBatchFn = (
+  inputs: SaveResultInput[],
+) => Promise<{ quizPersisted: boolean; srsPersisted: boolean }>;
 
 export interface QuizAdvanceLogger {
   error: (message: string, context?: unknown) => void;
 }
 
 /**
- * 1問解答時の結果集計（1問1件正規化）と DB 保存（全インスタンス保存 + 失敗ログ）を
+ * 1問解答時の結果集計（1問1件正規化）と DB バッチ保存（アトミックトランザクション + 失敗ログ）を
  * 担う純粋進行ハンドラ。
  *
  * 不変条件:
  * 1. Mode A など複数インスタンスが存在しても、表示用結果は toQuestionResult で必ず 1問1件に集約する。
- * 2. DB 保存は Promise.allSettled で全件実行し、失敗時は UX を止めずに明示ログを出力する。
+ * 2. DB 保存は saveMunicipalityQuizResults（単一トランザクション）によりアトミックに全件実行し、
+ *    失敗時は UX を止めずに明示ログを出力する。
  */
 export async function executeQuizAdvance(
   entries: readonly QuizSessionEntry[],
   currentResults: readonly QuizResultEntry[],
-  saveFn: SaveResultFn,
+  saveFn: SaveResultsBatchFn,
   logger: QuizAdvanceLogger = console,
 ): Promise<{ results: QuizResultEntry[]; persisted: boolean }> {
-  const results = [...currentResults, toQuestionResult(entries as QuizSessionEntry[])];
+  const results = [...currentResults, toQuestionResult(entries)];
+
+  if (entries.length === 0) {
+    return { results, persisted: true };
+  }
+
+  const inputs: SaveResultInput[] = entries.map((entry) => ({
+    municipalityCode: entry.municipality.code,
+    municipalityName: entry.municipality.name,
+    prefecture: entry.municipality.prefecture,
+    mode: entry.mode,
+    isCorrect: entry.isCorrect,
+    answerTimeMs: entry.answerTimeMs,
+  }));
 
   let persisted = true;
-  const savePromises = entries.map(async (entry) => {
-    try {
-      const { quizPersisted, srsPersisted } = await saveFn({
-        municipalityCode: entry.municipality.code,
-        municipalityName: entry.municipality.name,
-        prefecture: entry.municipality.prefecture,
-        mode: entry.mode,
-        isCorrect: entry.isCorrect,
-        answerTimeMs: entry.answerTimeMs,
-      });
-      if (!quizPersisted) persisted = false;
-      if (!srsPersisted) {
-        logger.error('[quiz-runner] srs failed after quiz insert', {
-          code: entry.municipality.code,
-          mode: entry.mode,
-        });
-      }
-    } catch (reason: unknown) {
-      persisted = false;
-      logger.error('[quiz-runner] failed to save result', {
-        code: entry.municipality.code,
-        mode: entry.mode,
-        reason,
+  try {
+    const { quizPersisted, srsPersisted } = await saveFn(inputs);
+    if (!quizPersisted) persisted = false;
+    if (!srsPersisted) {
+      logger.error('[quiz-runner] srs failed after quiz insert', {
+        codes: inputs.map((i) => i.municipalityCode),
+        mode: inputs[0]?.mode,
       });
     }
-  });
-
-  await Promise.allSettled(savePromises);
+  } catch (reason: unknown) {
+    persisted = false;
+    logger.error('[quiz-runner] failed to save result', {
+      codes: inputs.map((i) => i.municipalityCode),
+      mode: inputs[0]?.mode,
+      reason,
+    });
+  }
 
   return { results, persisted };
 }

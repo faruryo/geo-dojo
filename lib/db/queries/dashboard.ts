@@ -5,32 +5,107 @@ import {
   getJSTToday,
   getJSTDateRange,
   getJSTStartOfToday,
+  formatJSTDate,
+  toJSTDate,
 } from '@/lib/utils/date-jst';
 import { calculateStreak } from '@/lib/utils/streak';
 import { serialize } from './serialization';
 import {
   notSameNameSql,
+  notTokyoSpecialWardSql,
   type QuizModeFilter,
   getMasterPoolSize,
   getClearedDistinctSql,
   getFilterCondSql,
 } from './sql-helpers';
 
+interface ModeACountResult extends Record<string, unknown> {
+  total_a?: number;
+  correct_a?: number;
+}
+
+async function fetchModeAQuestionCounts(
+  userId: string,
+  cutoffDate?: Date,
+): Promise<{ totalA: number; correctA: number }> {
+  const cutoffClause = cutoffDate
+    ? sql`AND answered_at < ${cutoffDate.toISOString()}::timestamptz`
+    : sql``;
+
+  const result = await db.execute<ModeACountResult>(sql`
+    WITH mode_a_events AS (
+      SELECT
+        answered_at,
+        municipality_name,
+        is_correct,
+        CASE
+          WHEN answered_at - LAG(answered_at) OVER (
+            PARTITION BY municipality_name ORDER BY answered_at
+          ) <= INTERVAL '2 seconds' THEN 0
+          ELSE 1
+        END AS is_new_group
+      FROM municipality_quiz_results
+      WHERE user_id = ${userId}::uuid AND mode = 'A' ${cutoffClause}
+    ),
+    mode_a_groups AS (
+      SELECT
+        municipality_name,
+        is_correct,
+        SUM(is_new_group) OVER (
+          PARTITION BY municipality_name ORDER BY answered_at
+        ) AS group_id
+      FROM mode_a_events
+    ),
+    mode_a_aggregated AS (
+      SELECT
+        municipality_name,
+        group_id,
+        bool_and(is_correct) AS is_correct
+      FROM mode_a_groups
+      GROUP BY municipality_name, group_id
+    )
+    SELECT
+      COALESCE(COUNT(*), 0)::int AS total_a,
+      COALESCE(COUNT(*) FILTER (WHERE is_correct), 0)::int AS correct_a
+    FROM mode_a_aggregated
+  `);
+
+  const rows = Array.from(result);
+  const first = rows[0] as { total_a?: number; correct_a?: number } | undefined;
+  return {
+    totalA: Number(first?.total_a ?? 0),
+    correctA: Number(first?.correct_a ?? 0),
+  };
+}
+
+async function fetchNonAModeCounts(
+  userId: string,
+  cutoffDate?: Date,
+): Promise<{ totalNonA: number; correctNonA: number }> {
+  const conditions = [
+    eq(municipalityQuizResults.userId, userId),
+    sql`${municipalityQuizResults.mode} != 'A'`,
+  ];
+  if (cutoffDate) {
+    conditions.push(lt(municipalityQuizResults.answeredAt, cutoffDate));
+  }
+
+  const [row] = await db
+    .select({
+      total: count(),
+      correct: sql<number>`COALESCE(COUNT(*) FILTER (WHERE ${municipalityQuizResults.isCorrect} = true), 0)`,
+    })
+    .from(municipalityQuizResults)
+    .where(and(...conditions));
+
+  return {
+    totalNonA: Number(row?.total ?? 0),
+    correctNonA: Number(row?.correct ?? 0),
+  };
+}
+
 async function fetchCurrentSummaryCounts(userId: string) {
   return Promise.all([
-    db
-      .select({ value: count() })
-      .from(municipalityQuizResults)
-      .where(eq(municipalityQuizResults.userId, userId)),
-    db
-      .select({ value: count() })
-      .from(municipalityQuizResults)
-      .where(
-        and(
-          eq(municipalityQuizResults.userId, userId),
-          eq(municipalityQuizResults.isCorrect, true),
-        ),
-      ),
     db
       .select({
         value: sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})`,
@@ -66,14 +141,6 @@ async function fetchPrevSummaryCounts(userId: string) {
 
   return Promise.all([
     db
-      .select({ value: count() })
-      .from(municipalityQuizResults)
-      .where(prevCondition),
-    db
-      .select({ value: count() })
-      .from(municipalityQuizResults)
-      .where(and(prevCondition, eq(municipalityQuizResults.isCorrect, true))),
-    db
       .select({
         value: sql<number>`COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})`,
       })
@@ -93,104 +160,214 @@ async function fetchPrevSummaryCounts(userId: string) {
   ]);
 }
 
+interface SummaryCalculationInput {
+  totalA: number;
+  correctA: number;
+  totalNonA: number;
+  correctNonA: number;
+  studied: number;
+  cleared: number;
+  totalSlots: number;
+  conquestRateA: number;
+  conquestRateD: number;
+}
+
+function calculateSummarySnapshot(data: SummaryCalculationInput) {
+  const totalQuestions = data.totalNonA + data.totalA;
+  const totalCorrect = data.correctNonA + data.correctA;
+  const overallAccuracy = totalQuestions > 0 ? totalCorrect / totalQuestions : 0;
+  const coverageRate = data.totalSlots > 0 ? data.cleared / data.totalSlots : 0;
+  return {
+    totalQuestions,
+    totalCorrect,
+    overallAccuracy,
+    studiedCount: data.studied,
+    clearedCount: data.cleared,
+    totalMunicipalities: data.totalSlots,
+    coverageRate,
+    conquestRateA: data.conquestRateA,
+    conquestRateD: data.conquestRateD,
+  };
+}
+
 /**
  * ダッシュボード サマリ。認証非依存（userId 引数）。
  */
 export async function getDashboardSummaryData(userId: string) {
+  const todayStart = getJSTStartOfToday();
+
   const [
-    [totalRow, correctRow, studiedRow, clearedRow, totalSlots],
-    [prevTotalRow, prevCorrectRow, prevStudiedRow, prevClearedRow],
+    modeACurrent,
+    nonACurrent,
+    modeAPrev,
+    nonAPrev,
+    [studiedRow, clearedRow, totalSlots],
+    [prevStudiedRow, prevClearedRow],
+    compA,
+    prevCompA,
+    compD,
+    prevCompD,
   ] = await Promise.all([
+    fetchModeAQuestionCounts(userId),
+    fetchNonAModeCounts(userId),
+    fetchModeAQuestionCounts(userId, todayStart),
+    fetchNonAModeCounts(userId, todayStart),
     fetchCurrentSummaryCounts(userId),
     fetchPrevSummaryCounts(userId),
+    getCompletionByModeData(userId, { mode: 'A', region: '全国' }),
+    getCompletionByModeData(userId, { mode: 'A', region: '全国', asOf: todayStart }),
+    getCompletionByModeData(userId, { mode: 'D', region: '全国' }),
+    getCompletionByModeData(userId, { mode: 'D', region: '全国', asOf: todayStart }),
   ]);
 
-  const totalQuestions = totalRow[0].value;
-  const totalCorrect = correctRow[0].value;
-  const overallAccuracy = totalQuestions > 0 ? totalCorrect / totalQuestions : 0;
-  const studiedCount = studiedRow[0].value;
-  const clearedCount = clearedRow[0].value;
-  const coverageRate = totalSlots > 0 ? clearedCount / totalSlots : 0;
+  const current = calculateSummarySnapshot({
+    totalA: modeACurrent.totalA,
+    correctA: modeACurrent.correctA,
+    totalNonA: nonACurrent.totalNonA,
+    correctNonA: nonACurrent.correctNonA,
+    studied: studiedRow[0].value,
+    cleared: clearedRow[0].value,
+    totalSlots,
+    conquestRateA: compA.coverageRate,
+    conquestRateD: compD.coverageRate,
+  });
 
-  const prevTotalQuestions = prevTotalRow[0].value;
-  const prevTotalCorrect = prevCorrectRow[0].value;
-  const prevOverallAccuracy =
-    prevTotalQuestions > 0 ? prevTotalCorrect / prevTotalQuestions : 0;
-  const prevStudiedCount = prevStudiedRow[0].value;
-  const prevClearedCount = prevClearedRow[0].value;
-  const prevCoverageRate = totalSlots > 0 ? prevClearedCount / totalSlots : 0;
+  const prev = calculateSummarySnapshot({
+    totalA: modeAPrev.totalA,
+    correctA: modeAPrev.correctA,
+    totalNonA: nonAPrev.totalNonA,
+    correctNonA: nonAPrev.correctNonA,
+    studied: prevStudiedRow[0].value,
+    cleared: prevClearedRow[0].value,
+    totalSlots,
+    conquestRateA: prevCompA.coverageRate,
+    conquestRateD: prevCompD.coverageRate,
+  });
 
   return serialize({
-    totalQuestions,
-    totalCorrect,
-    overallAccuracy,
-    studiedCount,
-    clearedCount,
-    totalMunicipalities: totalSlots,
-    coverageRate,
-    prev: {
-      totalQuestions: prevTotalQuestions,
-      totalCorrect: prevTotalCorrect,
-      overallAccuracy: prevOverallAccuracy,
-      studiedCount: prevStudiedCount,
-      clearedCount: prevClearedCount,
-      totalMunicipalities: totalSlots,
-      coverageRate: prevCoverageRate,
-    },
+    ...current,
+    prev,
   });
 }
 
-interface RawAccuracyRow {
-  date: unknown;
-  difficulty: string | null;
-  correctCount: number;
-  totalCount: number;
+type TrendPeriod = '7d' | '30d' | 'all';
+
+function formatAccuracyDateKey(date: Date, period: TrendPeriod): string {
+  if (period === 'all') {
+    const jst = toJSTDate(date);
+    const day = jst.getUTCDay(); // 0: Sun, 1: Mon, ...
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(jst.getTime() + diffToMonday * 24 * 60 * 60 * 1000);
+    const y = monday.getUTCFullYear();
+    const m = String(monday.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(monday.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return formatJSTDate(date);
 }
 
-function aggregateAccuracyByDate(rows: RawAccuracyRow[]) {
-  const diffs = ['easy', 'medium', 'hard', 'expert'] as const;
+function getRepresentativeDifficulty(diffs: (string | null | undefined)[]): string {
+  const order = ['easy', 'medium', 'hard', 'expert'];
+  let maxIdx = -1;
+  let best = 'easy';
+  for (const d of diffs) {
+    if (!d) continue;
+    const idx = order.indexOf(d);
+    if (idx > maxIdx) {
+      maxIdx = idx;
+      best = d;
+    }
+  }
+  return best;
+}
+
+interface TrendRowItem {
+  answeredAt: Date;
+  municipalityName: string;
+  mode: string;
+  isCorrect: boolean;
+  difficulty: string | null;
+}
+
+function processModeABuffer(
+  buffer: TrendRowItem[],
+  period: TrendPeriod,
+  onQuestion: (dateKey: string, difficulty: string, isCorrect: boolean) => void,
+) {
+  if (buffer.length === 0) return;
+  const first = buffer[0];
+  const dateKey = formatAccuracyDateKey(first.answeredAt, period);
+  const isCorrect = buffer.every((b) => b.isCorrect);
+  const difficulty = getRepresentativeDifficulty(buffer.map((b) => b.difficulty));
+  onQuestion(dateKey, difficulty, isCorrect);
+}
+
+function buildTrendDateMap(rows: TrendRowItem[], period: TrendPeriod) {
   const dateMap = new Map<string, Map<string, { correct: number; total: number }>>();
 
-  for (const r of rows) {
-    const d = r.date;
-    const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
-    const diff = r.difficulty ?? 'unknown';
-
-    let diffMap = dateMap.get(dateStr);
+  function addQuestion(dateKey: string, difficulty: string, isCorrect: boolean) {
+    let diffMap = dateMap.get(dateKey);
     if (!diffMap) {
       diffMap = new Map();
-      dateMap.set(dateStr, diffMap);
+      dateMap.set(dateKey, diffMap);
     }
-    const prev = diffMap.get(diff) ?? { correct: 0, total: 0 };
-    diffMap.set(diff, {
-      correct: prev.correct + Number(r.correctCount),
-      total: prev.total + Number(r.totalCount),
+    const prev = diffMap.get(difficulty) ?? { correct: 0, total: 0 };
+    diffMap.set(difficulty, {
+      correct: prev.correct + (isCorrect ? 1 : 0),
+      total: prev.total + 1,
     });
   }
 
-  return Array.from(dateMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, byDiff]) => {
-      let allCorrect = 0;
-      let allTotal = 0;
-      const entries = diffs.map((diff) => {
-        const d = byDiff.get(diff);
-        let val: number | null = null;
-        if (d) {
-          val = d.total > 0 ? Math.round((d.correct / d.total) * 1000) / 10 : 0;
-          allCorrect += d.correct;
-          allTotal += d.total;
+  let buffer: TrendRowItem[] = [];
+  for (const row of rows) {
+    if (row.mode === 'A') {
+      if (buffer.length > 0) {
+        const last = buffer[buffer.length - 1];
+        const timeDiffMs = Math.abs(row.answeredAt.getTime() - last.answeredAt.getTime());
+        if (row.municipalityName === last.municipalityName && timeDiffMs <= 2000) {
+          buffer.push(row);
+          continue;
         }
-        return [diff, val] as const;
-      });
+        processModeABuffer(buffer, period, addQuestion);
+        buffer = [];
+      }
+      buffer.push(row);
+    } else {
+      processModeABuffer(buffer, period, addQuestion);
+      buffer = [];
+      const dateKey = formatAccuracyDateKey(row.answeredAt, period);
+      addQuestion(dateKey, row.difficulty ?? 'easy', row.isCorrect);
+    }
+  }
+  processModeABuffer(buffer, period, addQuestion);
+  return dateMap;
+}
 
-      const row: Record<string, unknown> = Object.fromEntries(entries);
-      row.date = date;
-      row.all = allTotal > 0 ? Math.round((allCorrect / allTotal) * 1000) / 10 : 0;
-      row.correctCount = allCorrect;
-      row.totalCount = allTotal;
-      return row;
+function formatTrendResult(dateMap: Map<string, Map<string, { correct: number; total: number }>>) {
+  const diffs = ['easy', 'medium', 'hard', 'expert'] as const;
+  const sortedDates = Array.from(dateMap.keys()).sort((a, b) => a.localeCompare(b));
+  return sortedDates.map((date) => {
+    const byDiff = dateMap.get(date);
+    let allCorrect = 0;
+    let allTotal = 0;
+    const entries = diffs.map((diff) => {
+      const d = byDiff?.get(diff);
+      let val: number | null = null;
+      if (d && d.total > 0) {
+        val = Math.round((d.correct / d.total) * 1000) / 10;
+        allCorrect += d.correct;
+        allTotal += d.total;
+      }
+      return [diff, val] as const;
     });
+
+    const row: Record<string, unknown> = Object.fromEntries(entries);
+    row.date = date;
+    row.all = allTotal > 0 ? Math.round((allCorrect / allTotal) * 1000) / 10 : 0;
+    row.correctCount = allCorrect;
+    row.totalCount = allTotal;
+    return row;
+  });
 }
 
 export async function getAccuracyTrendData(
@@ -200,7 +377,7 @@ export async function getAccuracyTrendData(
     mode,
     region,
   }: {
-    period: '7d' | '30d' | 'all';
+    period: TrendPeriod;
     mode: QuizModeFilter;
     region: string;
   },
@@ -221,30 +398,24 @@ export async function getAccuracyTrendData(
     conditions.push(eq(municipalityMaster.region, region));
   }
 
-  const query = db
+  const rows = await db
     .select({
-      date: sql<string>`DATE(${municipalityQuizResults.answeredAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')`,
+      answeredAt: municipalityQuizResults.answeredAt,
+      municipalityName: municipalityQuizResults.municipalityName,
+      mode: municipalityQuizResults.mode,
+      isCorrect: municipalityQuizResults.isCorrect,
       difficulty: municipalityMaster.difficulty,
-      correctCount: sql<number>`SUM(CASE WHEN ${municipalityQuizResults.isCorrect} THEN 1 ELSE 0 END)`,
-      totalCount: sql<number>`COUNT(*)`,
     })
     .from(municipalityQuizResults)
     .innerJoin(
       municipalityMaster,
       eq(municipalityMaster.code, municipalityQuizResults.municipalityCode),
-    );
-
-  const rows = await query
-    .where(and(...conditions))
-    .groupBy(
-      sql`DATE(${municipalityQuizResults.answeredAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')`,
-      municipalityMaster.difficulty,
     )
-    .orderBy(
-      sql`DATE(${municipalityQuizResults.answeredAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')`,
-    );
+    .where(and(...conditions))
+    .orderBy(municipalityQuizResults.answeredAt);
 
-  return serialize(aggregateAccuracyByDate(rows));
+  const dateMap = buildTrendDateMap(rows, period);
+  return serialize(formatTrendResult(dateMap));
 }
 
 function calculateDiffTotals(
@@ -489,7 +660,41 @@ export async function getCompletionTrendData(
   );
 }
 
-export async function getWeaknessRankingData(userId: string) {
+export interface WeaknessFilterOpts {
+  period?: '7d' | '30d' | 'all';
+  mode?: QuizModeFilter;
+  region?: string;
+}
+
+function buildWeaknessConditions(userId: string, opts?: WeaknessFilterOpts) {
+  const period = opts?.period ?? 'all';
+  const mode = opts?.mode ?? 'all';
+  const region = opts?.region ?? '全国';
+
+  const useRegion = region && region !== '全国';
+  const periodStart = getJSTDateRange(period);
+
+  const conditions = [eq(municipalityQuizResults.userId, userId)];
+  if (periodStart) {
+    conditions.push(
+      sql`${municipalityQuizResults.answeredAt} >= ${periodStart.toISOString()}::timestamptz`,
+    );
+  }
+  if (mode !== 'all') {
+    conditions.push(eq(municipalityQuizResults.mode, mode));
+  }
+  if (useRegion) {
+    conditions.push(eq(municipalityMaster.region, region));
+  }
+  return conditions;
+}
+
+export async function getWeaknessRankingData(
+  userId: string,
+  opts?: WeaknessFilterOpts,
+) {
+  const conditions = buildWeaknessConditions(userId, opts);
+
   const rows = await db
     .select({
       municipalityCode: municipalityQuizResults.municipalityCode,
@@ -505,7 +710,7 @@ export async function getWeaknessRankingData(userId: string) {
     })
     .from(municipalityQuizResults)
     .innerJoin(municipalityMaster, eq(municipalityQuizResults.municipalityCode, municipalityMaster.code))
-    .where(eq(municipalityQuizResults.userId, userId))
+    .where(and(...conditions))
     .groupBy(
       municipalityQuizResults.municipalityCode,
       municipalityQuizResults.municipalityName,
@@ -563,6 +768,99 @@ export async function getStreakData(userId: string) {
   });
 }
 
+const PROGRESS_DIFFICULTIES = ['easy', 'medium', 'hard', 'expert'] as const;
+
+interface RepDifficultyCountResult extends Record<string, unknown> {
+  rep_difficulty?: string;
+  cnt?: number;
+}
+
+interface ClearedRepDifficultyResult extends Record<string, unknown> {
+  rep_difficulty?: string;
+  cleared_cnt?: number;
+}
+
+async function fetchModeARepCounts(userId: string, regionCond: ReturnType<typeof sql>) {
+  const [denominatorResult, clearedResult] = await Promise.all([
+    db.execute<RepDifficultyCountResult>(sql`
+      SELECT
+        rep_difficulty,
+        COUNT(*)::int AS cnt
+      FROM (
+        SELECT
+          name,
+          CASE
+            WHEN bool_or(difficulty = 'expert') THEN 'expert'
+            WHEN bool_or(difficulty = 'hard') THEN 'hard'
+            WHEN bool_or(difficulty = 'medium') THEN 'medium'
+            ELSE 'easy'
+          END AS rep_difficulty
+        FROM municipality_master
+        WHERE difficulty IN ('easy', 'medium', 'hard', 'expert')
+          AND ${notSameNameSql}
+          AND ${notTokyoSpecialWardSql}
+          ${regionCond}
+        GROUP BY name
+      ) sub
+      GROUP BY rep_difficulty
+    `),
+    db.execute<ClearedRepDifficultyResult>(sql`
+      SELECT
+        rep_difficulty,
+        COUNT(*)::int AS cleared_cnt
+      FROM (
+        SELECT
+          m.name,
+          CASE
+            WHEN bool_or(m.difficulty = 'expert') THEN 'expert'
+            WHEN bool_or(m.difficulty = 'hard') THEN 'hard'
+            WHEN bool_or(m.difficulty = 'medium') THEN 'medium'
+            ELSE 'easy'
+          END AS rep_difficulty
+        FROM municipality_master m
+        WHERE m.difficulty IN ('easy', 'medium', 'hard', 'expert')
+          AND ${notSameNameSql}
+          AND ${notTokyoSpecialWardSql}
+          ${regionCond}
+          AND m.name IN (
+            SELECT DISTINCT r.municipality_name
+            FROM municipality_quiz_results r
+            WHERE r.user_id = ${userId}::uuid AND r.mode = 'A' AND r.is_correct = true
+          )
+        GROUP BY m.name
+      ) sub
+      GROUP BY rep_difficulty
+    `),
+  ]);
+
+  return { denominatorResult, clearedResult };
+}
+
+async function getModeADifficultyProgress(userId: string, region: string, useRegion: boolean) {
+  const regionCond = useRegion ? sql`AND ${municipalityMaster.region} = ${region}` : sql``;
+  const { denominatorResult, clearedResult } = await fetchModeARepCounts(userId, regionCond);
+
+  const totalMap = new Map<string, number>(
+    Array.from(denominatorResult).map((r) => [String(r.rep_difficulty), Number(r.cnt ?? 0)]),
+  );
+  const clearedMap = new Map<string, number>(
+    Array.from(clearedResult).map((r) => [String(r.rep_difficulty), Number(r.cleared_cnt ?? 0)]),
+  );
+
+  return PROGRESS_DIFFICULTIES.map((diff) => {
+    const totalCount = totalMap.get(diff) ?? 0;
+    const clearedCount = clearedMap.get(diff) ?? 0;
+    const rate = totalCount > 0 ? clearedCount / totalCount : 0;
+    return {
+      difficulty: diff,
+      clearedCount,
+      totalCount,
+      rate,
+      coverageRate: rate,
+    };
+  });
+}
+
 export async function getDifficultyProgressData(
   userId: string,
   {
@@ -573,8 +871,11 @@ export async function getDifficultyProgressData(
     region: string;
   },
 ) {
-  const useRegion = region && region !== '全国';
-  const difficulties = ['easy', 'medium', 'hard', 'expert'] as const;
+  const useRegion = Boolean(region && region !== '全国');
+  if (mode === 'A') {
+    const items = await getModeADifficultyProgress(userId, region, useRegion);
+    return serialize(items);
+  }
 
   const { diffTotals } = await fetchCompletionDenominators(mode, Boolean(useRegion), region);
   const totalMap = diffTotals;
@@ -611,7 +912,7 @@ export async function getDifficultyProgressData(
     [...clearedRows].map((r) => [String(r.difficulty), Number(r.clearedCount)]),
   );
 
-  const items = difficulties.map((diff) => {
+  const items = PROGRESS_DIFFICULTIES.map((diff) => {
     const totalCount = totalMap.get(diff) ?? 0;
     const clearedCount = clearedMap.get(diff) ?? 0;
     const rate = totalCount > 0 ? clearedCount / totalCount : 0;
@@ -629,20 +930,22 @@ export async function getDifficultyProgressData(
 
 export async function getCompletionByModeData(
   userId: string,
-  {
-    mode,
-    region,
-  }: {
+  params: {
     mode: QuizModeFilter;
     region: string;
+    asOf?: Date;
   },
 ) {
+  const { mode, region, asOf } = params;
   const useRegion = region && region !== '全国';
 
   const conditions: ReturnType<typeof eq>[] = [
     eq(municipalityQuizResults.userId, userId),
     eq(municipalityQuizResults.isCorrect, true),
   ];
+  if (asOf) {
+    conditions.push(lt(municipalityQuizResults.answeredAt, asOf));
+  }
   if (mode !== 'all') {
     conditions.push(eq(municipalityQuizResults.mode, mode));
   }
@@ -656,7 +959,7 @@ export async function getCompletionByModeData(
   const regionCond = useRegion ? eq(municipalityMaster.region, region) : undefined;
 
   const [clearedRow] = await query.where(and(...conditions, filterCond, regionCond));
-  const clearedCount = Number(clearedRow.value);
+  const clearedCount = Number(clearedRow?.value ?? 0);
   const totalSlots = await getMasterPoolSize(mode, region);
 
   return serialize({
