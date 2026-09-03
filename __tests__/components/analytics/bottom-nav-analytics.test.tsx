@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import React, { act } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import BottomNav from '@/app/(app)/bottom-nav';
 
 (globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -11,73 +11,62 @@ vi.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
 }));
 
-describe('BottomNav Analytics Tab', () => {
-  let container: HTMLDivElement | null = null;
-  let root: Root | null = null;
-
-  beforeEach(() => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
-    root = createRoot(container);
+function renderNav(pathname: string) {
+  mockPathname = pathname;
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const r = createRoot(host);
+  act(() => {
+    r.render(<BottomNav />);
   });
-
-  afterEach(() => {
-    if (root) {
+  const findLink = (href: string) => Array.from(host.querySelectorAll('a')).find((el) => el.getAttribute('href') === href);
+  return {
+    host,
+    findLink,
+    destroy: () => {
       act(() => {
-        root?.unmount();
+        r.unmount();
       });
-    }
-    if (container && container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
-    container = null;
-    root = null;
-  });
+      host.remove();
+    },
+  };
+}
 
+describe('BottomNav Analytics Tab', () => {
   it('4つのナビゲーション項目（ホーム、都道府県、市区町村、分析）が存在すること', () => {
-    mockPathname = '/';
-    act(() => {
-      root?.render(<BottomNav />);
-    });
-
-    const links = container?.querySelectorAll('a') ?? [];
-    expect(links).toHaveLength(4);
-
-    const labels = Array.from(links).map((l) => l.textContent?.trim());
-    expect(labels).toEqual(['ホーム', '都道府県', '市区町村', '分析']);
-
-    const hrefs = Array.from(links).map((l) => l.getAttribute('href'));
-    expect(hrefs).toEqual(['/', '/quiz/prefecture', '/quiz/municipality', '/analytics']);
+    const { host, destroy } = renderNav('/');
+    try {
+      const links = host.querySelectorAll('a');
+      expect(links).toHaveLength(4);
+      expect(Array.from(links).map((l) => l.textContent?.trim())).toEqual(['ホーム', '都道府県', '市区町村', '分析']);
+      expect(Array.from(links).map((l) => l.getAttribute('href'))).toEqual(['/', '/quiz/prefecture', '/quiz/municipality', '/analytics']);
+    } finally {
+      destroy();
+    }
   });
 
-  it('/analytics にアクセス中、分析タブがアクティブ（text-primary）になり、ホームタブは非アクティブになること', () => {
-    mockPathname = '/analytics';
-    act(() => {
-      root?.render(<BottomNav />);
-    });
-
-    const links = container?.querySelectorAll('a') ?? [];
-    const homeLink = Array.from(links).find((l) => l.getAttribute('href') === '/');
-    const analyticsLink = Array.from(links).find((l) => l.getAttribute('href') === '/analytics');
-
-    expect(analyticsLink?.className).toContain('text-primary');
-    expect(analyticsLink?.className).not.toContain('text-muted-foreground');
-
-    expect(homeLink?.className).toContain('text-muted-foreground');
-    expect(homeLink?.className).not.toContain('text-primary');
+  it('/analytics にアクセス中、分析タブがアクティブになり、ホームタブは非アクティブになること', () => {
+    const { findLink, destroy } = renderNav('/analytics');
+    try {
+      const home = findLink('/');
+      const analytics = findLink('/analytics');
+      expect(analytics?.className).toContain('text-primary');
+      expect(analytics?.className).not.toContain('text-muted-foreground');
+      expect(home?.className).toContain('text-muted-foreground');
+    } finally {
+      destroy();
+    }
   });
 
   it('/ にアクセス中、ホームタブがアクティブになり、分析タブは非アクティブになること', () => {
-    mockPathname = '/';
-    act(() => {
-      root?.render(<BottomNav />);
-    });
-
-    const links = container?.querySelectorAll('a') ?? [];
-    const homeLink = Array.from(links).find((l) => l.getAttribute('href') === '/');
-    const analyticsLink = Array.from(links).find((l) => l.getAttribute('href') === '/analytics');
-
-    expect(homeLink?.className).toContain('text-primary');
-    expect(analyticsLink?.className).toContain('text-muted-foreground');
+    const { findLink, destroy } = renderNav('/');
+    try {
+      const home = findLink('/');
+      const analytics = findLink('/analytics');
+      expect(home?.className).toContain('text-primary');
+      expect(analytics?.className).toContain('text-muted-foreground');
+    } finally {
+      destroy();
+    }
   });
 });

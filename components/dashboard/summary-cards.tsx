@@ -52,63 +52,72 @@ function SummaryCard({
 
 type SummaryData = NonNullable<ReturnType<typeof useDashboardSummary>['data']>;
 
+interface CardItem {
+  label: string;
+  value: string;
+  delta: DeltaDirection;
+}
+
+function renderSummaryCards(cards: readonly CardItem[]) {
+  return (
+    <section className="grid grid-cols-2 gap-3">
+      {cards.map((card) => (
+        <SummaryCard key={card.label} label={card.label} value={card.value} delta={card.delta} />
+      ))}
+    </section>
+  );
+}
+
+function getBaseSummaryCards(data: SummaryData): readonly [CardItem, CardItem] {
+  return [
+    {
+      label: '累計出題数',
+      value: data.totalQuestions.toLocaleString(),
+      delta: getDelta(data.totalQuestions, data.prev.totalQuestions),
+    },
+    {
+      label: '全体正答率',
+      value: formatPercent(data.overallAccuracy),
+      delta: getDelta(data.overallAccuracy, data.prev.overallAccuracy),
+    },
+  ];
+}
+
 function AnalyticsCards({ data }: Readonly<{ data: SummaryData }>) {
   const conquestA = data.conquestRateA ?? 0;
   const prevConquestA = data.prev?.conquestRateA ?? 0;
   const conquestD = data.conquestRateD ?? 0;
   const prevConquestD = data.prev?.conquestRateD ?? 0;
 
-  return (
-    <section className="grid grid-cols-2 gap-3">
-      <SummaryCard
-        label="累計出題数"
-        value={data.totalQuestions.toLocaleString()}
-        delta={getDelta(data.totalQuestions, data.prev.totalQuestions)}
-      />
-      <SummaryCard
-        label="全体正答率"
-        value={formatPercent(data.overallAccuracy)}
-        delta={getDelta(data.overallAccuracy, data.prev.overallAccuracy)}
-      />
-      <SummaryCard
-        label="県当て(A)制覇率"
-        value={formatPercent(conquestA)}
-        delta={getDelta(conquestA, prevConquestA)}
-      />
-      <SummaryCard
-        label="場所当て(D)制覇率"
-        value={formatPercent(conquestD)}
-        delta={getDelta(conquestD, prevConquestD)}
-      />
-    </section>
-  );
+  return renderSummaryCards([
+    ...getBaseSummaryCards(data),
+    {
+      label: '県当て(A)制覇率',
+      value: formatPercent(conquestA),
+      delta: getDelta(conquestA, prevConquestA),
+    },
+    {
+      label: '場所当て(D)制覇率',
+      value: formatPercent(conquestD),
+      delta: getDelta(conquestD, prevConquestD),
+    },
+  ]);
 }
 
 function DashboardCards({ data }: Readonly<{ data: SummaryData }>) {
-  return (
-    <section className="grid grid-cols-2 gap-3">
-      <SummaryCard
-        label="累計出題数"
-        value={data.totalQuestions.toLocaleString()}
-        delta={getDelta(data.totalQuestions, data.prev.totalQuestions)}
-      />
-      <SummaryCard
-        label="全体正答率"
-        value={formatPercent(data.overallAccuracy)}
-        delta={getDelta(data.overallAccuracy, data.prev.overallAccuracy)}
-      />
-      <SummaryCard
-        label="学習済み"
-        value={data.studiedCount.toLocaleString()}
-        delta={getDelta(data.studiedCount, data.prev.studiedCount)}
-      />
-      <SummaryCard
-        label="全国制覇"
-        value={formatPercent(data.coverageRate)}
-        delta={getDelta(data.coverageRate, data.prev.coverageRate)}
-      />
-    </section>
-  );
+  return renderSummaryCards([
+    ...getBaseSummaryCards(data),
+    {
+      label: '学習済み',
+      value: data.studiedCount.toLocaleString(),
+      delta: getDelta(data.studiedCount, data.prev.studiedCount),
+    },
+    {
+      label: '全国制覇',
+      value: formatPercent(data.coverageRate),
+      delta: getDelta(data.coverageRate, data.prev.coverageRate),
+    },
+  ]);
 }
 
 function SummarySkeleton() {

@@ -1,9 +1,9 @@
 import 'server-only';
-import { dehydrate, type DehydratedState } from '@tanstack/react-query';
+import { type DehydratedState } from '@tanstack/react-query';
 import { getCurrentUserId } from '@/lib/auth/current-user';
 import { getQueryClient } from '@/lib/get-query-client';
 import { queryKeys } from '@/lib/query-keys';
-import { PREFETCH_TIMEOUT_MS } from '@/lib/dashboard/prefetch-config';
+import { safeDehydrateWithTimeout } from '@/lib/dashboard/prefetch-helpers';
 import {
   getDashboardSummaryData,
   getStreakData,
@@ -43,17 +43,5 @@ export async function getDashboardDehydratedState(): Promise<DehydratedState | n
     }),
   ]);
 
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<'timeout'>((resolve) => {
-    timer = setTimeout(() => resolve('timeout'), PREFETCH_TIMEOUT_MS);
-  });
-
-  try {
-    const result = await Promise.race([prefetchAll.then(() => 'ok' as const), timeout]);
-    return result === 'timeout' ? null : dehydrate(queryClient);
-  } catch {
-    return null;
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
+  return safeDehydrateWithTimeout(queryClient, prefetchAll);
 }

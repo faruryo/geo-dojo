@@ -1,9 +1,9 @@
 import 'server-only';
-import { dehydrate, type DehydratedState } from '@tanstack/react-query';
+import { type DehydratedState } from '@tanstack/react-query';
 import { getCurrentUserId } from '@/lib/auth/current-user';
 import { getQueryClient } from '@/lib/get-query-client';
 import { queryKeys } from '@/lib/query-keys';
-import { PREFETCH_TIMEOUT_MS } from '@/lib/dashboard/prefetch-config';
+import { safeDehydrateWithTimeout } from '@/lib/dashboard/prefetch-helpers';
 import {
   getDashboardSummaryData,
   getStreakData,
@@ -26,40 +26,23 @@ export async function getAnalyticsDehydratedState(): Promise<DehydratedState | n
 
   const queryClient = getQueryClient();
 
-  const prefetchAll = Promise.all([
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboard.summary(),
-      queryFn: () => getDashboardSummaryData(userId),
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboard.streak(),
-      queryFn: () => getStreakData(userId),
-    }),
-    queryClient.prefetchQuery({
+  const prefetchTasks = [
+    { queryKey: queryKeys.dashboard.summary(), queryFn: () => getDashboardSummaryData(userId) },
+    { queryKey: queryKeys.dashboard.streak(), queryFn: () => getStreakData(userId) },
+    {
       queryKey: queryKeys.dashboard.difficulty('all', '全国'),
       queryFn: () => getDifficultyProgressData(userId, { mode: 'all', region: '全国' }),
-    }),
-    queryClient.prefetchQuery({
+    },
+    {
       queryKey: queryKeys.dashboard.trend('7d', 'all', '全国'),
       queryFn: () => getAccuracyTrendData(userId, { period: '7d', mode: 'all', region: '全国' }),
-    }),
-    queryClient.prefetchQuery({
+    },
+    {
       queryKey: queryKeys.dashboard.weakness('7d', 'all', '全国'),
       queryFn: () => getWeaknessRankingData(userId, { period: '7d', mode: 'all', region: '全国' }),
-    }),
-  ]);
+    },
+  ];
 
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<'timeout'>((resolve) => {
-    timer = setTimeout(() => resolve('timeout'), PREFETCH_TIMEOUT_MS);
-  });
-
-  try {
-    const result = await Promise.race([prefetchAll.then(() => 'ok' as const), timeout]);
-    return result === 'timeout' ? null : dehydrate(queryClient);
-  } catch {
-    return null;
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
+  const prefetchAll = Promise.all(prefetchTasks.map((task) => queryClient.prefetchQuery(task)));
+  return safeDehydrateWithTimeout(queryClient, prefetchAll);
 }

@@ -444,11 +444,7 @@ function calculateDiffTotals(
   return { diffTotals, totalAllSlots };
 }
 
-async function fetchCompletionDenominators(
-  mode: QuizModeFilter,
-  useRegion: boolean,
-  region: string,
-) {
+async function fetchMasterCountsByDifficulty(useRegion: boolean, region: string) {
   const masterWhere = [
     sql`${municipalityMaster.difficulty} IN ('easy', 'medium', 'hard', 'expert')`,
   ];
@@ -492,6 +488,15 @@ async function fetchCompletionDenominators(
     [...dedupRows].map((r) => [r.difficulty, { cnt: Number(r.cnt), cntExcluded: Number(r.cntExcluded) }]),
   );
 
+  return { fullMap, dedupMap };
+}
+
+async function fetchCompletionDenominators(
+  mode: QuizModeFilter,
+  useRegion: boolean,
+  region: string,
+) {
+  const { fullMap, dedupMap } = await fetchMasterCountsByDifficulty(useRegion, region);
   return calculateDiffTotals(mode, fullMap, dedupMap);
 }
 
@@ -810,24 +815,24 @@ async function fetchModeARepCounts(userId: string, regionCond: ReturnType<typeof
         COUNT(*)::int AS cleared_cnt
       FROM (
         SELECT
-          m.name,
+          name,
           CASE
-            WHEN bool_or(m.difficulty = 'expert') THEN 'expert'
-            WHEN bool_or(m.difficulty = 'hard') THEN 'hard'
-            WHEN bool_or(m.difficulty = 'medium') THEN 'medium'
+            WHEN bool_or(difficulty = 'expert') THEN 'expert'
+            WHEN bool_or(difficulty = 'hard') THEN 'hard'
+            WHEN bool_or(difficulty = 'medium') THEN 'medium'
             ELSE 'easy'
           END AS rep_difficulty
-        FROM municipality_master m
-        WHERE m.difficulty IN ('easy', 'medium', 'hard', 'expert')
+        FROM municipality_master
+        WHERE difficulty IN ('easy', 'medium', 'hard', 'expert')
           AND ${notSameNameSql}
           AND ${notTokyoSpecialWardSql}
           ${regionCond}
-          AND m.name IN (
-            SELECT DISTINCT r.municipality_name
-            FROM municipality_quiz_results r
-            WHERE r.user_id = ${userId}::uuid AND r.mode = 'A' AND r.is_correct = true
+          AND name IN (
+            SELECT DISTINCT municipality_name
+            FROM municipality_quiz_results
+            WHERE user_id = ${userId}::uuid AND mode = 'A' AND is_correct = true
           )
-        GROUP BY m.name
+        GROUP BY name
       ) sub
       GROUP BY rep_difficulty
     `),
@@ -836,17 +841,10 @@ async function fetchModeARepCounts(userId: string, regionCond: ReturnType<typeof
   return { denominatorResult, clearedResult };
 }
 
-async function getModeADifficultyProgress(userId: string, region: string, useRegion: boolean) {
-  const regionCond = useRegion ? sql`AND ${municipalityMaster.region} = ${region}` : sql``;
-  const { denominatorResult, clearedResult } = await fetchModeARepCounts(userId, regionCond);
-
-  const totalMap = new Map<string, number>(
-    Array.from(denominatorResult).map((r) => [String(r.rep_difficulty), Number(r.cnt ?? 0)]),
-  );
-  const clearedMap = new Map<string, number>(
-    Array.from(clearedResult).map((r) => [String(r.rep_difficulty), Number(r.cleared_cnt ?? 0)]),
-  );
-
+function buildProgressItems(
+  totalMap: Map<string, number>,
+  clearedMap: Map<string, number>,
+) {
   return PROGRESS_DIFFICULTIES.map((diff) => {
     const totalCount = totalMap.get(diff) ?? 0;
     const clearedCount = clearedMap.get(diff) ?? 0;
@@ -861,22 +859,84 @@ async function getModeADifficultyProgress(userId: string, region: string, useReg
   });
 }
 
-export async function getDifficultyProgressData(
+async function getModeADifficultyProgress(userId: string, region: string, useRegion: boolean) {
+  const regionCond = useRegion ? sql`AND ${municipalityMaster.region} = ${region}` : sql``;
+  const { denominatorResult, clearedResult } = await fetchModeARepCounts(userId, regionCond);
+
+  const totalMap = new Map<string, number>(
+    Array.from(denominatorResult).map((r) => [String(r.rep_difficulty), Number(r.cnt ?? 0)]),
+  );
+  const clearedMap = new Map<string, number>(
+    Array.from(clearedResult).map((r) => [String(r.rep_difficulty), Number(r.cleared_cnt ?? 0)]),
+  );
+
+  return buildProgressItems(totalMap, clearedMap);
+}
+
+async function getAllModesDifficultyProgress(
   userId: string,
-  {
-    mode,
-    region,
-  }: {
-    mode: QuizModeFilter;
-    region: string;
-  },
+  region: string,
+  useRegion: boolean,
 ) {
-  const useRegion = Boolean(region && region !== '全国');
-  if (mode === 'A') {
-    const items = await getModeADifficultyProgress(userId, region, useRegion);
-    return serialize(items);
+  const regionCond = useRegion ? sql`AND ${municipalityMaster.region} = ${region}` : sql``;
+  const masterRegionWhere = useRegion ? eq(municipalityMaster.region, region) : undefined;
+
+  const [modeAResult, { fullMap, dedupMap }, bcdClearedRows] = await Promise.all([
+    fetchModeARepCounts(userId, regionCond),
+    fetchMasterCountsByDifficulty(useRegion, region),
+    db
+      .select({
+        difficulty: municipalityMaster.difficulty,
+        clearedCount: sql<number>`
+          COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql}), 0)
+        `,
+      })
+      .from(municipalityQuizResults)
+      .innerJoin(
+        municipalityMaster,
+        eq(municipalityMaster.code, municipalityQuizResults.municipalityCode),
+      )
+      .where(
+        and(
+          eq(municipalityQuizResults.userId, userId),
+          eq(municipalityQuizResults.isCorrect, true),
+          sql`${municipalityQuizResults.mode} IN ('B', 'C', 'D')`,
+          sql`${municipalityMaster.difficulty} IN ('easy', 'medium', 'hard', 'expert')`,
+          masterRegionWhere,
+        ),
+      )
+      .groupBy(municipalityMaster.difficulty),
+  ]);
+
+  const modeATotalMap = new Map<string, number>(
+    Array.from(modeAResult.denominatorResult).map((r) => [String(r.rep_difficulty), Number(r.cnt ?? 0)]),
+  );
+  const modeAClearedMap = new Map<string, number>(
+    Array.from(modeAResult.clearedResult).map((r) => [String(r.rep_difficulty), Number(r.cleared_cnt ?? 0)]),
+  );
+  const bcdClearedMap = new Map<string, number>(
+    bcdClearedRows.map((r) => [String(r.difficulty), Number(r.clearedCount)]),
+  );
+
+  const totalMap = new Map<string, number>();
+  const clearedMap = new Map<string, number>();
+  for (const diff of PROGRESS_DIFFICULTIES) {
+    const full = fullMap.get(diff) ?? { cnt: 0, cntExcluded: 0, cntDistinctExcluded: 0 };
+    const dedup = dedupMap.get(diff) ?? { cnt: 0, cntExcluded: 0 };
+    totalMap.set(diff, (modeATotalMap.get(diff) ?? 0) + (dedup.cntExcluded * 2) + full.cnt);
+    clearedMap.set(diff, (modeAClearedMap.get(diff) ?? 0) + (bcdClearedMap.get(diff) ?? 0));
   }
 
+  return buildProgressItems(totalMap, clearedMap);
+}
+
+async function getSingleModeDifficultyProgress(
+  userId: string,
+  mode: QuizModeFilter,
+  region: string,
+  useRegion: boolean,
+) {
   const { diffTotals } = await fetchCompletionDenominators(mode, Boolean(useRegion), region);
   const totalMap = diffTotals;
 
@@ -890,10 +950,8 @@ export async function getDifficultyProgressData(
   const clearedConditions = [
     eq(municipalityQuizResults.userId, userId),
     eq(municipalityQuizResults.isCorrect, true),
+    eq(municipalityQuizResults.mode, mode),
   ];
-  if (mode !== 'all') {
-    clearedConditions.push(eq(municipalityQuizResults.mode, mode));
-  }
 
   const clearedRows = await db
     .select({
@@ -912,19 +970,29 @@ export async function getDifficultyProgressData(
     [...clearedRows].map((r) => [String(r.difficulty), Number(r.clearedCount)]),
   );
 
-  const items = PROGRESS_DIFFICULTIES.map((diff) => {
-    const totalCount = totalMap.get(diff) ?? 0;
-    const clearedCount = clearedMap.get(diff) ?? 0;
-    const rate = totalCount > 0 ? clearedCount / totalCount : 0;
-    return {
-      difficulty: diff,
-      clearedCount,
-      totalCount,
-      rate,
-      coverageRate: rate,
-    };
-  });
+  return buildProgressItems(totalMap, clearedMap);
+}
 
+export async function getDifficultyProgressData(
+  userId: string,
+  {
+    mode,
+    region,
+  }: {
+    mode: QuizModeFilter;
+    region: string;
+  },
+) {
+  const useRegion = Boolean(region && region !== '全国');
+  if (mode === 'A') {
+    const items = await getModeADifficultyProgress(userId, region, useRegion);
+    return serialize(items);
+  }
+  if (mode === 'all') {
+    const items = await getAllModesDifficultyProgress(userId, region, useRegion);
+    return serialize(items);
+  }
+  const items = await getSingleModeDifficultyProgress(userId, mode, region, useRegion);
   return serialize(items);
 }
 

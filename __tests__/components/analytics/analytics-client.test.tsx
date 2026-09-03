@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import React, { act } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import { AnalyticsClient } from '@/components/analytics/analytics-client';
 
 (globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -75,56 +75,56 @@ vi.mock('@/lib/hooks/useWeaknessRanking', () => ({
   }),
 }));
 
-describe('AnalyticsClient', () => {
-  let container: HTMLDivElement | null = null;
-  let root: Root | null = null;
+function renderAnalytics() {
+  const mountPoint = document.createElement('div');
+  document.body.appendChild(mountPoint);
+  const r = createRoot(mountPoint);
+  act(() => {
+    r.render(<AnalyticsClient />);
+  });
+  return {
+    mountPoint,
+    unmount: () => {
+      act(() => {
+        r.unmount();
+      });
+      mountPoint.remove();
+    },
+  };
+}
 
+describe('AnalyticsClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    container = document.createElement('div');
-    document.body.appendChild(container);
-    root = createRoot(container);
-  });
-
-  afterEach(() => {
-    if (root) {
-      act(() => {
-        root?.unmount();
-      });
-    }
-    if (container && container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
-    container = null;
-    root = null;
   });
 
   it('クイズプレイ履歴がある場合、詳細分析ヘッダー、4サマリーカード、推移、進捗、苦手ランキングが描画されること', () => {
     currentSummary = mockSummaryData;
     currentSummaryLoading = false;
 
-    act(() => {
-      root?.render(<AnalyticsClient />);
-    });
+    const { mountPoint, unmount } = renderAnalytics();
+    try {
+      expect(mountPoint.textContent).toContain('詳細分析');
+      expect(mountPoint.textContent).toContain('学習の推移・苦手・モード別進捗');
 
-    expect(container?.textContent).toContain('詳細分析');
-    expect(container?.textContent).toContain('学習の推移・苦手・モード別進捗');
+      // 4サマリーカード
+      expect(mountPoint.textContent).toContain('累計出題数');
+      expect(mountPoint.textContent).toContain('42');
+      expect(mountPoint.textContent).toContain('全体正答率');
+      expect(mountPoint.textContent).toContain('83.3%');
+      expect(mountPoint.textContent).toContain('県当て(A)制覇率');
+      expect(mountPoint.textContent).toContain('45.0%');
+      expect(mountPoint.textContent).toContain('場所当て(D)制覇率');
+      expect(mountPoint.textContent).toContain('20.0%');
 
-    // 4サマリーカード
-    expect(container?.textContent).toContain('累計出題数');
-    expect(container?.textContent).toContain('42');
-    expect(container?.textContent).toContain('全体正答率');
-    expect(container?.textContent).toContain('83.3%');
-    expect(container?.textContent).toContain('県当て(A)制覇率');
-    expect(container?.textContent).toContain('45.0%');
-    expect(container?.textContent).toContain('場所当て(D)制覇率');
-    expect(container?.textContent).toContain('20.0%');
-
-    // 各セクション
-    expect(container?.textContent).toContain('正答率推移');
-    expect(container?.textContent).toContain('難易度別進捗');
-    expect(container?.textContent).toContain('苦手ランキング');
-    expect(container?.textContent).toContain('札幌市');
+      // 各セクション
+      expect(mountPoint.textContent).toContain('正答率推移');
+      expect(mountPoint.textContent).toContain('難易度別進捗');
+      expect(mountPoint.textContent).toContain('苦手ランキング');
+      expect(mountPoint.textContent).toContain('札幌市');
+    } finally {
+      unmount();
+    }
   });
 
   it('未プレイ（totalQuestions: 0）の場合、EmptyState が表示されること', () => {
@@ -138,13 +138,14 @@ describe('AnalyticsClient', () => {
     };
     currentSummaryLoading = false;
 
-    act(() => {
-      root?.render(<AnalyticsClient />);
-    });
-
-    expect(container?.textContent).toContain('詳細分析');
-    expect(container?.textContent).toContain('まだクイズを受けていません。クイズを始めましょう！');
-    expect(container?.textContent).not.toContain('正答率推移');
-    expect(container?.textContent).not.toContain('苦手ランキング');
+    const { mountPoint, unmount } = renderAnalytics();
+    try {
+      expect(mountPoint.textContent).toContain('詳細分析');
+      expect(mountPoint.textContent).toContain('まだクイズを受けていません。クイズを始めましょう！');
+      expect(mountPoint.textContent).not.toContain('正答率推移');
+      expect(mountPoint.textContent).not.toContain('苦手ランキング');
+    } finally {
+      unmount();
+    }
   });
 });

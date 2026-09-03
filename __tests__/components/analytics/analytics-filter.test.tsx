@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import React, { act } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import { AnalyticsClient } from '@/components/analytics/analytics-client';
 
 (globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -84,95 +84,79 @@ vi.mock('@/lib/hooks/useWeaknessRanking', () => ({
   },
 }));
 
-describe('AnalyticsClient Filter Integration', () => {
-  let container: HTMLDivElement | null = null;
-  let root: Root | null = null;
-
-  beforeEach(() => {
-    weaknessCalls.length = 0;
-    accuracyCalls.length = 0;
-    progressCalls.length = 0;
-    container = document.createElement('div');
-    document.body.appendChild(container);
-    root = createRoot(container);
+function renderFilterView() {
+  weaknessCalls.length = 0;
+  accuracyCalls.length = 0;
+  progressCalls.length = 0;
+  const mountPoint = document.createElement('div');
+  document.body.appendChild(mountPoint);
+  const r = createRoot(mountPoint);
+  act(() => {
+    r.render(<AnalyticsClient />);
   });
-
-  afterEach(() => {
-    if (root) {
-      act(() => {
-        root?.unmount();
-      });
-    }
-    if (container && container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
-    container = null;
-    root = null;
-  });
-
-  it('初期レンダリング時にデフォルト条件（7d, all, 全国）で各クエリが呼ばれること', () => {
+  const clickButton = (text: string) => {
+    const btn = Array.from(mountPoint.querySelectorAll('button')).find((b) => b.textContent?.trim() === text);
+    expect(btn).toBeDefined();
     act(() => {
-      root?.render(<AnalyticsClient />);
+      btn?.click();
     });
+  };
+  return {
+    mountPoint,
+    clickButton,
+    unmount: () => {
+      act(() => {
+        r.unmount();
+      });
+      mountPoint.remove();
+    },
+  };
+}
 
-    expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
-    expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
-    expect(progressCalls).toContainEqual({ mode: 'all', region: '全国' });
+describe('AnalyticsClient Filter Integration', () => {
+  it('初期レンダリング時にデフォルト条件（7d, all, 全国）で各クエリが呼ばれること', () => {
+    const { unmount } = renderFilterView();
+    try {
+      expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
+      expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
+      expect(progressCalls).toContainEqual({ mode: 'all', region: '全国' });
+    } finally {
+      unmount();
+    }
   });
 
   it('期間タブをクリックしたとき、クエリが新しい期間（30d）で呼ばれること', () => {
-    act(() => {
-      root?.render(<AnalyticsClient />);
-    });
-
-    // 「30日」ボタンを探してクリック
-    const buttons = container?.querySelectorAll('button') ?? [];
-    const button30d = Array.from(buttons).find((b) => b.textContent?.trim() === '30日');
-    expect(button30d).toBeDefined();
-
-    act(() => {
-      button30d?.click();
-    });
-
-    expect(weaknessCalls).toContainEqual({ period: '30d', mode: 'all', region: '全国' });
-    expect(accuracyCalls).toContainEqual({ period: '30d', mode: 'all', region: '全国' });
+    const { clickButton, unmount } = renderFilterView();
+    try {
+      clickButton('30日');
+      expect(weaknessCalls).toContainEqual({ period: '30d', mode: 'all', region: '全国' });
+      expect(accuracyCalls).toContainEqual({ period: '30d', mode: 'all', region: '全国' });
+    } finally {
+      unmount();
+    }
   });
 
   it('モードタブをクリックしたとき、024命名規則（県当て(A)）でクエリが連動すること', () => {
-    act(() => {
-      root?.render(<AnalyticsClient />);
-    });
-
-    // 「県当て(A)」ボタンを探してクリック
-    const buttons = container?.querySelectorAll('button') ?? [];
-    const buttonModeA = Array.from(buttons).find((b) => b.textContent?.trim() === '県当て(A)');
-    expect(buttonModeA).toBeDefined();
-
-    act(() => {
-      buttonModeA?.click();
-    });
-
-    expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'A', region: '全国' });
-    expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'A', region: '全国' });
-    expect(progressCalls).toContainEqual({ mode: 'A', region: '全国' });
+    const { clickButton, unmount } = renderFilterView();
+    try {
+      clickButton('県当て(A)');
+      expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'A', region: '全国' });
+      expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'A', region: '全国' });
+      expect(progressCalls).toContainEqual({ mode: 'A', region: '全国' });
+    } finally {
+      unmount();
+    }
   });
 
   it('地方タブをクリックしたとき、選択地方（東北）でクエリが連動すること', () => {
-    act(() => {
-      root?.render(<AnalyticsClient />);
-    });
-
-    // 「東北」ボタンを探してクリック
-    const buttons = container?.querySelectorAll('button') ?? [];
-    const buttonTohoku = Array.from(buttons).find((b) => b.textContent?.trim() === '東北');
-    expect(buttonTohoku).toBeDefined();
-
-    act(() => {
-      buttonTohoku?.click();
-    });
-
-    expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'all', region: '東北' });
-    expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'all', region: '東北' });
-    expect(progressCalls).toContainEqual({ mode: 'all', region: '東北' });
+    const { clickButton, unmount } = renderFilterView();
+    try {
+      clickButton('東北');
+      expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'all', region: '東北' });
+      expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'all', region: '東北' });
+      expect(progressCalls).toContainEqual({ mode: 'all', region: '東北' });
+    } finally {
+      unmount();
+    }
   });
 });
