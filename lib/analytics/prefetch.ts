@@ -26,23 +26,28 @@ export async function getAnalyticsDehydratedState(): Promise<DehydratedState | n
 
   const queryClient = getQueryClient();
 
-  const prefetchTasks = [
-    { queryKey: queryKeys.dashboard.summary(), queryFn: () => getDashboardSummaryData(userId) },
-    { queryKey: queryKeys.dashboard.streak(), queryFn: () => getStreakData(userId) },
-    {
+  const prefetchAll = Promise.all([
+    queryClient.prefetchQuery({
       queryKey: queryKeys.dashboard.difficulty('all', '全国'),
       queryFn: () => getDifficultyProgressData(userId, { mode: 'all', region: '全国' }),
-    },
-    {
+    }),
+    queryClient.prefetchQuery({
       queryKey: queryKeys.dashboard.trend('7d', 'all', '全国'),
       queryFn: () => getAccuracyTrendData(userId, { period: '7d', mode: 'all', region: '全国' }),
-    },
-    {
+    }),
+    queryClient.prefetchQuery({
       queryKey: queryKeys.dashboard.weakness('7d', 'all', '全国'),
       queryFn: () => getWeaknessRankingData(userId, { period: '7d', mode: 'all', region: '全国' }),
-    },
-  ];
+    }),
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.dashboard.summary(),
+      queryFn: () => getDashboardSummaryData(userId),
+    }),
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.dashboard.streak(),
+      queryFn: () => getStreakData(userId),
+    }),
+  ]);
 
-  const prefetchAll = Promise.all(prefetchTasks.map((task) => queryClient.prefetchQuery(task)));
   return safeDehydrateWithTimeout(queryClient, prefetchAll);
 }
