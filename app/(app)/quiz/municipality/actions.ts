@@ -54,7 +54,11 @@ async function validateModeABatch(results: SaveMunicipalityQuizResultInput[]): P
   }
 
   const masterRows = await db
-    .select({ code: municipalityMaster.code, name: municipalityMaster.name })
+    .select({
+      code: municipalityMaster.code,
+      name: municipalityMaster.name,
+      prefecture: municipalityMaster.prefecture,
+    })
     .from(municipalityMaster)
     .where(inArray(municipalityMaster.code, codes));
 
@@ -74,8 +78,15 @@ async function validateModeABatch(results: SaveMunicipalityQuizResultInput[]): P
     }
   }
 
+  // Verify that supplied codes are distinct per prefecture
+  const suppliedPrefectures = new Set(masterRows.map((r) => r.prefecture));
+  if (suppliedPrefectures.size !== codes.length) {
+    throw new Error('Mode A batch must contain at most one code per prefecture');
+  }
+
+  // Fetch all eligible prefectures for this municipality name in master
   const expectedMasterRows = await db
-    .select({ code: municipalityMaster.code })
+    .selectDistinct({ prefecture: municipalityMaster.prefecture })
     .from(municipalityMaster)
     .where(
       and(
@@ -85,9 +96,12 @@ async function validateModeABatch(results: SaveMunicipalityQuizResultInput[]): P
       ),
     );
 
-  const expectedCodes = new Set(expectedMasterRows.map((r) => r.code));
-  if (codes.length !== expectedCodes.size || !codes.every((c) => expectedCodes.has(c))) {
-    throw new Error('Mode A batch must contain all eligible municipality codes for the given name');
+  const expectedPrefectures = new Set(expectedMasterRows.map((r) => r.prefecture));
+  if (
+    suppliedPrefectures.size !== expectedPrefectures.size ||
+    !Array.from(suppliedPrefectures).every((p) => expectedPrefectures.has(p))
+  ) {
+    throw new Error('Mode A batch must contain one representative code for each eligible prefecture');
   }
 }
 

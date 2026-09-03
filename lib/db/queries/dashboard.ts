@@ -304,16 +304,23 @@ function processModeABuffer(
   buffer: TrendRowItem[],
   period: TrendPeriod,
   onQuestion: (dateKey: string, difficulty: string, isCorrect: boolean) => void,
+  repDifficultyMap?: ReadonlyMap<string, string>,
 ) {
   if (buffer.length === 0) return;
   const first = buffer[0];
   const dateKey = formatAccuracyDateKey(first.answeredAt, period);
   const isCorrect = buffer.every((b) => b.isCorrect);
-  const difficulty = getRepresentativeDifficulty(buffer.map((b) => b.difficulty));
+  const difficulty =
+    repDifficultyMap?.get(first.municipalityName) ??
+    getRepresentativeDifficulty(buffer.map((b) => b.difficulty));
   onQuestion(dateKey, difficulty, isCorrect);
 }
 
-function buildTrendDateMap(rows: TrendRowItem[], period: TrendPeriod) {
+function buildTrendDateMap(
+  rows: TrendRowItem[],
+  period: TrendPeriod,
+  repDifficultyMap?: ReadonlyMap<string, string>,
+) {
   const dateMap = new Map<string, Map<string, { correct: number; total: number }>>();
 
   function addQuestion(dateKey: string, difficulty: string, isCorrect: boolean) {
@@ -338,18 +345,18 @@ function buildTrendDateMap(rows: TrendRowItem[], period: TrendPeriod) {
           buffer.push(row);
           continue;
         }
-        processModeABuffer(buffer, period, addQuestion);
+        processModeABuffer(buffer, period, addQuestion, repDifficultyMap);
         buffer = [];
       }
       buffer.push(row);
     } else {
-      processModeABuffer(buffer, period, addQuestion);
+      processModeABuffer(buffer, period, addQuestion, repDifficultyMap);
       buffer = [];
       const dateKey = formatAccuracyDateKey(row.answeredAt, period);
       addQuestion(dateKey, row.difficulty ?? 'easy', row.isCorrect);
     }
   }
-  processModeABuffer(buffer, period, addQuestion);
+  processModeABuffer(buffer, period, addQuestion, repDifficultyMap);
   return dateMap;
 }
 
@@ -380,19 +387,35 @@ function formatTrendResult(dateMap: Map<string, Map<string, { correct: number; t
   });
 }
 
+async function fetchModeACanonicalRepDifficulties(): Promise<Map<string, string>> {
+  const rows = await db.execute<{ name: string; rep_difficulty: string }>(sql`
+    SELECT
+      name,
+      CASE
+        WHEN bool_or(difficulty = 'expert') THEN 'expert'
+        WHEN bool_or(difficulty = 'hard') THEN 'hard'
+        WHEN bool_or(difficulty = 'medium') THEN 'medium'
+        ELSE 'easy'
+      END AS rep_difficulty
+    FROM municipality_master
+    WHERE difficulty IN ('easy', 'medium', 'hard', 'expert')
+      AND ${notSameNameSql}
+      AND ${notTokyoSpecialWardSql}
+    GROUP BY name
+  `);
+  return new Map(Array.from(rows).map((r) => [String(r.name), String(r.rep_difficulty)]));
+}
+
 export async function getAccuracyTrendData(
   userId: string,
-  {
-    period,
-    mode,
-    region,
-  }: {
+  params: {
     period: TrendPeriod;
     mode: QuizModeFilter;
     region: string;
   },
 ) {
-  const useRegion = region && region !== '全国';
+  const { period, mode, region } = params;
+  const useRegion = Boolean(region && region !== '全国');
   const periodStart = getJSTDateRange(period);
 
   const conditions = [eq(municipalityQuizResults.userId, userId)];
@@ -401,9 +424,11 @@ export async function getAccuracyTrendData(
       sql`${municipalityQuizResults.answeredAt} >= ${periodStart.toISOString()}::timestamptz`,
     );
   }
+
   if (mode !== 'all') {
     conditions.push(eq(municipalityQuizResults.mode, mode));
   }
+
   if (useRegion) {
     if (mode === 'A') {
       conditions.push(
@@ -418,23 +443,28 @@ export async function getAccuracyTrendData(
     }
   }
 
-  const rows = await db
-    .select({
-      answeredAt: municipalityQuizResults.answeredAt,
-      municipalityName: municipalityQuizResults.municipalityName,
-      mode: municipalityQuizResults.mode,
-      isCorrect: municipalityQuizResults.isCorrect,
-      difficulty: municipalityMaster.difficulty,
-    })
-    .from(municipalityQuizResults)
-    .innerJoin(
-      municipalityMaster,
-      eq(municipalityMaster.code, municipalityQuizResults.municipalityCode),
-    )
-    .where(and(...conditions))
-    .orderBy(municipalityQuizResults.answeredAt);
+  const [rows, repDifficultyMap] = await Promise.all([
+    db
+      .select({
+        answeredAt: municipalityQuizResults.answeredAt,
+        municipalityName: municipalityQuizResults.municipalityName,
+        mode: municipalityQuizResults.mode,
+        isCorrect: municipalityQuizResults.isCorrect,
+        difficulty: municipalityMaster.difficulty,
+      })
+      .from(municipalityQuizResults)
+      .innerJoin(
+        municipalityMaster,
+        eq(municipalityMaster.code, municipalityQuizResults.municipalityCode),
+      )
+      .where(and(...conditions))
+      .orderBy(municipalityQuizResults.answeredAt),
+    (mode === 'A' || mode === 'all')
+      ? fetchModeACanonicalRepDifficulties()
+      : Promise.resolve(undefined),
+  ]);
 
-  const dateMap = buildTrendDateMap(rows, period);
+  const dateMap = buildTrendDateMap(rows, period, repDifficultyMap);
   return serialize(formatTrendResult(dateMap));
 }
 
@@ -924,7 +954,7 @@ async function fetchModeAClearedRepCounts(
 
 async function fetchModeACityExpectedCounts(): Promise<Map<string, number>> {
   const rows = await db.execute<{ name: string; cnt: number }>(sql`
-    SELECT name, COUNT(*)::int AS cnt
+    SELECT name, COUNT(DISTINCT prefecture)::int AS cnt
     FROM municipality_master
     WHERE difficulty IN ('easy', 'medium', 'hard', 'expert')
       AND ${notSameNameSql}
