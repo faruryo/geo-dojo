@@ -35,11 +35,19 @@ const DIFFICULTY_LINES = [
 export function AccuracyChart({
   mode,
   region,
+  period: controlledPeriod,
+  onPeriodChange,
+  showPeriodTabs = true,
 }: {
   mode: 'all' | 'A' | 'B' | 'C' | 'D';
   region: string;
+  period?: Period;
+  onPeriodChange?: (v: Period) => void;
+  showPeriodTabs?: boolean;
 }) {
-  const [period, setPeriod] = useState<Period>('7d');
+  const [internalPeriod, setInternalPeriod] = useState<Period>('7d');
+  const period = controlledPeriod ?? internalPeriod;
+  const setPeriod = onPeriodChange ?? setInternalPeriod;
   const { data, isLoading } = useAccuracyTrend(period, mode, region);
 
   if (isLoading) {
@@ -57,15 +65,17 @@ export function AccuracyChart({
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">正答率推移</h2>
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-          <TabsList>
-            {PERIOD_OPTIONS.map((opt) => (
-              <TabsTrigger key={opt.value} value={opt.value}>
-                {opt.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        {showPeriodTabs && (
+          <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
+            <TabsList>
+              {PERIOD_OPTIONS.map((opt) => (
+                <TabsTrigger key={opt.value} value={opt.value}>
+                  {opt.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        )}
       </div>
 
       {chartData.length === 0 ? (

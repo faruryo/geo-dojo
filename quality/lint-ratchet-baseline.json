@@ -158,11 +158,6 @@
     },
     {
       "file": "components/dashboard/filter-bar.tsx",
-      "rule": "security/detect-object-injection",
-      "count": 1
-    },
-    {
-      "file": "components/dashboard/filter-bar.tsx",
       "rule": "sonarjs/prefer-read-only-props",
       "count": 1
     },

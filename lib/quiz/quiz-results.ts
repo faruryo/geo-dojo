@@ -23,7 +23,7 @@ export interface QuestionResult {
  * 結果を数えると「19問なのに21完了」のように二重カウントされるため、表示は必ず
  * 1問1件へ正規化する。entries は同一問への回答なので isCorrect は全件同じ。
  */
-export function toQuestionResult(entries: AnswerEntry[]): QuestionResult {
+export function toQuestionResult(entries: readonly AnswerEntry[]): QuestionResult {
   const head = entries[0];
   return {
     name: head.municipality.name,
