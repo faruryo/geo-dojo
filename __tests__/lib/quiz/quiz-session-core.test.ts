@@ -137,6 +137,20 @@ describe('quiz-session-core', () => {
         expect.objectContaining({ codes: ['01100'], mode: 'A' }),
       );
     });
+
+    it('entries が空配列の場合、例外を投げずに currentResults をそのまま返し persisted=true となること', async () => {
+      const currentResults: QuizResultEntry[] = [
+        { name: '札幌市', prefecture: '北海道', correct: true },
+      ];
+      const mockSaveFn = vi.fn();
+      const mockLogger = { error: vi.fn() };
+      const { results, persisted } = await executeQuizAdvance([], currentResults, mockSaveFn, mockLogger);
+
+      expect(results).toEqual(currentResults);
+      expect(persisted).toBe(true);
+      expect(mockSaveFn).not.toHaveBeenCalled();
+      expect(mockLogger.error).not.toHaveBeenCalled();
+    });
   });
 
   describe('createTimeoutEntry', () => {

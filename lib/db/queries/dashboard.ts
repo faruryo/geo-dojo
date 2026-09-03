@@ -281,6 +281,17 @@ function getRepresentativeDifficulty(diffs: (string | null | undefined)[]): stri
   return best;
 }
 
+export function isSameModeAQuestion(
+  a: { municipalityName: string; answeredAt: Date },
+  b: { municipalityName: string; answeredAt: Date },
+  thresholdMs = 2000,
+): boolean {
+  return (
+    a.municipalityName === b.municipalityName &&
+    Math.abs(a.answeredAt.getTime() - b.answeredAt.getTime()) <= thresholdMs
+  );
+}
+
 interface TrendRowItem {
   answeredAt: Date;
   municipalityName: string;
@@ -323,8 +334,7 @@ function buildTrendDateMap(rows: TrendRowItem[], period: TrendPeriod) {
     if (row.mode === 'A') {
       if (buffer.length > 0) {
         const last = buffer[buffer.length - 1];
-        const timeDiffMs = Math.abs(row.answeredAt.getTime() - last.answeredAt.getTime());
-        if (row.municipalityName === last.municipalityName && timeDiffMs <= 2000) {
+        if (isSameModeAQuestion(row, last)) {
           buffer.push(row);
           continue;
         }
@@ -395,7 +405,17 @@ export async function getAccuracyTrendData(
     conditions.push(eq(municipalityQuizResults.mode, mode));
   }
   if (useRegion) {
-    conditions.push(eq(municipalityMaster.region, region));
+    if (mode === 'A') {
+      conditions.push(
+        sql`${municipalityQuizResults.municipalityName} IN (SELECT name FROM municipality_master WHERE region = ${region})`,
+      );
+    } else if (mode === 'all') {
+      conditions.push(
+        sql`(${municipalityQuizResults.mode} != 'A' AND ${municipalityMaster.region} = ${region} OR ${municipalityQuizResults.mode} = 'A' AND ${municipalityQuizResults.municipalityName} IN (SELECT name FROM municipality_master WHERE region = ${region}))`,
+      );
+    } else {
+      conditions.push(eq(municipalityMaster.region, region));
+    }
   }
 
   const rows = await db
@@ -785,31 +805,98 @@ interface ClearedRepDifficultyResult extends Record<string, unknown> {
   cleared_cnt?: number;
 }
 
-async function fetchModeARepCounts(userId: string, regionCond: ReturnType<typeof sql>) {
-  const [denominatorResult, clearedResult] = await Promise.all([
-    db.execute<RepDifficultyCountResult>(sql`
+export interface ModeAHistoryRow {
+  municipalityName: string;
+  answeredAt: Date;
+  isCorrect: boolean;
+}
+
+/**
+ * Mode A の回答履歴から、同一出題（直前の同一市名レコードから 2000ms 以内）において
+ * 全県正解した実績がある市名の一覧を返す純粋集約関数。
+ */
+export function getModeAClearedCityNames(
+  rows: readonly ModeAHistoryRow[],
+  expectedCounts?: ReadonlyMap<string, number>,
+): Set<string> {
+  const cleared = new Set<string>();
+  if (rows.length === 0) return cleared;
+
+  const byCity = new Map<string, ModeAHistoryRow[]>();
+  for (const row of rows) {
+    let list = byCity.get(row.municipalityName);
+    if (!list) {
+      list = [];
+      byCity.set(row.municipalityName, list);
+    }
+    list.push(row);
+  }
+
+  for (const [cityName, cityRows] of byCity) {
+    const expectedCount = expectedCounts?.get(cityName) ?? 1;
+    let buffer: ModeAHistoryRow[] = [];
+
+    const flushBuffer = () => {
+      if (buffer.length === 0) return;
+      if (buffer.length >= expectedCount && buffer.every((b) => b.isCorrect)) {
+        cleared.add(cityName);
+      }
+      buffer = [];
+    };
+
+    for (const row of cityRows) {
+      if (buffer.length > 0) {
+        const last = buffer[buffer.length - 1];
+        if (isSameModeAQuestion(row, last)) {
+          buffer.push(row);
+          continue;
+        }
+        flushBuffer();
+      }
+      buffer.push(row);
+    }
+    flushBuffer();
+  }
+
+  return cleared;
+}
+
+async function fetchModeATotalRepCounts(regionCond: ReturnType<typeof sql>) {
+  return db.execute<RepDifficultyCountResult>(sql`
+    SELECT
+      rep_difficulty,
+      COUNT(*)::int AS cnt
+    FROM (
       SELECT
-        rep_difficulty,
-        COUNT(*)::int AS cnt
-      FROM (
-        SELECT
-          name,
-          CASE
-            WHEN bool_or(difficulty = 'expert') THEN 'expert'
-            WHEN bool_or(difficulty = 'hard') THEN 'hard'
-            WHEN bool_or(difficulty = 'medium') THEN 'medium'
-            ELSE 'easy'
-          END AS rep_difficulty
-        FROM municipality_master
-        WHERE difficulty IN ('easy', 'medium', 'hard', 'expert')
-          AND ${notSameNameSql}
-          AND ${notTokyoSpecialWardSql}
-          ${regionCond}
-        GROUP BY name
-      ) sub
-      GROUP BY rep_difficulty
-    `),
-    db.execute<ClearedRepDifficultyResult>(sql`
+        name,
+        CASE
+          WHEN bool_or(difficulty = 'expert') THEN 'expert'
+          WHEN bool_or(difficulty = 'hard') THEN 'hard'
+          WHEN bool_or(difficulty = 'medium') THEN 'medium'
+          ELSE 'easy'
+        END AS rep_difficulty
+      FROM municipality_master
+      WHERE difficulty IN ('easy', 'medium', 'hard', 'expert')
+        AND ${notSameNameSql}
+        AND ${notTokyoSpecialWardSql}
+        ${regionCond}
+      GROUP BY name
+    ) sub
+    GROUP BY rep_difficulty
+  `);
+}
+
+async function fetchModeAClearedRepCounts(
+  clearedNameArray: string[],
+  regionCond: ReturnType<typeof sql>,
+): Promise<ClearedRepDifficultyResult[]> {
+  if (clearedNameArray.length === 0) return [];
+  const namesListSql = sql.join(
+    clearedNameArray.map((n) => sql`${n}`),
+    sql`, `,
+  );
+  return Array.from(
+    await db.execute<ClearedRepDifficultyResult>(sql`
       SELECT
         rep_difficulty,
         COUNT(*)::int AS cleared_cnt
@@ -827,16 +914,55 @@ async function fetchModeARepCounts(userId: string, regionCond: ReturnType<typeof
           AND ${notSameNameSql}
           AND ${notTokyoSpecialWardSql}
           ${regionCond}
-          AND name IN (
-            SELECT DISTINCT municipality_name
-            FROM municipality_quiz_results
-            WHERE user_id = ${userId}::uuid AND mode = 'A' AND is_correct = true
-          )
+          AND name IN (${namesListSql})
         GROUP BY name
       ) sub
       GROUP BY rep_difficulty
     `),
+  );
+}
+
+async function fetchModeACityExpectedCounts(): Promise<Map<string, number>> {
+  const rows = await db.execute<{ name: string; cnt: number }>(sql`
+    SELECT name, COUNT(*)::int AS cnt
+    FROM municipality_master
+    WHERE difficulty IN ('easy', 'medium', 'hard', 'expert')
+      AND ${notSameNameSql}
+      AND ${notTokyoSpecialWardSql}
+    GROUP BY name
+  `);
+  return new Map(Array.from(rows).map((r) => [String(r.name), Number(r.cnt)]));
+}
+
+async function fetchModeARepCounts(
+  userId: string,
+  regionCond: ReturnType<typeof sql>,
+  asOf?: Date,
+) {
+  const modeAWhere = [
+    eq(municipalityQuizResults.userId, userId),
+    eq(municipalityQuizResults.mode, 'A'),
+  ];
+  if (asOf) {
+    modeAWhere.push(lt(municipalityQuizResults.answeredAt, asOf));
+  }
+
+  const [denominatorResult, modeARows, expectedCounts] = await Promise.all([
+    fetchModeATotalRepCounts(regionCond),
+    db
+      .select({
+        municipalityName: municipalityQuizResults.municipalityName,
+        answeredAt: municipalityQuizResults.answeredAt,
+        isCorrect: municipalityQuizResults.isCorrect,
+      })
+      .from(municipalityQuizResults)
+      .where(and(...modeAWhere))
+      .orderBy(municipalityQuizResults.answeredAt),
+    fetchModeACityExpectedCounts(),
   ]);
+
+  const clearedCityNames = getModeAClearedCityNames(modeARows, expectedCounts);
+  const clearedResult = await fetchModeAClearedRepCounts(Array.from(clearedCityNames), regionCond);
 
   return { denominatorResult, clearedResult };
 }
@@ -859,8 +985,14 @@ function buildProgressItems(
   });
 }
 
+function buildModeARegionCond(region: string, useRegion: boolean) {
+  return useRegion
+    ? sql`AND name IN (SELECT name FROM municipality_master WHERE region = ${region})`
+    : sql``;
+}
+
 async function getModeADifficultyProgress(userId: string, region: string, useRegion: boolean) {
-  const regionCond = useRegion ? sql`AND ${municipalityMaster.region} = ${region}` : sql``;
+  const regionCond = buildModeARegionCond(region, useRegion);
   const { denominatorResult, clearedResult } = await fetchModeARepCounts(userId, regionCond);
 
   const totalMap = new Map<string, number>(
@@ -878,7 +1010,7 @@ async function getAllModesDifficultyProgress(
   region: string,
   useRegion: boolean,
 ) {
-  const regionCond = useRegion ? sql`AND ${municipalityMaster.region} = ${region}` : sql``;
+  const regionCond = buildModeARegionCond(region, useRegion);
   const masterRegionWhere = useRegion ? eq(municipalityMaster.region, region) : undefined;
 
   const [modeAResult, { fullMap, dedupMap }, bcdClearedRows] = await Promise.all([
@@ -1005,7 +1137,19 @@ export async function getCompletionByModeData(
   },
 ) {
   const { mode, region, asOf } = params;
-  const useRegion = region && region !== '全国';
+  const useRegion = Boolean(region && region !== '全国');
+
+  if (mode === 'A') {
+    const regionCondSql = buildModeARegionCond(region, useRegion);
+    const { denominatorResult, clearedResult } = await fetchModeARepCounts(userId, regionCondSql, asOf);
+    const clearedCount = clearedResult.reduce((sum, r) => sum + Number(r.cleared_cnt ?? 0), 0);
+    const totalSlots = Array.from(denominatorResult).reduce((sum, r) => sum + Number(r.cnt ?? 0), 0);
+    return serialize({
+      clearedCount,
+      totalMunicipalities: totalSlots,
+      coverageRate: totalSlots > 0 ? clearedCount / totalSlots : 0,
+    });
+  }
 
   const conditions: ReturnType<typeof eq>[] = [
     eq(municipalityQuizResults.userId, userId),

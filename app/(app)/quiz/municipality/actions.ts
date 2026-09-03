@@ -12,6 +12,7 @@ import { generateRecommendation } from '@/lib/quiz/recommendation/engine';
 import type { RecommendClientState } from '@/lib/quiz/recommendation/conquest-lottery';
 import { normalizeAnswerTimeMs } from '@/lib/quiz/answer-time';
 import type { Recommendation } from '@/lib/quiz/recommendation/types';
+import { notSameNameSql, notTokyoSpecialWardSql } from '@/lib/db/queries/sql-helpers';
 
 export type MunicipalityQuizMode = 'A' | 'B' | 'C' | 'D';
 
@@ -71,6 +72,22 @@ async function validateModeABatch(results: SaveMunicipalityQuizResultInput[]): P
     if (r.municipalityName !== canonicalName) {
       throw new Error('Input municipalityName does not match master canonical name');
     }
+  }
+
+  const expectedMasterRows = await db
+    .select({ code: municipalityMaster.code })
+    .from(municipalityMaster)
+    .where(
+      and(
+        eq(municipalityMaster.name, canonicalName),
+        notSameNameSql,
+        notTokyoSpecialWardSql,
+      ),
+    );
+
+  const expectedCodes = new Set(expectedMasterRows.map((r) => r.code));
+  if (codes.length !== expectedCodes.size || !codes.every((c) => expectedCodes.has(c))) {
+    throw new Error('Mode A batch must contain all eligible municipality codes for the given name');
   }
 }
 
@@ -152,6 +169,9 @@ export async function saveMunicipalityQuizResult(input: {
 
     // Whitelist validate mode
     if (!['A', 'B', 'C', 'D'].includes(input.mode)) throw new Error('Invalid mode');
+    if (input.mode === 'A') {
+      throw new Error('Mode A results must be saved via saveMunicipalityQuizResults batch action');
+    }
 
     // Validate municipality code against master data
     if (!(await getValidCodes()).has(input.municipalityCode)) throw new Error('Invalid municipality code');

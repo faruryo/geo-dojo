@@ -47,11 +47,11 @@ export async function executeQuizAdvance(
   saveFn: SaveResultsBatchFn,
   logger: QuizAdvanceLogger = console,
 ): Promise<{ results: QuizResultEntry[]; persisted: boolean }> {
-  const results = [...currentResults, toQuestionResult(entries)];
-
   if (entries.length === 0) {
-    return { results, persisted: true };
+    return { results: [...currentResults], persisted: true };
   }
+
+  const results = [...currentResults, toQuestionResult(entries)];
 
   const inputs: SaveResultInput[] = entries.map((entry) => ({
     municipalityCode: entry.municipality.code,
