@@ -1,0 +1,96 @@
+{
+  "projectId": "af80c9b9-7282-4dc6-9fa3-ebe67660e8a2",
+  "shape": "package",
+  "pkg": "geo-dojo",
+  "globalName": "GeoDojo",
+  "srcDir": "components",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": ".design-sync/tailwind.css",
+  "entry": "./.design-sync/entry.tsx",
+  "componentSrcMap": {
+    "ChoiceView": "./components/quiz/views/choice-view.tsx",
+    "EmptyState": "./components/dashboard/empty-state.tsx",
+    "FilterBar": "./components/dashboard/filter-bar.tsx",
+    "InViewMount": "./components/dashboard/in-view-mount.tsx",
+    "JapanMap": "./components/map/JapanMap.tsx",
+    "MilestoneBanner": "./components/dashboard/milestone-banner.tsx",
+    "MiniJapanMap": "./components/map/MiniJapanMap.tsx",
+    "ModeAView": "./components/quiz/views/mode-a-view.tsx",
+    "MunicipalityMap": "./components/map/MunicipalityMap.tsx",
+    "MunicipalityMapView": "./components/quiz/views/municipality-map-view.tsx",
+    "MunicipalityPickerDialog": "./components/quiz/municipality-picker-dialog.tsx",
+    "MuteToggle": "./components/quiz/mute-toggle.tsx",
+    "QuizHeader": "./components/quiz/quiz-header.tsx",
+    "QuizPoolProgress": "./components/quiz/quiz-pool-progress.tsx",
+    "QuizQuestionCard": "./components/quiz/quiz-question-card.tsx",
+    "QuizResultCard": "./components/quiz/quiz-result-card.tsx",
+    "ScopeSelector": "./components/quiz/scope-selector.tsx",
+    "SessionCountSelector": "./components/quiz/session-count-selector.tsx"
+  },
+  "libOverrides": {
+    "bundle.mjs": "shim globalThis.process — next/link, next/dynamic and the Maps key read process.env in the browser bundle"
+  },
+  "dtsPropsFor": {
+    "ChoiceView": "readonly choices: readonly string[];\n  readonly selectedChoice: string | null;\n  readonly correctChoice: string;\n  readonly feedback: 'idle' | 'correct' | 'incorrect';\n  readonly onSelectChoice: (choice: string) => void;",
+    "EmptyState": "message: string;\n  linkText?: string;\n  linkHref?: string;",
+    "FilterBar": "mode: 'all' | 'A' | 'B' | 'C' | 'D';\n  onModeChange: (v: 'all' | 'A' | 'B' | 'C' | 'D') => void;\n  region: string;\n  onRegionChange: (v: string) => void;",
+    "InViewMount": "children: React.ReactNode;\n  rootMargin?: string;",
+    "JapanMap": "onPrefectureClick: (name: string) => void;\n  highlightCorrect?: string | string[];\n  highlightWrong?: string;\n  selectedNames?: string[];\n  isIncorrect?: boolean;\n  qIdx?: number;",
+    "MilestoneBanner": "totalCorrect: number;\n  coverageRate: number;",
+    "MiniJapanMap": "highlight?: string;\n  showZoomFrame?: boolean;",
+    "ModeAView": "readonly qIdx: number;\n  readonly correctPrefectures: ReadonlySet<string>;\n  readonly selectedPrefectures: ReadonlySet<string>;\n  readonly feedback: 'idle' | 'correct' | 'incorrect';\n  readonly onPrefectureTap: (name: string) => void;\n  readonly onSubmit: () => void;",
+    "MunicipalityMap": "prefecture: string;\n  onMunicipalityClick: (code: string, name: string) => void;\n  highlightCodes?: string[];\n  wrongCodes?: string[];\n  isIncorrect?: boolean;\n  qIdx?: number;\n  onLoadError?: () => void;",
+    "MunicipalityMapView": "readonly prefecture: string;\n  readonly qIdx: number;\n  readonly correctCodes: readonly string[];\n  readonly wrongCodes: readonly string[];\n  readonly feedback: 'idle' | 'correct' | 'incorrect';\n  readonly onMunicipalityClick: (code: string, name: string) => void;\n  readonly onLoadError: () => void;",
+    "MunicipalityPickerDialog": "readonly isOpen: boolean;\n  readonly onOpenChange: (open: boolean) => void;\n  readonly prefecture: string;\n  readonly municipalities: readonly { code: string; name: string; prefecture: string; region: string; difficulty?: 'easy' | 'medium' | 'hard' | 'expert'; kana?: string }[];\n  readonly selectedCodes?: readonly string[];\n  readonly onSave: (codes: string[] | undefined) => void;\n  readonly clearedCodesSet: ReadonlySet<string>;",
+    "QuizHeader": "readonly currentIndex: number;\n  readonly totalQuestions: number;\n  readonly correctCount: number;\n  readonly onAbort: () => void;",
+    "QuizPoolProgress": "readonly stats: { totalCount: number; clearedCount: number; percentage: number };\n  readonly isLoading: boolean;\n  readonly isError: boolean;\n  readonly onRetry?: () => void;",
+    "QuizQuestionCard": "readonly promptText: string;\n  readonly title: string;\n  readonly subTitle?: string;\n  readonly difficulty?: 'easy' | 'medium' | 'hard' | 'expert';\n  readonly feedback: 'idle' | 'correct' | 'incorrect';\n  readonly feedbackDetail?: string;\n  readonly extraPrompt?: React.ReactNode;",
+    "QuizResultCard": "readonly correctCount: number;\n  readonly totalCount: number;\n  readonly backHref: string;\n  readonly backLabel?: string;\n  readonly weakItems?: readonly unknown[];\n  readonly weakTitle?: string;\n  readonly children?: React.ReactNode;\n  readonly actions: React.ReactNode;",
+    "ScopeSelector": "readonly mode: 'A' | 'B' | 'C' | 'D';\n  readonly scope: { type: 'region' | 'prefecture'; regions?: string[]; prefecture?: string; selectedCodes?: string[] };\n  readonly onScopeChange: (scope: { type: 'region' | 'prefecture'; regions?: string[]; prefecture?: string; selectedCodes?: string[] }) => void;\n  readonly onOpenMunicipalityPicker?: () => void;\n  readonly selectedCount?: number;\n  readonly totalPrefectureCount?: number;",
+    "SessionCountSelector": "readonly options: readonly { readonly label: string; readonly value: string | number }[];\n  readonly selectedValue: string | number;\n  readonly onSelect: (value: string | number) => void;\n  readonly title?: string;"
+  },
+  "overrides": {
+    "EmptyState": {
+      "cardMode": "column"
+    },
+    "FilterBar": {
+      "cardMode": "column"
+    },
+    "MilestoneBanner": {
+      "cardMode": "column"
+    },
+    "QuizHeader": {
+      "cardMode": "column"
+    },
+    "QuizQuestionCard": {
+      "cardMode": "column"
+    },
+    "QuizResultCard": {
+      "cardMode": "column"
+    },
+    "SessionCountSelector": {
+      "cardMode": "column"
+    },
+    "ChoiceView": {
+      "cardMode": "column"
+    },
+    "ModeAView": {
+      "cardMode": "column"
+    },
+    "MunicipalityPickerDialog": {
+      "cardMode": "single",
+      "primaryStory": "Open",
+      "viewport": "390x640"
+    },
+    "QuizPoolProgress": {
+      "cardMode": "column"
+    },
+    "ScopeSelector": {
+      "cardMode": "column"
+    },
+    "JapanMap": {
+      "cardMode": "column"
+    }
+  },
+  "readmeHeader": ".design-sync/conventions.md"
+}
