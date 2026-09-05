@@ -3,7 +3,7 @@
 import { requireUserId } from '@/lib/auth/current-user';
 import { db } from '@/lib/db';
 import { municipalityQuizResults, municipalityMaster, type MunicipalityMaster } from '@/lib/db/schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { checkRateLimit } from '@/lib/quiz/rate-limit';
 import { getValidCodes } from '@/lib/quiz/validation';
 import { upsertSrsRecord } from '@/lib/quiz/srs/record-service';
@@ -12,6 +12,159 @@ import { generateRecommendation } from '@/lib/quiz/recommendation/engine';
 import type { RecommendClientState } from '@/lib/quiz/recommendation/conquest-lottery';
 import { normalizeAnswerTimeMs } from '@/lib/quiz/answer-time';
 import type { Recommendation } from '@/lib/quiz/recommendation/types';
+import { notSameNameSql, notTokyoSpecialWardSql } from '@/lib/db/queries/sql-helpers';
+
+export type MunicipalityQuizMode = 'A' | 'B' | 'C' | 'D';
+
+export interface SaveMunicipalityQuizResultInput {
+  municipalityCode: string;
+  municipalityName: string;
+  prefecture: string;
+  mode: MunicipalityQuizMode;
+  isCorrect: boolean;
+  answerTimeMs?: number;
+}
+
+function validateBasicBatch(results: SaveMunicipalityQuizResultInput[]): MunicipalityQuizMode {
+  if (!Array.isArray(results) || results.length === 0) {
+    throw new Error('Results array must not be empty');
+  }
+  const firstMode = results[0].mode;
+  if (!['A', 'B', 'C', 'D'].includes(firstMode)) {
+    throw new Error('Invalid mode');
+  }
+  for (const r of results) {
+    if (r.mode !== firstMode) {
+      throw new Error('Inconsistent modes in batch');
+    }
+    if (typeof r.isCorrect !== 'boolean') {
+      throw new Error('Invalid isCorrect');
+    }
+  }
+  return firstMode;
+}
+
+async function validateModeABatch(results: SaveMunicipalityQuizResultInput[]): Promise<void> {
+  if (results.length < 1 || results.length > 10) {
+    throw new Error('Mode A batch size must be between 1 and 10');
+  }
+  const codes = results.map((r) => r.municipalityCode);
+  if (new Set(codes).size !== codes.length) {
+    throw new Error('Duplicate municipalityCode in batch');
+  }
+
+  const masterRows = await db
+    .select({
+      code: municipalityMaster.code,
+      name: municipalityMaster.name,
+      prefecture: municipalityMaster.prefecture,
+    })
+    .from(municipalityMaster)
+    .where(inArray(municipalityMaster.code, codes));
+
+  if (masterRows.length !== codes.length) {
+    throw new Error('One or more municipality codes not found in master');
+  }
+
+  const canonicalName = masterRows[0].name;
+  for (const row of masterRows) {
+    if (row.name !== canonicalName) {
+      throw new Error('Master municipality names do not match across batch');
+    }
+  }
+  for (const r of results) {
+    if (r.municipalityName !== canonicalName) {
+      throw new Error('Input municipalityName does not match master canonical name');
+    }
+  }
+
+  // Verify that supplied codes are distinct per prefecture
+  const suppliedPrefectures = new Set(masterRows.map((r) => r.prefecture));
+  if (suppliedPrefectures.size !== codes.length) {
+    throw new Error('Mode A batch must contain at most one code per prefecture');
+  }
+
+  // Fetch all eligible prefectures for this municipality name in master
+  const expectedMasterRows = await db
+    .selectDistinct({ prefecture: municipalityMaster.prefecture })
+    .from(municipalityMaster)
+    .where(
+      and(
+        eq(municipalityMaster.name, canonicalName),
+        notSameNameSql,
+        notTokyoSpecialWardSql,
+      ),
+    );
+
+  const expectedPrefectures = new Set(expectedMasterRows.map((r) => r.prefecture));
+  if (
+    suppliedPrefectures.size !== expectedPrefectures.size ||
+    !Array.from(suppliedPrefectures).every((p) => expectedPrefectures.has(p))
+  ) {
+    throw new Error('Mode A batch must contain one representative code for each eligible prefecture');
+  }
+}
+
+async function validateNonAModeBatch(results: SaveMunicipalityQuizResultInput[]): Promise<void> {
+  if (results.length !== 1) {
+    throw new Error('Mode B, C, and D must have exactly 1 result');
+  }
+  const item = results[0];
+  const [masterRow] = await db
+    .select({ code: municipalityMaster.code })
+    .from(municipalityMaster)
+    .where(eq(municipalityMaster.code, item.municipalityCode))
+    .limit(1);
+
+  if (!masterRow) {
+    throw new Error('Invalid municipality code');
+  }
+}
+
+export async function saveMunicipalityQuizResults(
+  results: SaveMunicipalityQuizResultInput[],
+): Promise<{ quizPersisted: boolean; srsPersisted: boolean }> {
+  try {
+    const userId = await requireUserId();
+    if (!checkRateLimit(userId)) throw new Error('Rate limit exceeded');
+
+    const mode = validateBasicBatch(results);
+    if (mode === 'A') {
+      await validateModeABatch(results);
+    } else {
+      await validateNonAModeBatch(results);
+    }
+
+    const serverAnsweredAt = new Date();
+    await db.transaction(async (tx) => {
+      await tx.insert(municipalityQuizResults).values(
+        results.map((r) => ({
+          userId,
+          municipalityCode: r.municipalityCode,
+          municipalityName: r.municipalityName,
+          prefecture: r.prefecture,
+          mode: r.mode,
+          isCorrect: r.isCorrect,
+          answeredAt: serverAnsweredAt,
+          answerTimeMs: normalizeAnswerTimeMs(r.answerTimeMs),
+        })),
+      );
+
+      for (const r of results) {
+        await upsertSrsRecord(userId, r, tx);
+      }
+    });
+
+    return { quizPersisted: true, srsPersisted: true };
+  } catch (e) {
+    console.error('[saveMunicipalityQuizResults] failed', {
+      count: results?.length,
+      mode: results?.[0]?.mode,
+      error: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+    });
+    throw e;
+  }
+}
 
 export async function saveMunicipalityQuizResult(input: {
   municipalityCode: string;
@@ -30,6 +183,9 @@ export async function saveMunicipalityQuizResult(input: {
 
     // Whitelist validate mode
     if (!['A', 'B', 'C', 'D'].includes(input.mode)) throw new Error('Invalid mode');
+    if (input.mode === 'A') {
+      throw new Error('Mode A results must be saved via saveMunicipalityQuizResults batch action');
+    }
 
     // Validate municipality code against master data
     if (!(await getValidCodes()).has(input.municipalityCode)) throw new Error('Invalid municipality code');

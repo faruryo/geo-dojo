@@ -6,14 +6,22 @@ import { EmptyState } from '@/components/dashboard/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const MODE_LABELS: Record<string, string> = {
-  A: 'モードA',
-  B: 'モードB',
-  C: 'モードC',
-  D: 'モードD',
+  A: '県当て(A)',
+  B: '県当て練習(B)',
+  C: '市当て練習(C)',
+  D: '場所当て(D)',
 };
 
-export function WeaknessRanking() {
-  const { data, isLoading } = useWeaknessRanking();
+export function WeaknessRanking({
+  period = 'all',
+  mode = 'all',
+  region = '全国',
+}: {
+  period?: '7d' | '30d' | 'all';
+  mode?: 'all' | 'A' | 'B' | 'C' | 'D';
+  region?: string;
+} = {}) {
+  const { data, isLoading } = useWeaknessRanking({ period, mode, region });
 
   if (isLoading) {
     return (

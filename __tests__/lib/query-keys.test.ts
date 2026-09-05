@@ -10,6 +10,13 @@ describe('queryKeys.recommendation', () => {
   });
 });
 
+describe('queryKeys.dashboard.weakness', () => {
+  it('supports defaults and parameter variations', () => {
+    expect(queryKeys.dashboard.weakness()).toEqual(['dashboard', 'weakness', 'all', 'all', '全国']);
+    expect(queryKeys.dashboard.weakness('7d', 'A', '東北')).toEqual(['dashboard', 'weakness', '7d', 'A', '東北']);
+  });
+});
+
 describe('queryKeys.browserUserId', () => {
   it('is a stable identity key separate from recommendation', () => {
     expect(queryKeys.browserUserId).toEqual(['browser-user-id']);

@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Map, MapPin } from 'lucide-react';
+import { Home, Map, MapPin, BarChart2 } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'ホーム', icon: Home, exact: true },
   { href: '/quiz/prefecture', label: '都道府県', icon: Map, exact: false },
   { href: '/quiz/municipality', label: '市区町村', icon: MapPin, exact: false },
+  { href: '/analytics', label: '分析', icon: BarChart2, exact: false },
 ];
 
 export default function BottomNav() {
