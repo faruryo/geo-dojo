@@ -6,7 +6,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Timer, Trophy, Sparkles } from 'lucide-react';
 import { completionSeEvent, playSe } from '@/lib/quiz/sound-effects';
-import { MuteToggle } from '@/components/quiz/mute-toggle';
+import { TopHud } from '@/components/quiz/hud/top-hud';
+import { BottomHud, type BottomHudContent } from '@/components/quiz/hud/bottom-hud';
+import { useImmersiveLayout } from '@/app/(app)/app-shell';
 import { SessionCountSelector } from '@/components/quiz/session-count-selector';
 import { QuizResultCard } from '@/components/quiz/quiz-result-card';
 import { usePopstateGuard } from '@/lib/hooks/usePopstateGuard';
@@ -199,6 +201,9 @@ export default function PrefectureQuizPage() {
 
   // ── Back-button interception during play ──
   usePopstateGuard(phase === 'playing', () => setPhase('setup'));
+
+  // 都道府県クイズは常に地図問題なので、出題中はそのままフルスクリーン枠にする。
+  useImmersiveLayout(phase === 'playing');
 
   // タイマー進行
   useEffect(() => {
@@ -468,58 +473,35 @@ export default function PrefectureQuizPage() {
 
   // ─── Playing Phase ────────────────────────────────────────────────
 
+  const kana = getPrefectureKana(target);
+  const bottomContent: BottomHudContent =
+    feedback === 'none'
+      ? { kind: 'prompt', title: target }
+      : {
+          kind: 'feedback',
+          correct: feedback === 'correct',
+          detail: kana ? `${target}（${kana}）` : target,
+        };
+
   return (
-    <div className="flex flex-col gap-3 p-4 max-w-md mx-auto">
-      <button
-        type="button"
-        onClick={() => setPhase('setup')}
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors self-start"
-      >
-        <ChevronLeft size={14} />
-        中断して設定に戻る
-      </button>
+    <div className="fixed inset-0 z-40 flex flex-col bg-[#111111]">
+      <TopHud
+        currentIndex={currentIndex}
+        totalQuestions={questions.length}
+        onAbort={() => setPhase('setup')}
+        timer={{ kind: 'elapsed', elapsedMs }}
+      />
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          {currentIndex + 1} / {questions.length}
-        </span>
-        <div className="inline-flex items-center gap-3">
-          <span className="inline-flex items-center gap-1 font-mono text-xs text-foreground/80">
-            <Timer size={13} className="text-muted-foreground" />
-            {formatClearTime(elapsedMs)}
-          </span>
-          <MuteToggle />
-        </div>
-      </div>
-
-      <div className="rounded-xl bg-card p-4 text-center">
-        <p className="text-xs text-muted-foreground mb-1">どこにある？</p>
-        <p className="text-2xl font-bold">{target}</p>
-      </div>
-
-      {feedback !== 'none' && (
-        <div className="text-center">
-          <div
-            className={`text-lg font-semibold ${
-              feedback === 'correct' ? 'text-green-500' : 'text-red-500'
-            }`}
-          >
-            {feedback === 'correct' ? '✓ 正解！' : '✗ 不正解'}
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {target}
-            {getPrefectureKana(target) ? `（${getPrefectureKana(target)}）` : ''}
-          </p>
-        </div>
-      )}
-
-      <div className="w-full max-w-lg mx-auto self-center">
+      {/* 地図は帯のあいだいっぱいに広げる。高さを自前で計算しない。 */}
+      <div className="relative min-h-0 flex-1">
         <JapanMap
           onPrefectureClick={handleTap}
           highlightCorrect={feedback !== 'none' ? target : undefined}
           highlightWrong={feedback === 'wrong' && selected ? selected : undefined}
         />
       </div>
+
+      <BottomHud content={bottomContent} mode="BCD" />
     </div>
   );
 }
