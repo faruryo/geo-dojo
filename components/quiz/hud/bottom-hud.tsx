@@ -27,6 +27,11 @@ interface BottomHudProps {
   readonly selectedCount?: number;
   /** 帯をタップしたときにお題を中央へ再表示する。 */
   readonly onRequestIntro?: () => void;
+  /**
+   * 移動アニメーションを行わない設定のとき、導入の代わりに帯ごと大きく見せる。
+   * 中央のオーバーレイを出さない分をここで補う。
+   */
+  readonly emphasis?: { readonly bandPx: number; readonly textPx: number };
 }
 
 function feedbackStateOf(content: BottomHudContent): HudFeedbackState {
@@ -38,11 +43,12 @@ function PromptBody({
   title,
   subTitle,
   reshowable,
-}: Readonly<{ title: string; subTitle?: string; reshowable: boolean }>) {
+  textPx,
+}: Readonly<{ title: string; subTitle?: string; reshowable: boolean; textPx: number }>) {
   return (
     <p
       className="flex items-baseline justify-center gap-1.5 truncate px-3 text-[#fafafa]"
-      style={{ fontSize: STEADY_TEXT_PX }}
+      style={{ fontSize: textPx }}
     >
       <span className="truncate font-semibold">{title}</span>
       {subTitle && <span className="shrink-0 text-xs text-[#fafafa]/80">{subTitle}</span>}
@@ -57,8 +63,9 @@ export function BottomHud({
   submit,
   selectedCount,
   onRequestIntro,
+  emphasis,
 }: Readonly<BottomHudProps>) {
-  const height = bottomBandHeightPx(mode, feedbackStateOf(content));
+  const height = emphasis?.bandPx ?? bottomBandHeightPx(mode, feedbackStateOf(content));
   const reshowable = content.kind === 'prompt' && onRequestIntro !== undefined;
 
   return (
@@ -83,6 +90,7 @@ export function BottomHud({
               title={content.title}
               subTitle={content.subTitle}
               reshowable={reshowable}
+              textPx={emphasis?.textPx ?? STEADY_TEXT_PX}
             />
           )}
           {content.kind === 'feedback' && (
