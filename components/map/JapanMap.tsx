@@ -12,6 +12,12 @@ import type { Topology } from 'topojson-specification';
 import { Plus, Minus, RotateCcw } from 'lucide-react';
 
 import { calculateFocusTransform } from '@/lib/map/autofocus-bounds';
+import {
+  JAPAN_PROJECTION_CENTER,
+  JAPAN_PROJECTION_SCALE,
+  JAPAN_VIEWBOX_HEIGHT,
+  JAPAN_VIEWBOX_WIDTH,
+} from '@/lib/map/japan-projection';
 
 interface JapanMapProps {
   onPrefectureClick: (name: string) => void;
@@ -222,9 +228,12 @@ export function JapanMap({
         >
           <ComposableMap
             projection="geoMercator"
-            projectionConfig={{ center: createCoordinates(138, 35), scale: 1000 }}
-            width={400}
-            height={500}
+            projectionConfig={{
+              center: createCoordinates(JAPAN_PROJECTION_CENTER[0], JAPAN_PROJECTION_CENTER[1]),
+              scale: JAPAN_PROJECTION_SCALE,
+            }}
+            width={JAPAN_VIEWBOX_WIDTH}
+            height={JAPAN_VIEWBOX_HEIGHT}
             className="w-full h-full"
           >
             <Geographies geography={topology}>

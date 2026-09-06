@@ -1,6 +1,12 @@
 import { feature } from 'topojson-client';
 import type { Topology, GeometryCollection } from 'topojson-specification';
 import { geoMercator } from 'd3-geo';
+import {
+  JAPAN_PROJECTION_CENTER,
+  JAPAN_PROJECTION_SCALE,
+  JAPAN_VIEWBOX_HEIGHT,
+  JAPAN_VIEWBOX_WIDTH,
+} from './japan-projection';
 
 export interface GeoBounds {
   minLng: number;
@@ -125,10 +131,10 @@ export function calculateFocusTransform({
   topology,
   containerWidth,
   containerHeight,
-  viewBoxWidth = 400,
-  viewBoxHeight = 500,
-  projectionCenter = [138, 35],
-  projectionScale = 1000,
+  viewBoxWidth = JAPAN_VIEWBOX_WIDTH,
+  viewBoxHeight = JAPAN_VIEWBOX_HEIGHT,
+  projectionCenter = [...JAPAN_PROJECTION_CENTER],
+  projectionScale = JAPAN_PROJECTION_SCALE,
 }: CalculateFocusTransformOptions): FocusTransformResult {
   const defaultResult: FocusTransformResult = { scale: 1, translate: { x: 0, y: 0 } };
 
