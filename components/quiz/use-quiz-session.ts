@@ -6,6 +6,8 @@ import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
 import { useQuizState, type FeedbackState } from './use-quiz-state';
 import { useQuizTimer, TIME_LIMIT_SEC } from './use-quiz-timer';
 import { useQuizActions } from './use-quiz-actions';
+import { usePrefersReducedMotion } from '@/lib/hooks/usePrefersReducedMotion';
+import { useQuestionIntro } from './hud/use-question-intro';
 
 export { TIME_LIMIT_SEC };
 export type { FeedbackState };
@@ -57,12 +59,18 @@ export function useQuizSession({
   const handleModeDFallback = useCallback(() => setModeDFailed(true), [setModeDFailed]);
   const handleTimeoutCallback = useCallback(() => { void handleTimeout(); }, [handleTimeout]);
 
+  const reducedMotion = usePrefersReducedMotion();
+  const intro = useQuestionIntro(state.qIdx, reducedMotion);
+
   const { timeLeft } = useQuizTimer({
     currentQuestion,
     feedback: state.feedback,
     modeDFailed: state.modeDFailed,
     qIdx: state.qIdx,
     onTimeout: handleTimeoutCallback,
+    // 導入表示が終わるまで持ち時間を減らさない。解答時間の起点は state 側にあり、
+    // ここでは触らない。
+    armed: intro.settled,
   });
 
   return {
@@ -70,6 +78,7 @@ export function useQuizSession({
     ...state,
     currentQuestion,
     timeLeft,
+    intro,
     handlePrefectureTap,
     handleModeDFallback,
   };
