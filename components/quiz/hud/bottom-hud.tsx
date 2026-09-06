@@ -12,8 +12,7 @@ import {
 
 export type BottomHudContent =
   | { readonly kind: 'prompt'; readonly title: string; readonly subTitle?: string }
-  | { readonly kind: 'feedback'; readonly correct: boolean; readonly detail: string }
-  | { readonly kind: 'error'; readonly message: string };
+  | { readonly kind: 'feedback'; readonly correct: boolean; readonly detail: string };
 
 interface BottomHudProps {
   readonly content: BottomHudContent;
@@ -88,9 +87,6 @@ export function BottomHud({
           )}
           {content.kind === 'feedback' && (
             <FeedbackLine correct={content.correct} detail={content.detail} />
-          )}
-          {content.kind === 'error' && (
-            <p className="truncate px-3 text-center text-xs text-[#fafafa]">{content.message}</p>
           )}
         </button>
 

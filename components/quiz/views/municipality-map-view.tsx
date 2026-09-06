@@ -7,9 +7,7 @@ const MunicipalityMap = dynamic(
   () => import('@/components/map/MunicipalityMap').then((m) => m.MunicipalityMap),
   {
     ssr: false,
-    loading: () => (
-      <div className="w-full aspect-square bg-muted rounded-xl animate-pulse" />
-    ),
+    loading: () => <div className="h-full w-full animate-pulse bg-muted" />,
   },
 );
 
@@ -33,7 +31,7 @@ export function MunicipalityMapView({
   onLoadError,
 }: Readonly<MunicipalityMapViewProps>) {
   return (
-    <div className="flex-1 min-h-0 w-full">
+    <div className="h-full w-full">
       <MunicipalityMap
         prefecture={prefecture}
         onMunicipalityClick={onMunicipalityClick}
