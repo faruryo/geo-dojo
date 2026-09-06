@@ -89,6 +89,8 @@ export function MunicipalityMap({
             mapTypeId: 'roadmap',
             disableDefaultUI: false,
             zoomControl: true,
+            // 上端・下端の HUD と指が重ならないよう、既定の右下から側面中央へ寄せる。
+            zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
             streetViewControl: false,
             mapTypeControl: false,
             fullscreenControl: false,
@@ -239,5 +241,5 @@ export function MunicipalityMap({
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
-  return <div ref={containerRef} className="w-full h-full rounded-xl overflow-hidden touch-none" />;
+  return <div ref={containerRef} className="w-full h-full overflow-hidden touch-none" />;
 }
