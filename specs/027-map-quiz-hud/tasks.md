@@ -32,8 +32,8 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 
 **Purpose**: 変更前の値を先に記録する。あとから比較できなくなるものだけを扱う。
 
-- [ ] T001 変更前の地図描画面積を計測して `specs/027-map-quiz-hud/research.md` の D5 節末尾に追記する。`pnpm dev` → `/quiz/municipality/d` を 375×812 で開き、DevTools で `MunicipalityMap` のコンテナ div の実高（px）を記録する。SC-007（130% 以上）の分母になるので、この計測を飛ばすと受け入れ判定ができない
-- [ ] T002 [P] `pnpm test` を実行し `__tests__/lib/quiz/answer-time.test.ts` が緑であることを確認する。FR-024 / FR-050 の回帰基準として、以降このテストを赤くする変更を入れない
+- [x] T001 変更前の地図描画面積を計測して `specs/027-map-quiz-hud/research.md` の D5 節末尾に追記する。`pnpm dev` → `/quiz/municipality/d` を 375×812 で開き、DevTools で `MunicipalityMap` のコンテナ div の実高（px）を記録する。SC-007（130% 以上）の分母になるので、この計測を飛ばすと受け入れ判定ができない
+- [x] T002 [P] `pnpm test` を実行し `__tests__/lib/quiz/answer-time.test.ts` が緑であることを確認する。FR-024 / FR-050 の回帰基準として、以降このテストを赤くする変更を入れない
 
 **Checkpoint**: 比較の基準が揃った
 
@@ -47,17 +47,17 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 
 ### テストを先に書く（失敗することを確認する）
 
-- [ ] T003 [P] `__tests__/lib/quiz/immersive-layout.test.ts` を新規作成する。`sessionUsesImmersiveLayout` のケース表: A のみ / D のみ / B・C のみ / A と B の混在 / D と C の混在 / 空配列。**モジュール未実装で失敗すること**を確認する
-- [ ] T004 [P] `__tests__/lib/quiz/hud-metrics.test.ts` を新規作成する。`resolveIntroPlan(false)` が `mode:'motion'` / `holdMs:1000` / `transitionMs:320`、`resolveIntroPlan(true)` が `mode:'static'` / `holdMs:2500` / `transitionMs:0` / `enlargedBandPx:64` / `enlargedTextPx:24` を返すこと。`bottomBandHeightPx` の3分岐（feedback 時 72 / mode A 52 / それ以外 44）と、**feedback 時はモードによらず同値**（SC-008）であること
+- [x] T003 [P] `__tests__/lib/quiz/immersive-layout.test.ts` を新規作成する。`sessionUsesImmersiveLayout` のケース表: A のみ / D のみ / B・C のみ / A と B の混在 / D と C の混在 / 空配列。**モジュール未実装で失敗すること**を確認する
+- [x] T004 [P] `__tests__/lib/quiz/hud-metrics.test.ts` を新規作成する。`resolveIntroPlan(false)` が `mode:'motion'` / `holdMs:1000` / `transitionMs:320`、`resolveIntroPlan(true)` が `mode:'static'` / `holdMs:2500` / `transitionMs:0` / `enlargedBandPx:64` / `enlargedTextPx:24` を返すこと。`bottomBandHeightPx` の3分岐（feedback 時 72 / mode A 52 / それ以外 44）と、**feedback 時はモードによらず同値**（SC-008）であること
 
 ### 実装
 
-- [ ] T005 [P] `lib/quiz/immersive-layout.ts` に `sessionUsesImmersiveLayout(questions: readonly Question[]): boolean` を実装する。判定条件は `kind === 'A'` または `kind === 'BCD' && mode === 'D'` を1問以上含むこと。**引数に `modeDFailed` / `currentQuestion` / `qIdx` を取らない**（research D2。取ると FR-004 / FR-005 が壊れる）
-- [ ] T006 [P] `lib/quiz/hud-metrics.ts` に data-model.md 4節の定数（`TOP_BAND_PX`=44、`BOTTOM_BAND_PX`=44、`BOTTOM_BAND_MODE_A_PX`=52、`BOTTOM_BAND_FEEDBACK_PX`=72（暫定）、`INTRO_TEXT_PX`=34、`STEADY_TEXT_PX`=16、`MIN_TEXT_PX`=12）と `resolveIntroPlan` / `bottomBandHeightPx` を実装する
-- [ ] T007 T003・T004 の各テストについて、実装側の条件を1つずつ一時的に反転させて**実際に赤くなることを確認**し、確認後に復元して再実行する（`.agents/rules/testing.instructions.md` の MUST）
-- [ ] T008 [P] `lib/hooks/usePrefersReducedMotion.ts` を新規作成する。`window.matchMedia('(prefers-reduced-motion: reduce)')` を購読し、`change` で追随する。SSR 安全に初期値 `false` から始める
-- [ ] T009 `app/(app)/app-shell.tsx` を新規作成する（`'use client'`）。immersive の boolean Context と `useImmersiveLayout(active: boolean)` を公開し、`active` のとき出典 `<footer>`・`<BottomNav />` を描画せず、`<main>` の `paddingBottom` を `0`・`overflowY` を `hidden` にする。`useImmersiveLayout` は effect の cleanup で必ず `false` に戻す（contracts C1）
-- [ ] T010 `app/(app)/layout.tsx` を変更し、`children` を `<AppShell>` で包む。server component のまま（`getCurrentUserId()` の await を残す）。あわせて現行の inline `style`（`height:100dvh` / `flex:1` / `paddingBottom:6rem`）を Tailwind ユーティリティへ移す（Constitution「Tailwind 優先」）
+- [x] T005 [P] `lib/quiz/immersive-layout.ts` に `sessionUsesImmersiveLayout(questions: readonly Question[]): boolean` を実装する。判定条件は `kind === 'A'` または `kind === 'BCD' && mode === 'D'` を1問以上含むこと。**引数に `modeDFailed` / `currentQuestion` / `qIdx` を取らない**（research D2。取ると FR-004 / FR-005 が壊れる）
+- [x] T006 [P] `lib/quiz/hud-metrics.ts` に data-model.md 4節の定数（`TOP_BAND_PX`=44、`BOTTOM_BAND_PX`=44、`BOTTOM_BAND_MODE_A_PX`=52、`BOTTOM_BAND_FEEDBACK_PX`=72（暫定）、`INTRO_TEXT_PX`=34、`STEADY_TEXT_PX`=16、`MIN_TEXT_PX`=12）と `resolveIntroPlan` / `bottomBandHeightPx` を実装する
+- [x] T007 T003・T004 の各テストについて、実装側の条件を1つずつ一時的に反転させて**実際に赤くなることを確認**し、確認後に復元して再実行する（`.agents/rules/testing.instructions.md` の MUST）
+- [x] T008 [P] `lib/hooks/usePrefersReducedMotion.ts` を新規作成する。`window.matchMedia('(prefers-reduced-motion: reduce)')` を購読し、`change` で追随する。SSR 安全に初期値 `false` から始める
+- [x] T009 `app/(app)/app-shell.tsx` を新規作成する（`'use client'`）。immersive の boolean Context と `useImmersiveLayout(active: boolean)` を公開し、`active` のとき出典 `<footer>`・`<BottomNav />` を描画せず、`<main>` の `paddingBottom` を `0`・`overflowY` を `hidden` にする。`useImmersiveLayout` は effect の cleanup で必ず `false` に戻す（contracts C1）
+- [x] T010 `app/(app)/layout.tsx` を変更し、`children` を `<AppShell>` で包む。server component のまま（`getCurrentUserId()` の await を残す）。あわせて現行の inline `style`（`height:100dvh` / `flex:1` / `paddingBottom:6rem`）を Tailwind ユーティリティへ移す（Constitution「Tailwind 優先」）
 
 **Checkpoint**: 枠の出し分けが呼べる状態。ここから US1〜US4 が着手可能
 
@@ -71,19 +71,27 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 
 ### テスト
 
-- [ ] T011 [P] [US1] `__tests__/components/quiz/hud-layout.test.tsx` を新規作成する（先頭に `// @vitest-environment happy-dom`）。`@testing-library` は未導入なので、`__tests__/components/map/autofocus-integration.test.tsx` と同じく `react-dom/client` の `createRoot` + `act` で描画する。ケース: immersive のとき `BottomNav` と出典 footer が DOM に無い / 非 immersive のとき両方ある。**実装前に失敗すること**を確認する
+- [x] T011 [P] [US1] `__tests__/components/quiz/hud-layout.test.tsx` を新規作成する（先頭に `// @vitest-environment happy-dom`）。`@testing-library` は未導入なので、`__tests__/components/map/autofocus-integration.test.tsx` と同じく `react-dom/client` の `createRoot` + `act` で描画する。ケース: immersive のとき `BottomNav` と出典 footer が DOM に無い / 非 immersive のとき両方ある。**実装前に失敗すること**を確認する
 
 ### 実装
 
-- [ ] T012 [US1] `components/quiz/hud/top-hud.tsx` を新規作成する。contracts C3 の Props に従い、中断・進捗（N/M）・`timer`・ミュートを 44px の帯に並べる。`timer` が `undefined` のとき**時間表示の領域を確保しない**（FR-013）。`padding-top: env(safe-area-inset-top)` を持つ。ミュートは既存 `components/quiz/mute-toggle.tsx` を使う。**正解数と難易度バッジを props に足さない**（FR-040 で廃止）
-- [ ] T013 [US1] `components/quiz/hud/bottom-hud.tsx` を新規作成する。この段階では `kind: 'prompt'`（定常のお題 1行 16px）と `kind: 'error'`（地図読み込み失敗の1行）だけを実装する。高さは `bottomBandHeightPx()` のみで決まり、内容で伸縮しない。`padding-bottom: env(safe-area-inset-bottom)` を持つ。背景は `#111111` の完全不透明で、`bg-*/NN`・`backdrop-blur`・`bg-gradient-*` を使わない（FR-035）
-- [ ] T014 [US1] `components/quiz/quiz-runner.tsx` を contracts C2 の3段骨格へ再構成する。`useImmersiveLayout(sessionUsesImmersiveLayout(questions))` を呼び、地図コンテナは `flex-1 min-h-0` にして高さを固定値で計算しない（FR-032 / FR-034 が副作用で満たされる）。帯と地図の間に `gap` を置かない
-- [ ] T015 [US1] `components/quiz/views/mode-a-view.tsx` から確定ボタンと選択中バッジ列（現 70-84 行）を取り除き、`BottomHud` の `submit` と `selectedCount` へ移す。ボタンのラベルは「あと N か所選択」→「解答する」に統合し、お題側の「N か所あります」「あと N か所」表示（`quiz-runner.tsx` の `subTitle` / `extraPrompt`）を廃止する（FR-028 / FR-040）
-- [ ] T016 [US1] `app/(app)/quiz/prefecture/page.tsx` の playing フェーズを3段骨格へ書き換える。`useImmersiveLayout(phase === 'playing')` を呼び、現行の「中断して設定に戻る」リンク・進捗・経過タイム・ミュートを `TopHud`（`timer: { kind: 'elapsed', elapsedMs }`）へ、お題カードを `BottomHud` へ移す。**`startTimeRef` と `performance.now()` の起点には触れない**（FR-024）
-- [ ] T017 [P] [US1] `components/map/JapanMap.tsx` のズームコントロール（224 行付近）を `absolute top-2 right-2` から `absolute right-2 top-1/2 -translate-y-1/2` へ移し、ボタンを `w-9 h-9` から `w-11 h-11`（44px）へ広げる（FR-033 / SC-002）
-- [ ] T018 [P] [US1] `components/map/MunicipalityMap.tsx` の `new maps.Map(...)` オプションに `zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER }` を追加する（FR-033）
-- [ ] T019 [US1] `components/quiz/quiz-header.tsx` を削除する（TopHud に統合済み）。`components/quiz/quiz-question-card.tsx` の出題中の利用を撤去し、他画面から参照がなければ併せて削除する。`pnpm audit:dead-code` で残骸を確認する
-- [ ] T020 [US1] SC-007 を検証する。`/quiz/municipality/d` を 375×812 で開き、地図コンテナの実高が T001 の記録比 **130% 以上**であることを確認して research.md D5 に追記する
+- [x] T012 [US1] `components/quiz/hud/top-hud.tsx` を新規作成する。contracts C3 の Props に従い、中断・進捗（N/M）・`timer`・ミュートを 44px の帯に並べる。`timer` が `undefined` のとき**時間表示の領域を確保しない**（FR-013）。`padding-top: env(safe-area-inset-top)` を持つ。ミュートは既存 `components/quiz/mute-toggle.tsx` を使う。**正解数と難易度バッジを props に足さない**（FR-040 で廃止）
+- [x] T013 [US1] `components/quiz/hud/bottom-hud.tsx` を新規作成する。この段階では `kind: 'prompt'`（定常のお題 1行 16px）と `kind: 'error'`（地図読み込み失敗の1行）だけを実装する。高さは `bottomBandHeightPx()` のみで決まり、内容で伸縮しない。`padding-bottom: env(safe-area-inset-bottom)` を持つ。背景は `#111111` の完全不透明で、`bg-*/NN`・`backdrop-blur`・`bg-gradient-*` を使わない（FR-035）
+- [x] T014 [US1] `components/quiz/quiz-runner.tsx` を contracts C2 の3段骨格へ再構成する。`useImmersiveLayout(sessionUsesImmersiveLayout(questions))` を呼び、地図コンテナは `flex-1 min-h-0` にして高さを固定値で計算しない（FR-032 / FR-034 が副作用で満たされる）。帯と地図の間に `gap` を置かない
+- [x] T015 [US1] `components/quiz/views/mode-a-view.tsx` から確定ボタンと選択中バッジ列（現 70-84 行）を取り除き、`BottomHud` の `submit` と `selectedCount` へ移す。ボタンのラベルは「あと N か所選択」→「解答する」に統合し、お題側の「N か所あります」「あと N か所」表示（`quiz-runner.tsx` の `subTitle` / `extraPrompt`）を廃止する（FR-028 / FR-040）
+- [x] T016 [US1] `app/(app)/quiz/prefecture/page.tsx` の playing フェーズを3段骨格へ書き換える。`useImmersiveLayout(phase === 'playing')` を呼び、現行の「中断して設定に戻る」リンク・進捗・経過タイム・ミュートを `TopHud`（`timer: { kind: 'elapsed', elapsedMs }`）へ、お題カードを `BottomHud` へ移す。**`startTimeRef` と `performance.now()` の起点には触れない**（FR-024）
+- [x] T017 [P] [US1] `components/map/JapanMap.tsx` のズームコントロール（224 行付近）を `absolute top-2 right-2` から `absolute right-2 top-1/2 -translate-y-1/2` へ移し、ボタンを `w-9 h-9` から `w-11 h-11`（44px）へ広げる（FR-033 / SC-002）
+- [x] T018 [P] [US1] `components/map/MunicipalityMap.tsx` の `new maps.Map(...)` オプションに `zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER }` を追加する（FR-033）
+- [ ] T019 ~~`components/quiz/quiz-header.tsx` を削除する~~ **N/A**: 4択のみのセッションは現行レイアウトのまま残す方針（FR-006）なので、`QuizHeader` と `QuizQuestionCard` はその経路で引き続き使う。出題中の HUD からは正解数と難易度バッジを落とし済み（T014 に含む）
+- [x] T020 [US1] SC-007 を検証する。`/quiz/municipality/d` を 375×812 で開き、地図コンテナの実高が T001 の記録比 **130% 以上**であることを確認して research.md D5 に追記する → **達成**: 375×724 = 271,500 px²、ベースライン 167,603 px² 比 **162%**
+
+### 全国 SVG 地図のフレーミング（B026 の取り込み）
+
+- [x] T020a [US1] `lib/map/japan-projection.ts` に投影定数を集約する（viewBox 400×532、center [136.72, 36.44]、scale 1221）。枠は47都道府県の本体ポリゴンの外形が収まる最小範囲とする
+- [x] T020b [US1] `components/map/JapanMap.tsx` の `ComposableMap` と `lib/map/autofocus-bounds.ts` の既定値を、どちらもこの定数から取るようにする。片方だけ変えると自動フォーカスが描画とずれる
+- [x] T020c [P] [US1] `__tests__/lib/map/japan-projection.test.ts` を新規作成する。本体の外形 bbox の四隅が viewBox に収まること、外形が viewBox の 9 割以上を占めることを固定する。3つの変異で赤くなることを確認済み
+- [x] T020d [US1] 県当てで地図面積と全県の可視性を実測する → **達成**: 375×499 = 187,125 px²、変更前 124,605 px² 比 **150%**。47県すべての本体が可視。不正解後の自動フォーカスが動作することも確認
+- [ ] T020e `components/map/MiniJapanMap.tsx` は旧フレーミング（400×500 / center [138,35] / scale 1000）のまま。**N/A**: モード選択ページの装飾用サムネイルで出題画面ではなく、`showZoomFrame` が投影依存の座標を持つ可能性があるためスコープ外とする
 
 **Checkpoint**: 3画面がフルスクリーン枠で動く。US1 は単独で検証可能
 
@@ -107,7 +115,7 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 - [ ] T025 [US2] reduced motion 分岐を実装する。`resolveIntroPlan(true)` のとき中央オーバーレイを描画せず、最初の 2500ms だけ下端の帯を 64px・文字を 24px にしてから通常サイズへ戻す。サイズ変更に transition を付けない（FR-023 / SC-011）
 - [ ] T026 [US2] `components/quiz/use-quiz-timer.ts` に `armed: boolean` を追加し、`armed === false` の間はインターバルを張らないようにする（`timeLeft` は `TIME_LIMIT_SEC` のまま）。**`components/quiz/use-quiz-state.ts` の `startTimeRef` には触れない**（contracts C5 / FR-024）
 - [ ] T027 [US2] `quiz-runner.tsx` で T022 のラッチを `useQuizTimer` の `armed` に渡す。**下端タップによる再表示で `armed` を `false` に戻さない**（戻すと読み返すたびに持ち時間が延び、事実上の無制限になる）
-- [ ] T028 [P] [US2] `components/quiz/hud/feedback-line.tsx` を新規作成する。文字は `#fafafa` に統一し、正解は `#22c55e` の塗り丸＋チェック、不正解は `#ef4444` の塗り丸＋× のアイコンで示す。**文字色に `#22c55e` / `#ef4444` / `#4a7c59` を使わない**（FR-037 / FR-038）
+- [x] T028 [P] [US2] `components/quiz/hud/feedback-line.tsx` を新規作成する。文字は `#fafafa` に統一し、正解は `#22c55e` の塗り丸＋チェック、不正解は `#ef4444` の塗り丸＋× のアイコンで示す。**文字色に `#22c55e` / `#ef4444` / `#4a7c59` を使わない**（FR-037 / FR-038）（**T013 と同時に実施済み**。フィードバック表示を欠いた中間状態を作らないため）
 - [ ] T029 [US2] `BottomHud` に `kind: 'feedback'` を追加する。`detail` は `lib/quiz/feedback-labels.ts` の出力をそのまま渡してよみがなを落とさない（FR-026）。高さは `BOTTOM_BAND_FEEDBACK_PX` 固定で、正解・不正解・文言の長短で変わらない（FR-027 / SC-008）
 - [ ] T030 [US2] `pnpm test` を実行し `__tests__/lib/quiz/answer-time.test.ts` が**緑のまま**であることを確認する。赤い場合は FR-024 / FR-050 を破っているので T026・T027 を見直す
 
@@ -155,6 +163,10 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 **Purpose**: 実測で確定させる値と、横断的な受け入れ確認
 
 - [ ] T037 `BOTTOM_BAND_FEEDBACK_PX` の暫定値 72px を実測で確定する。`lib/quiz/feedback-labels.ts` の最長形（`大和町 （正解: 宮城県: たいわちょう / 神奈川県: やまとまち）`）を 375px 幅で描画し、折り返した実高に合わせて `lib/quiz/hud-metrics.ts` の定数と `__tests__/lib/quiz/hud-metrics.test.ts` の期待値を更新する（research D11）
+- [ ] T037b **SC-012（Google ロゴが帯の直上に可視）は Preview デプロイで検証する。** ローカルの
+  `127.0.0.1:3000` では Maps API キーの referrer 制限を通らず、地図が `StaticMapService.Get` の
+  静止画フォールバックで描画される。この状態ではロゴ・帰属表示・ズームコントロールがそもそも
+  出ないため、可視性を確認できない。PR の Preview URL で確認すること
 - [ ] T038 モード D で不正解 → 自動フォーカスが働く際、帯の高さが変わったあとに Google Maps がビューポートサイズへ追随しているかを確認する。追随していなければ `components/map/MunicipalityMap.tsx` の `fitBounds` の前に `google.maps.event.trigger(map, 'resize')` を挟む（research D8 / FR-034）
 - [ ] T039 [P] セーフエリアを検証する。DevTools のデバイスツールバーで iPhone 系の端末をエミュレートし、上端・下端の HUD がノッチ／ホームインジケータと重なって押せなくならないことを確認する（Edge Cases）
 - [ ] T040 [P] アクセシビリティを検証する。HUD 内の通常文字が `#111111` 上で 7:1 以上・最小 12px 以上（SC-013）、操作対象が 44×44px 以上（SC-002）、DevTools の *Emulate vision deficiencies* → Achromatopsia で正否がアイコンの形だけでも判別できること（FR-037）

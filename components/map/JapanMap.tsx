@@ -12,6 +12,12 @@ import type { Topology } from 'topojson-specification';
 import { Plus, Minus, RotateCcw } from 'lucide-react';
 
 import { calculateFocusTransform } from '@/lib/map/autofocus-bounds';
+import {
+  JAPAN_PROJECTION_CENTER,
+  JAPAN_PROJECTION_SCALE,
+  JAPAN_VIEWBOX_HEIGHT,
+  JAPAN_VIEWBOX_WIDTH,
+} from '@/lib/map/japan-projection';
 
 interface JapanMapProps {
   onPrefectureClick: (name: string) => void;
@@ -198,11 +204,11 @@ export function JapanMap({
   function reset()   { setScale(1); setTranslate({ x: 0, y: 0 }); }
 
   if (!topology) {
-    return <div className="w-full h-full bg-muted rounded-xl animate-pulse" />;
+    return <div className="w-full h-full bg-muted animate-pulse" />;
   }
 
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-xl">
+    <div className="relative w-full h-full overflow-hidden">
       <div
         ref={containerRef}
         className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
@@ -222,9 +228,12 @@ export function JapanMap({
         >
           <ComposableMap
             projection="geoMercator"
-            projectionConfig={{ center: createCoordinates(138, 35), scale: 1000 }}
-            width={400}
-            height={500}
+            projectionConfig={{
+              center: createCoordinates(JAPAN_PROJECTION_CENTER[0], JAPAN_PROJECTION_CENTER[1]),
+              scale: JAPAN_PROJECTION_SCALE,
+            }}
+            width={JAPAN_VIEWBOX_WIDTH}
+            height={JAPAN_VIEWBOX_HEIGHT}
             className="w-full h-full"
           >
             <Geographies geography={topology}>
@@ -256,14 +265,14 @@ export function JapanMap({
       </div>
 
       {/* ズームコントロール */}
-      <div className="absolute top-2 right-2 flex flex-col gap-1">
+      <div className="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col gap-1">
         {[{ fn: zoomIn, icon: <Plus size={16} />, label: 'ズームイン' },
           { fn: zoomOut, icon: <Minus size={16} />, label: 'ズームアウト' },
           { fn: reset, icon: <RotateCcw size={14} />, label: 'リセット' }].map(({ fn, icon, label }) => (
           <button
             key={label}
             onClick={fn}
-            className="w-9 h-9 rounded-lg bg-background/80 border border-border flex items-center justify-center hover:bg-background transition-colors"
+            className="w-11 h-11 rounded-lg bg-background/80 border border-border flex items-center justify-center hover:bg-background transition-colors"
             aria-label={label}
           >
             {icon}

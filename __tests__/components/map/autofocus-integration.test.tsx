@@ -161,6 +161,9 @@ describe('Map Autofocus Component Integration (T004 - Mounted Component Testing)
         Map: vi.fn().mockImplementation(() => mockMap),
         Data: vi.fn().mockImplementation(() => mockDataLayer),
         LatLngBounds: MockLatLngBounds,
+        // 実 API と同じく ControlPosition を生やす。欠けていると地図初期化が
+        // 例外で落ち、autofocus の効果検証まで到達しない。
+        ControlPosition: { RIGHT_CENTER: 7 },
         event: {
           addListenerOnce: vi.fn((_map: unknown, _event: string, callback: (...args: unknown[]) => void) => {
             mockIdleListener = callback;
