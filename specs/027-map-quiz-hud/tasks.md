@@ -85,6 +85,14 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 - [ ] T019 ~~`components/quiz/quiz-header.tsx` を削除する~~ **N/A**: 4択のみのセッションは現行レイアウトのまま残す方針（FR-006）なので、`QuizHeader` と `QuizQuestionCard` はその経路で引き続き使う。出題中の HUD からは正解数と難易度バッジを落とし済み（T014 に含む）
 - [x] T020 [US1] SC-007 を検証する。`/quiz/municipality/d` を 375×812 で開き、地図コンテナの実高が T001 の記録比 **130% 以上**であることを確認して research.md D5 に追記する → **達成**: 375×724 = 271,500 px²、ベースライン 167,603 px² 比 **162%**
 
+### 全国 SVG 地図のフレーミング（B026 の取り込み）
+
+- [x] T020a [US1] `lib/map/japan-projection.ts` に投影定数を集約する（viewBox 400×532、center [136.72, 36.44]、scale 1221）。枠は47都道府県の本体ポリゴンの外形が収まる最小範囲とする
+- [x] T020b [US1] `components/map/JapanMap.tsx` の `ComposableMap` と `lib/map/autofocus-bounds.ts` の既定値を、どちらもこの定数から取るようにする。片方だけ変えると自動フォーカスが描画とずれる
+- [x] T020c [P] [US1] `__tests__/lib/map/japan-projection.test.ts` を新規作成する。本体の外形 bbox の四隅が viewBox に収まること、外形が viewBox の 9 割以上を占めることを固定する。3つの変異で赤くなることを確認済み
+- [x] T020d [US1] 県当てで地図面積と全県の可視性を実測する → **達成**: 375×499 = 187,125 px²、変更前 124,605 px² 比 **150%**。47県すべての本体が可視。不正解後の自動フォーカスが動作することも確認
+- [ ] T020e `components/map/MiniJapanMap.tsx` は旧フレーミング（400×500 / center [138,35] / scale 1000）のまま。**N/A**: モード選択ページの装飾用サムネイルで出題画面ではなく、`showZoomFrame` が投影依存の座標を持つ可能性があるためスコープ外とする
+
 **Checkpoint**: 3画面がフルスクリーン枠で動く。US1 は単独で検証可能
 
 ---
