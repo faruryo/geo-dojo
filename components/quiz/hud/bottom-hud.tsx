@@ -46,14 +46,19 @@ function PromptBody({
   textPx,
 }: Readonly<{ title: string; subTitle?: string; reshowable: boolean; textPx: number }>) {
   return (
-    <p
+    <span
       className="flex items-baseline justify-center gap-1.5 truncate px-3 text-[#fafafa]"
       style={{ fontSize: textPx }}
     >
       <span className="truncate font-semibold">{title}</span>
       {subTitle && <span className="shrink-0 text-xs text-[#fafafa]/80">{subTitle}</span>}
-      {reshowable && <ZoomIn size={14} className="shrink-0 self-center" aria-hidden />}
-    </p>
+      {reshowable && (
+        <>
+          <ZoomIn size={14} className="shrink-0 self-center" aria-hidden />
+          <span className="sr-only">（タップでお題を再表示）</span>
+        </>
+      )}
+    </span>
   );
 }
 
@@ -78,25 +83,30 @@ export function BottomHud({
         // 不正解後の自動フォーカスが安定しない。
         style={{ height }}
       >
-        <button
-          type="button"
-          onClick={reshowable ? onRequestIntro : undefined}
-          disabled={!reshowable}
-          aria-label={reshowable ? 'お題をもう一度大きく表示する' : undefined}
-          className="min-w-0 flex-1 text-left disabled:cursor-default"
-        >
-          {content.kind === 'prompt' && (
+        {/* aria-label は付けない。付けると子要素のお題がアクセシブル名から外れ、
+            中央の導入表示は aria-hidden なので読み上げでお題を取得できなくなる。
+            操作の説明は sr-only のテキストで添える。 */}
+        {content.kind === 'prompt' ? (
+          <button
+            type="button"
+            onClick={onRequestIntro}
+            disabled={!reshowable}
+            className="min-w-0 flex-1 text-left disabled:cursor-default"
+          >
             <PromptBody
               title={content.title}
               subTitle={content.subTitle}
               reshowable={reshowable}
               textPx={emphasis?.textPx ?? STEADY_TEXT_PX}
             />
-          )}
-          {content.kind === 'feedback' && (
+          </button>
+        ) : (
+          // フィードバックは操作対象ではない。button に入れると無効な操作要素として
+          // 読み飛ばされうるうえ、p を button の中に置けない。
+          <div className="min-w-0 flex-1">
             <FeedbackLine correct={content.correct} detail={content.detail} />
-          )}
-        </button>
+          </div>
+        )}
 
         {selectedCount !== undefined && content.kind === 'prompt' && (
           <span className="shrink-0 font-mono text-xs tabular-nums text-[#fafafa]">
