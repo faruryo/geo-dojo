@@ -33,6 +33,12 @@ export function useQuizTimer({
     onTimeoutRef.current = onTimeout;
   });
 
+  // 問題が変わったら armed を待たずに戻す。armed が立つまでの導入表示のあいだ、
+  // 前問の残秒数（タイムアウトなら 0）が出たままになり、開始と同時に跳ね上がる。
+  useEffect(() => {
+    setTimeLeft(TIME_LIMIT_SEC);
+  }, [qIdx]);
+
   useEffect(() => {
     if (feedback !== 'idle' || !currentQuestion || !armed) return;
     const isTimed = currentQuestion.kind === 'BCD' && currentQuestion.mode === 'D' && !modeDFailed;
