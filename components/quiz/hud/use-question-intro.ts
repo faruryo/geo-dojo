@@ -30,10 +30,14 @@ export function useQuestionIntro(qIdx: number, reducedMotion: boolean): Question
   const [settled, setSettled] = useState(false);
   const [introNonce, setIntroNonce] = useState(0);
 
+  // 定常状態からのみ受け付ける。導入中に受け付けると hold を張り直せてしまい、
+  // 連打で settled を false のまま保てるため、モード D のカウントダウンを
+  // いつまでも始めさせないことができる。
   const requestIntro = useCallback(() => {
+    if (phase !== 'steady') return;
     setIntroNonce((n) => n + 1);
     setPhase('intro');
-  }, []);
+  }, [phase]);
 
   // 問題が切り替わったら、導入をやり直してタイマーの許可も外す。
   const prevQIdxRef = useRef(qIdx);

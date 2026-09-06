@@ -102,6 +102,18 @@ describe('useQuestionIntro（通常）', () => {
     expect(latest?.settled).toBe(true);
   });
 
+  it('導入中の再表示要求は無視する（連打で持ち時間を先延ばしできない）', () => {
+    render(0, false);
+
+    // 定常へ到達する前に何度も要求しても hold が張り直されない
+    for (let i = 0; i < 5; i++) {
+      advance(400);
+      act(() => latest?.requestIntro());
+    }
+
+    expect(latest?.settled).toBe(true);
+  });
+
   it('再表示した導入も同じ時間で定常へ戻る', () => {
     render(0, false);
     settle(false);
