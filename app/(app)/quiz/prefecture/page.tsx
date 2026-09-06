@@ -9,6 +9,14 @@ import { completionSeEvent, playSe } from '@/lib/quiz/sound-effects';
 import { TopHud } from '@/components/quiz/hud/top-hud';
 import { BottomHud, type BottomHudContent } from '@/components/quiz/hud/bottom-hud';
 import { useImmersiveLayout } from '@/app/(app)/app-shell';
+import { QuestionIntro } from '@/components/quiz/hud/question-intro';
+import {
+  introEmphasis,
+  questionIntroKey,
+  showsIntroOverlay,
+  useQuestionIntro,
+} from '@/components/quiz/hud/use-question-intro';
+import { usePrefersReducedMotion } from '@/lib/hooks/usePrefersReducedMotion';
 import { SessionCountSelector } from '@/components/quiz/session-count-selector';
 import { QuizResultCard } from '@/components/quiz/quiz-result-card';
 import { usePopstateGuard } from '@/lib/hooks/usePopstateGuard';
@@ -204,6 +212,12 @@ export default function PrefectureQuizPage() {
 
   // 都道府県クイズは常に地図問題なので、出題中はそのままフルスクリーン枠にする。
   useImmersiveLayout(phase === 'playing');
+
+  const reducedMotion = usePrefersReducedMotion();
+  const intro = useQuestionIntro(
+    questionIntroKey(phase === 'playing', currentIndex),
+    reducedMotion,
+  );
 
   // タイマー進行
   useEffect(() => {
@@ -483,6 +497,10 @@ export default function PrefectureQuizPage() {
           detail: kana ? `${target}（${kana}）` : target,
         };
 
+  const isPrompt = bottomContent.kind === 'prompt';
+  const showIntro = showsIntroOverlay(intro, isPrompt);
+  const emphasis = introEmphasis(intro, isPrompt);
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-[#111111]">
       <TopHud
@@ -501,7 +519,20 @@ export default function PrefectureQuizPage() {
         />
       </div>
 
-      <BottomHud content={bottomContent} mode="BCD" />
+      {showIntro && (
+        <QuestionIntro
+          phase={intro.phase}
+          transitionMs={intro.plan.transitionMs}
+          title={target}
+        />
+      )}
+
+      <BottomHud
+        content={bottomContent}
+        mode="BCD"
+        onRequestIntro={intro.requestIntro}
+        emphasis={emphasis}
+      />
     </div>
   );
 }

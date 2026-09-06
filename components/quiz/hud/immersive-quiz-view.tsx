@@ -14,7 +14,13 @@ import { ChoiceView } from '../views/choice-view';
 import { ModeAView } from '../views/mode-a-view';
 import { MunicipalityMapView } from '../views/municipality-map-view';
 import { BottomHud, type BottomHudContent } from './bottom-hud';
+import { QuestionIntro } from './question-intro';
 import { TopHud, type HudTimer } from './top-hud';
+import {
+  introEmphasis,
+  showsIntroOverlay,
+  type QuestionIntro as QuestionIntroState,
+} from './use-question-intro';
 
 /**
  * 地図問題を含むセッションの出題画面。
@@ -39,6 +45,7 @@ type QuizSessionValue = {
   readonly handleChoice: (choice: string, mode: 'B' | 'C') => void;
   readonly handleDTap: (code: string, name: string) => void;
   readonly handleModeDFallback: () => void;
+  readonly intro: QuestionIntroState;
 };
 
 /** 単問モードの識別子。フォールバック後の実効モードもこの型で扱う。 */
@@ -111,6 +118,25 @@ function correctChoiceOf(municipality: Municipality, mode: SingleMode): string {
   return mode === 'B' ? municipality.prefecture : municipality.name;
 }
 
+function emphasisOf(intro: QuestionIntroState, content: BottomHudContent) {
+  return introEmphasis(intro, content.kind === 'prompt');
+}
+
+function IntroOverlay({
+  intro,
+  content,
+}: Readonly<{ intro: QuestionIntroState; content: BottomHudContent }>) {
+  if (!showsIntroOverlay(intro, content.kind === 'prompt') || content.kind !== 'prompt') return null;
+  return (
+    <QuestionIntro
+      phase={intro.phase}
+      transitionMs={intro.plan.transitionMs}
+      title={content.title}
+      subTitle={content.subTitle}
+    />
+  );
+}
+
 function Stage({ children }: Readonly<{ children: React.ReactNode }>) {
   return <div className="relative min-h-0 flex-1">{children}</div>;
 }
@@ -162,9 +188,10 @@ function ModeAStageAndHud({
   questionCount: number;
   onAbort: () => void;
 }>) {
-  const { qIdx, feedback, selectedPrefectures, handlePrefectureTap, handleModeASubmit } = session;
+  const { qIdx, feedback, selectedPrefectures, handlePrefectureTap, handleModeASubmit, intro } = session;
   const remaining = question.correctPrefectures.size - selectedPrefectures.size;
   const canSubmit = remaining === 0 && feedback === 'idle';
+  const content = modeAContent(question, feedback);
 
   return (
     <>
@@ -178,10 +205,13 @@ function ModeAStageAndHud({
           onPrefectureTap={handlePrefectureTap}
         />
       </Stage>
+      <IntroOverlay intro={intro} content={content} />
       <BottomHud
-        content={modeAContent(question, feedback)}
+        content={content}
         mode="A"
         selectedCount={feedback === 'idle' ? selectedPrefectures.size : undefined}
+        onRequestIntro={intro.requestIntro}
+        emphasis={emphasisOf(intro, content)}
         submit={{
           label: submitLabel(remaining, canSubmit, feedback),
           disabled: !canSubmit,
@@ -189,6 +219,27 @@ function ModeAStageAndHud({
         }}
       />
     </>
+  );
+}
+
+function SingleStage({
+  question,
+  session,
+  isMap,
+}: Readonly<{ question: SingleQuestion; session: QuizSessionValue; isMap: boolean }>) {
+  const { qIdx, feedback, modeDFailed, correctCodes, wrongCodes, handleDTap, handleModeDFallback } =
+    session;
+  if (!isMap) return modeDFailed ? <FallbackNotice /> : null;
+  return (
+    <MunicipalityMapView
+      prefecture={question.municipality.prefecture}
+      qIdx={qIdx}
+      correctCodes={correctCodes}
+      wrongCodes={wrongCodes}
+      feedback={feedback}
+      onMunicipalityClick={handleDTap}
+      onLoadError={handleModeDFallback}
+    />
   );
 }
 
@@ -203,11 +254,9 @@ function SingleStageAndHud({
   questionCount: number;
   onAbort: () => void;
 }>) {
-  const {
-    qIdx, feedback, modeDFailed, timeLeft, correctCodes, wrongCodes,
-    selectedChoice, handleChoice, handleDTap, handleModeDFallback,
-  } = session;
+  const { qIdx, feedback, modeDFailed, timeLeft, selectedChoice, handleChoice, intro } = session;
   const effectiveMode = effectiveModeOf(question, modeDFailed);
+  const content = singleContent(question, effectiveMode, feedback);
   const isMap = effectiveMode === 'D';
   const timer: HudTimer | undefined = isMap
     ? { kind: 'countdown', secondsLeft: timeLeft, totalSeconds: TIME_LIMIT_SEC }
@@ -222,19 +271,11 @@ function SingleStageAndHud({
         timer={timer}
       />
       <Stage>
-        {isMap ? (
-          <MunicipalityMapView
-            prefecture={question.municipality.prefecture}
-            qIdx={qIdx}
-            correctCodes={correctCodes}
-            wrongCodes={wrongCodes}
-            feedback={feedback}
-            onMunicipalityClick={handleDTap}
-            onLoadError={handleModeDFallback}
-          />
-        ) : (
-          modeDFailed && <FallbackNotice />
-        )}
+        <SingleStage
+          question={question}
+          session={session}
+          isMap={isMap}
+        />
       </Stage>
       {!isMap && (
         <ChoicePanel
@@ -245,7 +286,13 @@ function SingleStageAndHud({
           onSelectChoice={(c) => handleChoice(c, question.mode === 'B' ? 'B' : 'C')}
         />
       )}
-      <BottomHud content={singleContent(question, effectiveMode, feedback)} mode="BCD" />
+      <IntroOverlay intro={intro} content={content} />
+      <BottomHud
+        content={content}
+        mode="BCD"
+        onRequestIntro={intro.requestIntro}
+        emphasis={emphasisOf(intro, content)}
+      />
     </>
   );
 }
