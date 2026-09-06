@@ -12,6 +12,7 @@ import { useImmersiveLayout } from '@/app/(app)/app-shell';
 import { QuestionIntro } from '@/components/quiz/hud/question-intro';
 import {
   introEmphasis,
+  questionIntroKey,
   showsIntroOverlay,
   useQuestionIntro,
 } from '@/components/quiz/hud/use-question-intro';
@@ -213,7 +214,10 @@ export default function PrefectureQuizPage() {
   useImmersiveLayout(phase === 'playing');
 
   const reducedMotion = usePrefersReducedMotion();
-  const intro = useQuestionIntro(currentIndex, reducedMotion);
+  const intro = useQuestionIntro(
+    questionIntroKey(phase === 'playing', currentIndex),
+    reducedMotion,
+  );
 
   // タイマー進行
   useEffect(() => {

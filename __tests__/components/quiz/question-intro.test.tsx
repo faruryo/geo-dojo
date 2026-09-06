@@ -2,7 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { useQuestionIntro, type QuestionIntro } from '@/components/quiz/hud/use-question-intro';
+import {
+  questionIntroKey,
+  useQuestionIntro,
+  type QuestionIntro,
+} from '@/components/quiz/hud/use-question-intro';
 
 (globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -82,6 +86,19 @@ describe('useQuestionIntro（通常）', () => {
     expect(latest?.settled).toBe(false);
   });
 
+  it('出題外のキーから出題へ入ると導入をやり直す（都道府県クイズの初回）', () => {
+    // setup 中は -1 で動き、放置すれば定常へ達している
+    render(-1, false);
+    settle(false);
+    expect(latest?.phase).toBe('steady');
+
+    // スタート押下で最初の問題（0）へ
+    render(0, false);
+
+    expect(latest?.phase).toBe('intro');
+    expect(latest?.settled).toBe(false);
+  });
+
   it('下端タップで再表示できる', () => {
     render(0, false);
     settle(false);
@@ -145,5 +162,18 @@ describe('useQuestionIntro（prefers-reduced-motion）', () => {
     advance(320);
 
     expect(latest?.phase).toBe('intro');
+  });
+});
+
+describe('questionIntroKey', () => {
+  it('出題中はその問題の番号をそのまま使う', () => {
+    expect(questionIntroKey(true, 0)).toBe(0);
+    expect(questionIntroKey(true, 3)).toBe(3);
+  });
+
+  it('出題外では出題中と重ならない値を返す', () => {
+    const idle = questionIntroKey(false, 0);
+    expect(idle).not.toBe(questionIntroKey(true, 0));
+    expect(idle).toBeLessThan(0);
   });
 });
