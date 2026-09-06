@@ -105,19 +105,19 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 
 ### テスト
 
-- [ ] T021 [P] [US2] `__tests__/components/quiz/question-intro.test.tsx` を新規作成する（happy-dom + `vi.useFakeTimers()`）。ケース: `qIdx` 変化で `intro` に入る / `holdMs` 経過で `settling` / さらに `transitionMs` で `steady` / 再表示要求で `intro` へ戻る / reduced motion のとき `intro` を経ず `steady` から始まる。**実装前に失敗すること**を確認する
+- [x] T021 [P] [US2] `__tests__/components/quiz/question-intro.test.tsx` を新規作成する（happy-dom + `vi.useFakeTimers()`）。ケース: `qIdx` 変化で `intro` に入る / `holdMs` 経過で `settling` / さらに `transitionMs` で `steady` / 再表示要求で `intro` へ戻る / reduced motion のとき `intro` を経ず `steady` から始まる。**実装前に失敗すること**を確認する
 
 ### 実装
 
-- [ ] T022 [US2] `components/quiz/hud/use-question-intro.ts` を新規作成する。`qIdx` と `usePrefersReducedMotion()` を入力に `'intro' | 'settling' | 'steady'` を進める。タイムラインは `resolveIntroPlan()` から取り、hook 側には `setTimeout` だけを残す（判断は pure 関数側。testing rules）。あわせて「その `qIdx` で導入が**初回**完了したか」のラッチを返す
-- [ ] T023 [US2] `components/quiz/hud/question-intro.tsx` を新規作成する。3段骨格の**兄弟**として絶対配置し（地図コンテナの中に入れない）、`transform: translateY() scale()` と `opacity` のみを遷移させる。`height` / `top` / `width` はアニメーションさせない（Performance Goals）。文字は `INTRO_TEXT_PX`（34px）
-- [ ] T024 [US2] `BottomHud` に `onRequestIntro` を追加し、帯タップで導入表示を再現できるようにする。再表示できることを示す拡大アイコンを `kind: 'prompt'` のとき添える。`submit` ボタンと4択ボタンの上ではタップを発火させない（FR-022 / contracts C4）
-- [ ] T025 [US2] reduced motion 分岐を実装する。`resolveIntroPlan(true)` のとき中央オーバーレイを描画せず、最初の 2500ms だけ下端の帯を 64px・文字を 24px にしてから通常サイズへ戻す。サイズ変更に transition を付けない（FR-023 / SC-011）
-- [ ] T026 [US2] `components/quiz/use-quiz-timer.ts` に `armed: boolean` を追加し、`armed === false` の間はインターバルを張らないようにする（`timeLeft` は `TIME_LIMIT_SEC` のまま）。**`components/quiz/use-quiz-state.ts` の `startTimeRef` には触れない**（contracts C5 / FR-024）
-- [ ] T027 [US2] `quiz-runner.tsx` で T022 のラッチを `useQuizTimer` の `armed` に渡す。**下端タップによる再表示で `armed` を `false` に戻さない**（戻すと読み返すたびに持ち時間が延び、事実上の無制限になる）
+- [x] T022 [US2] `components/quiz/hud/use-question-intro.ts` を新規作成する。`qIdx` と `usePrefersReducedMotion()` を入力に `'intro' | 'settling' | 'steady'` を進める。タイムラインは `resolveIntroPlan()` から取り、hook 側には `setTimeout` だけを残す（判断は pure 関数側。testing rules）。あわせて「その `qIdx` で導入が**初回**完了したか」のラッチを返す
+- [x] T023 [US2] `components/quiz/hud/question-intro.tsx` を新規作成する。3段骨格の**兄弟**として絶対配置し（地図コンテナの中に入れない）、`transform: translateY() scale()` と `opacity` のみを遷移させる。`height` / `top` / `width` はアニメーションさせない（Performance Goals）。文字は `INTRO_TEXT_PX`（34px）
+- [x] T024 [US2] `BottomHud` に `onRequestIntro` を追加し、帯タップで導入表示を再現できるようにする。再表示できることを示す拡大アイコンを `kind: 'prompt'` のとき添える。`submit` ボタンと4択ボタンの上ではタップを発火させない（FR-022 / contracts C4）
+- [x] T025 [US2] reduced motion 分岐を実装する。`resolveIntroPlan(true)` のとき中央オーバーレイを描画せず、最初の 2500ms だけ下端の帯を 64px・文字を 24px にしてから通常サイズへ戻す。サイズ変更に transition を付けない（FR-023 / SC-011）
+- [x] T026 [US2] `components/quiz/use-quiz-timer.ts` に `armed: boolean` を追加し、`armed === false` の間はインターバルを張らないようにする（`timeLeft` は `TIME_LIMIT_SEC` のまま）。**`components/quiz/use-quiz-state.ts` の `startTimeRef` には触れない**（contracts C5 / FR-024）
+- [x] T027 [US2] `quiz-runner.tsx` で T022 のラッチを `useQuizTimer` の `armed` に渡す。**下端タップによる再表示で `armed` を `false` に戻さない**（戻すと読み返すたびに持ち時間が延び、事実上の無制限になる）
 - [x] T028 [P] [US2] `components/quiz/hud/feedback-line.tsx` を新規作成する。文字は `#fafafa` に統一し、正解は `#22c55e` の塗り丸＋チェック、不正解は `#ef4444` の塗り丸＋× のアイコンで示す。**文字色に `#22c55e` / `#ef4444` / `#4a7c59` を使わない**（FR-037 / FR-038）（**T013 と同時に実施済み**。フィードバック表示を欠いた中間状態を作らないため）
-- [ ] T029 [US2] `BottomHud` に `kind: 'feedback'` を追加する。`detail` は `lib/quiz/feedback-labels.ts` の出力をそのまま渡してよみがなを落とさない（FR-026）。高さは `BOTTOM_BAND_FEEDBACK_PX` 固定で、正解・不正解・文言の長短で変わらない（FR-027 / SC-008）
-- [ ] T030 [US2] `pnpm test` を実行し `__tests__/lib/quiz/answer-time.test.ts` が**緑のまま**であることを確認する。赤い場合は FR-024 / FR-050 を破っているので T026・T027 を見直す
+- [x] T029 [US2] `BottomHud` に `kind: 'feedback'` を追加する。`detail` は `lib/quiz/feedback-labels.ts` の出力をそのまま渡してよみがなを落とさない（FR-026）。高さは `BOTTOM_BAND_FEEDBACK_PX` 固定で、正解・不正解・文言の長短で変わらない（FR-027 / SC-008）
+- [x] T030 [US2] `pnpm test` を実行し `__tests__/lib/quiz/answer-time.test.ts` が**緑のまま**であることを確認する。赤い場合は FR-024 / FR-050 を破っているので T026・T027 を見直す → **緑のまま**（322 passed）
 
 **Checkpoint**: 導入表示とタイマー分離が動く。US1 + US2 で spec の P1 が揃う
 
