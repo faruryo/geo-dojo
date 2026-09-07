@@ -1,6 +1,7 @@
 'use client';
 
-import { ChevronLeft, Timer } from 'lucide-react';
+import { Timer } from 'lucide-react';
+import { AbortConfirm } from '@/components/quiz/hud/abort-confirm';
 import { MuteToggle } from '@/components/quiz/mute-toggle';
 import { formatClearTime } from '@/lib/quiz/prefecture-quiz';
 import { TOP_BAND_PX } from '@/lib/quiz/hud-metrics';
@@ -70,15 +71,7 @@ export function TopHud({
         className="flex items-center justify-between gap-2 px-1"
         style={{ height: TOP_BAND_PX }}
       >
-        <button
-          type="button"
-          onClick={onAbort}
-          aria-label="クイズを中断する"
-          className="inline-flex h-11 min-w-11 items-center gap-0.5 px-2 text-xs text-[#fafafa]"
-        >
-          <ChevronLeft size={16} aria-hidden />
-          中断
-        </button>
+        <AbortConfirm onAbort={onAbort} />
 
         <span className="font-mono text-xs tabular-nums text-[#fafafa]">
           {currentIndex + 1} / {totalQuestions}
