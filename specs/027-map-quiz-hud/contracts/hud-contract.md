@@ -95,9 +95,7 @@ interface TopHudProps {
 ```ts
 type BottomHudContent =
   | { readonly kind: 'prompt'; readonly title: string; readonly subTitle?: string }
-  | { readonly kind: 'feedback'; readonly correct: boolean; readonly detail: string }
-  | { readonly kind: 'choices'; /* 復習セッション中の4択（FR-029） */ … }
-  | { readonly kind: 'error'; readonly message: string };  // 地図読み込み失敗の1行
+  | { readonly kind: 'feedback'; readonly correct: boolean; readonly detail: string };
 
 interface BottomHudProps {
   readonly content: BottomHudContent;
@@ -109,13 +107,25 @@ interface BottomHudProps {
   };
   readonly selectedCount?: number;    // A の選択件数を1行で（FR-028）
   readonly onRequestIntro: () => void; // 帯タップでお題を再表示（FR-022）
+  readonly choices?: {                // 復習セッション中の4択（FR-029）
+    readonly items: readonly string[];
+    readonly selected: string | null;
+    readonly correct: string;
+    readonly feedback: FeedbackState;
+    readonly onSelect: (choice: string) => void;
+  };
 }
 ```
 
 **契約**:
 
-- 高さは `bottomBandHeightPx(mode, feedback)` の戻り値のみで決まる。
-  内容の長短で伸縮しない（FR-027 / SC-008）。
+- お題（またはフィードバック）を載せる行の高さは `bottomBandHeightPx(mode, feedback)` の
+  戻り値のみで決まる。内容の長短で伸縮しない（FR-027 / SC-008）。
+- **4択は `content` のバリアントにしない。** 選択肢4つは上の固定高に収まらないため、
+  `choices` を別の領域として受け取り、お題の行の直上に積む。下端 HUD の内側に置くことで
+  FR-029 を満たしつつ、お題の行の高さ不変を保つ。
+- 地図読み込み失敗の告知は下端 HUD では扱わない。帯の高さを増やさずに済むよう、
+  地図の代わりに `Stage` の中へ1行で出す。
 - `kind: 'feedback'` の `detail` は `lib/quiz/feedback-labels.ts` の出力をそのまま渡す。
   よみがなを落とさない（FR-026）。
 - 正否は文字色ではなく `FeedbackLine` の色付きアイコンで示す。

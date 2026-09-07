@@ -157,11 +157,12 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 
 - [x] T034 [US4] 復習セッション中の4択を下端 HUD の領域に表示する（FR-029）。
 
-  当初は `bottom-hud.tsx` に `kind: 'choices'` を足す想定だったが、US1 の時点で
-  `immersive-quiz-view.tsx` の `ChoicePanel` が帯の直前に選択肢を出しており、要件は既に
-  満たしていた。帯の中へ移す案は採らない。帯は `bottomBandHeightPx` で高さを固定しており、
-  これは問題ごとに地図コンテナの高さが変わると不正解後の自動フォーカスが安定しないためで、
-  4択（約 200px）を飲み込ませるとその前提が壊れる。
+  `content` のバリアント（`kind: 'choices'`）にはしていない。C4 は同時に
+  「高さは `bottomBandHeightPx` の戻り値のみで決まる」とも定めており、44〜52px の行に
+  選択肢4つは入らないため、この2つは両立しない。FR-029 は「下端 HUD の**領域**に表示する」
+  なので、`BottomHud` が `choices` を別の領域として受け取り、お題の行の直上に積む形にした。
+  これで下端 HUD の内側という要件と、お題の行の高さ不変（FR-027 / SC-008）が両立する。
+  C4 の記述もこれに合わせて修正した。
   回帰テスト: `__tests__/components/quiz/review-session-frame.test.tsx`
 - [x] T035 [US4] `app/(app)/quiz/review/page.tsx` を通しで検証する。ローカルスタックの Studio（http://127.0.0.1:54323）で `srs_records` の `due_date` を過去日にして A・B/C・D が混ざるバッチを作り、セッション全体で枠が一度も変わらないことを確認する（SC-009）。**本番 DB では絶対に行わない**（Preview は本番 Supabase を共有する）
 

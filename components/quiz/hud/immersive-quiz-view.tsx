@@ -11,7 +11,6 @@ import type {
 } from '../use-quiz-session';
 // 定義元から直接取る。use-quiz-session 越しだと保存系の server action まで芋づるで付いてくる。
 import { TIME_LIMIT_SEC } from '../use-quiz-timer';
-import { ChoiceView } from '../views/choice-view';
 import { ModeAView } from '../views/mode-a-view';
 import { MunicipalityMapView } from '../views/municipality-map-view';
 import { BottomHud, type BottomHudContent } from './bottom-hud';
@@ -152,32 +151,6 @@ function FallbackNotice() {
   );
 }
 
-function ChoicePanel({
-  choices,
-  selectedChoice,
-  correctChoice,
-  feedback,
-  onSelectChoice,
-}: Readonly<{
-  choices: readonly string[];
-  selectedChoice: string | null;
-  correctChoice: string;
-  feedback: FeedbackState;
-  onSelectChoice: (choice: string) => void;
-}>) {
-  return (
-    <div className="shrink-0 bg-[#111111] px-3 pb-2">
-      <ChoiceView
-        choices={choices}
-        selectedChoice={selectedChoice}
-        correctChoice={correctChoice}
-        feedback={feedback}
-        onSelectChoice={onSelectChoice}
-      />
-    </div>
-  );
-}
-
 function ModeAStageAndHud({
   question,
   session,
@@ -278,21 +251,23 @@ function SingleStageAndHud({
           isMap={isMap}
         />
       </Stage>
-      {!isMap && (
-        <ChoicePanel
-          choices={question.choices}
-          selectedChoice={selectedChoice}
-          correctChoice={correctChoiceOf(question.municipality, question.mode)}
-          feedback={feedback}
-          onSelectChoice={(c) => handleChoice(c, question.mode === 'B' ? 'B' : 'C')}
-        />
-      )}
       <IntroOverlay intro={intro} content={content} />
       <BottomHud
         content={content}
         mode="BCD"
         onRequestIntro={intro.requestIntro}
         emphasis={emphasisOf(intro, content)}
+        choices={
+          isMap
+            ? undefined
+            : {
+                items: question.choices,
+                selected: selectedChoice,
+                correct: correctChoiceOf(question.municipality, question.mode),
+                feedback,
+                onSelect: (c) => handleChoice(c, question.mode === 'B' ? 'B' : 'C'),
+              }
+        }
       />
     </>
   );

@@ -110,6 +110,13 @@ function frameShape() {
   };
 }
 
+/** お題（またはフィードバック）を載せる行の高さ。選択肢の有無で変わってはいけない。 */
+function bandRowHeight(): string | undefined {
+  const rows = host.querySelectorAll('footer > div');
+  const row = rows[rows.length - 1] as HTMLElement | undefined;
+  return row?.style.height;
+}
+
 const choiceLabels = () =>
   [...host.querySelectorAll('button')]
     .map((b) => b.textContent?.trim() ?? '')
@@ -140,7 +147,7 @@ describe('復習セッションの枠', () => {
     expect(d).toEqual(a);
   });
 
-  it('4択は枠の中の下端側に出す（別画面へ飛ばさない）', () => {
+  it('4択は下端 HUD の中に出す', () => {
     render(modeB);
 
     expect(choiceLabels()).toEqual(modeB.choices);
@@ -150,11 +157,18 @@ describe('復習セッションの枠', () => {
     );
     if (!footer || !choiceButton) throw new Error('帯と選択肢のどちらかが出ていない');
 
-    // 選択肢は帯の中ではなく、帯の直前に置く。帯は高さを固定していて選択肢を飲み込めない。
-    expect(footer.contains(choiceButton)).toBe(false);
-    expect(
-      choiceButton.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(footer.contains(choiceButton)).toBe(true);
+  });
+
+  it('4択を足してもお題の行の高さは変えない', () => {
+    render(modeD);
+    const withoutChoices = bandRowHeight();
+
+    render(modeB);
+
+    // 選択肢は帯の直上に積む。お題の行そのものを伸ばすと、問題ごとに地図コンテナの
+    // 高さが変わり、不正解後の自動フォーカスが安定しない。
+    expect(bandRowHeight()).toBe(withoutChoices);
   });
 
   it('地図問題では4択を出さない', () => {

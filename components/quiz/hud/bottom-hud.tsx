@@ -2,6 +2,8 @@
 
 import { ZoomIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ChoiceView } from '../views/choice-view';
+import type { FeedbackState } from '../use-quiz-state';
 import { FeedbackLine } from './feedback-line';
 import {
   STEADY_TEXT_PX,
@@ -32,6 +34,19 @@ interface BottomHudProps {
    * 中央のオーバーレイを出さない分をここで補う。
    */
   readonly emphasis?: { readonly bandPx: number; readonly textPx: number };
+  /**
+   * 復習セッション中の4択（FR-029）。
+   *
+   * `content` のバリアントにはしない。帯の高さは `bottomBandHeightPx` だけで決まる
+   * 決まりで、選択肢4つはそこに収まらない。帯の直上に別の行として積む。
+   */
+  readonly choices?: {
+    readonly items: readonly string[];
+    readonly selected: string | null;
+    readonly correct: string;
+    readonly feedback: FeedbackState;
+    readonly onSelect: (choice: string) => void;
+  };
 }
 
 function feedbackStateOf(content: BottomHudContent): HudFeedbackState {
@@ -62,6 +77,22 @@ function PromptBody({
   );
 }
 
+/** 4択はお題の行の外側に積む。行の高さは選択肢の有無で変えない。 */
+function ChoiceRegion({ choices }: Readonly<Pick<BottomHudProps, 'choices'>>) {
+  if (!choices) return null;
+  return (
+    <div className="px-3 pb-2">
+      <ChoiceView
+        choices={choices.items}
+        selectedChoice={choices.selected}
+        correctChoice={choices.correct}
+        feedback={choices.feedback}
+        onSelectChoice={choices.onSelect}
+      />
+    </div>
+  );
+}
+
 export function BottomHud({
   content,
   mode,
@@ -69,6 +100,7 @@ export function BottomHud({
   selectedCount,
   onRequestIntro,
   emphasis,
+  choices,
 }: Readonly<BottomHudProps>) {
   const height = emphasis?.bandPx ?? bottomBandHeightPx(mode, feedbackStateOf(content));
   const reshowable = content.kind === 'prompt' && onRequestIntro !== undefined;
@@ -77,6 +109,7 @@ export function BottomHud({
     // 背景は完全な不透明にする。半透明やすりガラスだと下地の地図の明度を拾い、
     // 明るい Google Maps タイルの上でコントラストを数値で保証できない。
     <footer className="shrink-0 bg-[#111111] pb-[env(safe-area-inset-bottom)]">
+      <ChoiceRegion choices={choices} />
       <div
         className="flex items-center justify-center gap-2 px-2"
         // 高さは内容の長短で変えない。伸縮すると地図コンテナの高さが毎問変わり、
