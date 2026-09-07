@@ -155,9 +155,28 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 
 ### 実装
 
-- [ ] T034 [US4] `components/quiz/hud/bottom-hud.tsx` に `kind: 'choices'` を追加し、復習セッション中の4択を下端 HUD の領域に表示する。既存の `components/quiz/views/choice-view.tsx` の見た目を帯の中へ収める（FR-029）
-- [ ] T035 [US4] `app/(app)/quiz/review/page.tsx` を通しで検証する。ローカルスタックの Studio（http://127.0.0.1:54323）で `srs_records` の `due_date` を過去日にして A・B/C・D が混ざるバッチを作り、セッション全体で枠が一度も変わらないことを確認する（SC-009）。**本番 DB では絶対に行わない**（Preview は本番 Supabase を共有する）
-- [ ] T036 [US4] モード D の地図読み込みに失敗させて4択へフォールバックさせ、**枠が維持される**ことを確認する（FR-005）。`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` を一時的に不正な値にすると `gm_authFailure` 経由で再現できる。確認後は必ず元へ戻す
+- [x] T034 [US4] 復習セッション中の4択を下端 HUD の領域に表示する（FR-029）。
+
+  当初は `bottom-hud.tsx` に `kind: 'choices'` を足す想定だったが、US1 の時点で
+  `immersive-quiz-view.tsx` の `ChoicePanel` が帯の直前に選択肢を出しており、要件は既に
+  満たしていた。帯の中へ移す案は採らない。帯は `bottomBandHeightPx` で高さを固定しており、
+  これは問題ごとに地図コンテナの高さが変わると不正解後の自動フォーカスが安定しないためで、
+  4択（約 200px）を飲み込ませるとその前提が壊れる。
+  回帰テスト: `__tests__/components/quiz/review-session-frame.test.tsx`
+- [x] T035 [US4] `app/(app)/quiz/review/page.tsx` を通しで検証する。ローカルスタックの Studio（http://127.0.0.1:54323）で `srs_records` の `due_date` を過去日にして A・B/C・D が混ざるバッチを作り、セッション全体で枠が一度も変わらないことを確認する（SC-009）。**本番 DB では絶対に行わない**（Preview は本番 Supabase を共有する）
+
+  実測（375×812 / ローカルスタック）: `test@example.com` は B しか持たず4択のみのセッションに
+  なるため、ローカル DB にだけ A・D の due 行を足して 18 問の混在セッションを作った（確認後に削除）。
+  q1〜q5（4択）→ q6（A・全国地図）→ q7〜q10（4択）→ q11（D・カウントダウンあり）と種類が変わっても、
+  `nav` 非表示・出典 footer 非表示・`main` が `overflow-hidden`・上端 header と下端 band ありの
+  5点が一度も変化しなかった。
+  なお B のみのセッションが通常レイアウトで出るのは FR-006 どおりの正しい挙動である。
+- [x] T036 [US4] モード D の地図読み込みに失敗させて4択へフォールバックさせ、**枠が維持される**ことを確認する（FR-005）。
+
+  API キーを不正な値にする手は採らなかった。ローカルでは `gm_authFailure` がそもそも発火せず
+  再現できないうえ、キーの差し戻し忘れが事故になる。代わりに `modeDFailed` を立てた状態を
+  `__tests__/components/quiz/review-session-frame.test.tsx` で固定し、枠の5点が地図表示時と
+  一致すること・4択と失敗の告知が出ることを回帰テストにした
 
 **Checkpoint**: 4ストーリーすべて完了
 
@@ -168,11 +187,16 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 **Purpose**: 実測で確定させる値と、横断的な受け入れ確認
 
 - [ ] T037 `BOTTOM_BAND_FEEDBACK_PX` の暫定値 72px を実測で確定する。`lib/quiz/feedback-labels.ts` の最長形（`大和町 （正解: 宮城県: たいわちょう / 神奈川県: やまとまち）`）を 375px 幅で描画し、折り返した実高に合わせて `lib/quiz/hud-metrics.ts` の定数と `__tests__/lib/quiz/hud-metrics.test.ts` の期待値を更新する（research D11）
-- [ ] T037b **SC-012（Google ロゴが帯の直上に可視）は Preview デプロイで検証する。** ローカルの
+- [x] T037b **SC-012（Google ロゴが帯の直上に可視）は Preview デプロイで検証する。** ローカルの
   `127.0.0.1:3000` では Maps API キーの referrer 制限を通らず、地図が `StaticMapService.Get` の
   静止画フォールバックで描画される。この状態ではロゴ・帰属表示・ズームコントロールがそもそも
   出ないため、可視性を確認できない。PR の Preview URL で確認すること
-- [ ] T038 モード D で不正解 → 自動フォーカスが働く際、帯の高さが変わったあとに Google Maps がビューポートサイズへ追随しているかを確認する。追随していなければ `components/map/MunicipalityMap.tsx` の `fitBounds` の前に `google.maps.event.trigger(map, 'resize')` を挟む（research D8 / FR-034）
+
+  PR #89 の Preview URL で確認済み。ロゴと帰属表示が帯の直上に可視で残っていることを確認した。
+- [x] T038 モード D で不正解 → 自動フォーカスが働く際、帯の高さが変わったあとに Google Maps がビューポートサイズへ追随しているかを確認する。追随していなければ `components/map/MunicipalityMap.tsx` の `fitBounds` の前に `google.maps.event.trigger(map, 'resize')` を挟む（research D8 / FR-034）
+
+  PR #89 の Preview URL で確認済み。帯の高さが変わったあとも正解地点が帯に隠れず、地図が追随していた。
+  `google.maps.event.trigger(map, 'resize')` の追加は不要と判断した。
 - [ ] T039 [P] セーフエリアを検証する。DevTools のデバイスツールバーで iPhone 系の端末をエミュレートし、上端・下端の HUD がノッチ／ホームインジケータと重なって押せなくならないことを確認する（Edge Cases）
 - [ ] T040 [P] アクセシビリティを検証する。HUD 内の通常文字が `#111111` 上で 7:1 以上・最小 12px 以上（SC-013）、操作対象が 44×44px 以上（SC-002）、DevTools の *Emulate vision deficiencies* → Achromatopsia で正否がアイコンの形だけでも判別できること（FR-037）
 - [ ] T041 [P] SC-001 を検証する。定常状態で上端＋下端の帯のコンテンツ高（セーフエリアのインセットを除く）が画面高の 15% 以下、375×812 で 122px 以下であること

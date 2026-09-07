@@ -3,13 +3,14 @@
 import { formatModeAFeedback, withKana } from '@/lib/quiz/feedback-labels';
 import { locationLabel } from '@/lib/quiz/location-labels';
 import type { Municipality } from '@/lib/quiz/municipality-data';
-import {
-  TIME_LIMIT_SEC,
-  type FeedbackState,
-  type ModeAQuestion,
-  type Question,
-  type SingleQuestion,
+import type {
+  FeedbackState,
+  ModeAQuestion,
+  Question,
+  SingleQuestion,
 } from '../use-quiz-session';
+// 定義元から直接取る。use-quiz-session 越しだと保存系の server action まで芋づるで付いてくる。
+import { TIME_LIMIT_SEC } from '../use-quiz-timer';
 import { ChoiceView } from '../views/choice-view';
 import { ModeAView } from '../views/mode-a-view';
 import { MunicipalityMapView } from '../views/municipality-map-view';
