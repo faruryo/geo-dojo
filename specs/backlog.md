@@ -90,6 +90,19 @@
     `/?recommend=open` のリンクで開く経路と、開いている間の戻る操作で閉じる挙動は維持。
     回帰テスト: `__tests__/components/recommend/recommend-sheet-latency.test.tsx`
 
+- [ ] B029 【バグ】スマホ環境で市区町村県当てクイズ（Mode A / 都道府県クイズ）の地図タップが反応しない不具合 → **#90**
+  - 概要: スマホ環境（特に iPhone / iOS Safari 等の WebKit 系ブラウザやタッチ端末環境）において、市区町村クイズの Mode A（県当て・地図）および都道府県クイズ（全国地図）で、地図上の都道府県をタップしても選択（青色ハイライトや件数カウント）されず、回答確定に進めない不具合が発生している。
+  - 想定原因（仮説）:
+    1. **iOS Safari における SVG `<path>` 要素のクリックイベント抑制（最有力）**: `components/map/JapanMap.tsx` の `Geography` スタイルで `default` に `cursor: 'pointer'` が指定されておらず、WebKit の仕様によりタッチ操作からの `click` イベントがルートへバブリングしない（ホバーが存在しないモバイルでは常に `default` 状態）。
+    2. **タッチ操作時の微小な手ブレ（ジッター）によるドラッグ誤認**: パン判定閾値（8px）が厳しすぎ、指の接触面積変化やブレで `didDrag.current = true` と判定されてクリックが無効化される。
+    3. **タイマー（10ms）によるレースコンディション**: `handlePointerUp` の 10ms リセットとモバイルブラウザの合成 `click` 発火遅延のズレ。
+    4. **コンテナの `touch-action: none` との組み合わせによる影響**。
+  - 改善案:
+    - `components/map/JapanMap.tsx` の `Geography` の `default` / `pressed` スタイルに `cursor: 'pointer'` を追加。
+    - タッチ操作時の手ブレ許容閾値（スロップ）の緩和（8px → 14〜16px程度）または短時間タップ判定の導入。
+  - 該当ファイル: `components/map/JapanMap.tsx`, `components/quiz/views/mode-a-view.tsx`, `app/(app)/quiz/prefecture/page.tsx`
+
+
 - [x] B014 (022) 市区町村クイズの未制覇（未クリア）優先出題と進捗可視化 → **022-uncompleted-priority-quiz (#63, #64) で実装完了**
   - 関東・中部など母数の大きい地域・難易度における100%制覇の難易度（クーポンコレクター問題）を解消。
   - 実装: クイズ設定画面に「未クリア優先出題」トグル（デフォルトON）とリアルタイム進捗（クリア件数/総数/進捗率）表示を追加。「今日のおすすめ」でも未クリア優先を自動適用。
