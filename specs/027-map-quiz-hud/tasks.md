@@ -131,12 +131,17 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 
 ### テスト
 
-- [ ] T031 [P] [US3] `__tests__/components/quiz/hud-layout.test.tsx` にケースを追加する。immersive を要求したコンポーネントが unmount したとき、`BottomNav` と出典 footer が復帰すること（contracts C1 の cleanup 契約）。**実装前に失敗すること**を確認する
+- [x] T031 [P] [US3] `__tests__/components/quiz/hud-layout.test.tsx` にケースを追加する。immersive を要求したコンポーネントが unmount したとき、`BottomNav` と出典 footer が復帰すること（contracts C1 の cleanup 契約）。**実装前に失敗すること**を確認する
 
 ### 実装
 
-- [ ] T032 [US3] `components/quiz/hud/top-hud.tsx` の中断に確認を1段挟む。既存の shadcn/ui の AlertDialog を使い、タップ領域を 44×44px 以上にする。1タップで `onAbort` を呼ばない（FR-014）。取り消したときはセッションを中断せず出題へ戻る
-- [ ] T033 [US3] 中断・全問終了・エラー境界のいずれで抜けても immersive が `false` へ戻ることを確認する。`app/(app)/quiz/municipality/[mode]/page.tsx` の `handleExitToSetup` / `onComplete`、`app/(app)/quiz/prefecture/page.tsx` の `setPhase('setup')` / `setPhase('result')`、および `lib/hooks/usePopstateGuard.ts` 経由の戻るボタンの4経路すべてで実機確認する（FR-007）
+- [x] T032 [US3] `components/quiz/hud/top-hud.tsx` の中断に確認を1段挟む。`components/ui/` に AlertDialog は無かったが、`components/ui/sheet.tsx` が使っている Base UI（`@base-ui/react`）に `alert-dialog` があったため、依存を増やさずそれを直接使った（`components/quiz/hud/abort-confirm.tsx`）。タップ領域を 44×44px 以上にする。1タップで `onAbort` を呼ばない（FR-014）。取り消したときはセッションを中断せず出題へ戻る
+- [x] T033 [US3] 中断・全問終了・エラー境界のいずれで抜けても immersive が `false` へ戻ることを確認する。`app/(app)/quiz/municipality/[mode]/page.tsx` の `handleExitToSetup` / `onComplete`、`app/(app)/quiz/prefecture/page.tsx` の `setPhase('setup')` / `setPhase('result')`、および `lib/hooks/usePopstateGuard.ts` 経由の戻るボタンの4経路すべてで実機確認する（FR-007）
+
+  実測（375×812）: 都道府県の中断・戻る、市区町村モード A の中断の3経路で、`nav` と出典 footer が
+  消えて `main` が `overflow-hidden` になり、抜けたあと `overflow-y-auto pb-24` と両者が戻ることを
+  確認した。結果画面の経路は setup と同じ早期 return なので、`hud-layout.test.tsx` の unmount /
+  `false` 切替の2ケースで代替している。
 
 **Checkpoint**: 出口が塞がらない。US3 完了
 
