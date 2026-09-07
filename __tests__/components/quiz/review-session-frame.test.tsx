@@ -57,14 +57,25 @@ const modeD: SingleQuestion = {
 
 const questions: readonly Question[] = [modeA, modeB, modeD];
 
-function sessionFor(current: Question, modeDFailed = false, feedback: FeedbackState = 'idle') {
+// 県当て（B）の正解は市区町村の県名。選ばれなかった誤答と区別するため、
+// 誤答をひとつ選んだ状態を作る。
+const CORRECT_ANSWER = modeB.municipality.prefecture;
+const WRONG_PICK = modeB.choices.find((c) => c !== CORRECT_ANSWER) as string;
+const UNPICKED = modeB.choices.filter((c) => c !== CORRECT_ANSWER && c !== WRONG_PICK);
+
+function sessionFor(
+  current: Question,
+  modeDFailed = false,
+  feedback: FeedbackState = 'idle',
+  selectedChoice: string | null = null,
+) {
   return {
     qIdx: 0,
     currentQuestion: current,
     feedback,
     modeDFailed,
     selectedPrefectures: new Set<string>(),
-    selectedChoice: null,
+    selectedChoice,
     correctCodes: [],
     wrongCodes: [],
     timeLeft: 30,
@@ -91,12 +102,17 @@ function sessionFor(current: Question, modeDFailed = false, feedback: FeedbackSt
 let host: HTMLDivElement;
 let root: Root;
 
-function render(current: Question, modeDFailed = false, feedback: FeedbackState = 'idle') {
+function render(
+  current: Question,
+  modeDFailed = false,
+  feedback: FeedbackState = 'idle',
+  selectedChoice: string | null = null,
+) {
   act(() => {
     root.render(
       <ImmersiveQuizView
         questions={questions}
-        session={sessionFor(current, modeDFailed, feedback)}
+        session={sessionFor(current, modeDFailed, feedback, selectedChoice)}
         onAbort={() => {}}
       />,
     );
@@ -190,7 +206,7 @@ describe('復習セッションの枠', () => {
   });
 
   it('4択の文字を色分けしない（帯の上で赤が 7:1 に届かない）', () => {
-    render(modeB, false, 'incorrect');
+    render(modeB, false, 'incorrect', WRONG_PICK);
 
     const buttons = [...host.querySelectorAll('footer button')];
     expect(buttons).toHaveLength(modeB.choices.length);
@@ -202,15 +218,22 @@ describe('復習セッションの枠', () => {
     }
   });
 
-  it('正否は色付きアイコンで示す（色に依存しない判別）', () => {
-    render(modeB, false, 'incorrect');
+  it('正解と選んだ誤答だけに印を付ける（色に依存しない判別）', () => {
+    render(modeB, false, 'incorrect', WRONG_PICK);
 
-    const footer = host.querySelector('footer');
-    if (!footer) throw new Error('帯が出ていない');
-    // 正解と、選んだ誤答の2つに印が付く。
-    expect(footer.querySelectorAll('svg').length).toBeGreaterThanOrEqual(2);
-    expect(footer.textContent).toContain('正解');
-    expect(footer.textContent).toContain('不正解');
+    // 帯のフィードバック行も同じ印を出すので、選択肢のボタン単位で見る。
+    // 読み上げ用の「正解。」がボタンの文字列に混ざるため、ラベルは包含で引く。
+    const buttons = [...host.querySelectorAll('footer button')];
+    const find = (label: string) => buttons.find((b) => b.textContent?.includes(label));
+
+    expect(find(CORRECT_ANSWER)?.querySelectorAll('svg')).toHaveLength(1);
+    expect(find(CORRECT_ANSWER)?.textContent).toContain('正解');
+    expect(find(WRONG_PICK)?.querySelectorAll('svg')).toHaveLength(1);
+    expect(find(WRONG_PICK)?.textContent).toContain('不正解');
+    // 選ばれなかった誤答には印を付けない。
+    for (const label of UNPICKED) {
+      expect(find(label)?.querySelectorAll('svg')).toHaveLength(0);
+    }
   });
 
   it('地図問題では4択を出さない', () => {
