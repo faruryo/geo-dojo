@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ImmersiveQuizView } from '@/components/quiz/hud/immersive-quiz-view';
-import type { ModeAQuestion, Question, SingleQuestion } from '@/components/quiz/use-quiz-session';
+import type {
+  FeedbackState,
+  ModeAQuestion,
+  Question,
+  SingleQuestion,
+} from '@/components/quiz/use-quiz-session';
 import type { Municipality } from '@/lib/quiz/municipality-data';
 
 (globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -52,11 +57,11 @@ const modeD: SingleQuestion = {
 
 const questions: readonly Question[] = [modeA, modeB, modeD];
 
-function sessionFor(current: Question, modeDFailed = false) {
+function sessionFor(current: Question, modeDFailed = false, feedback: FeedbackState = 'idle') {
   return {
     qIdx: 0,
     currentQuestion: current,
-    feedback: 'idle' as const,
+    feedback,
     modeDFailed,
     selectedPrefectures: new Set<string>(),
     selectedChoice: null,
@@ -86,12 +91,12 @@ function sessionFor(current: Question, modeDFailed = false) {
 let host: HTMLDivElement;
 let root: Root;
 
-function render(current: Question, modeDFailed = false) {
+function render(current: Question, modeDFailed = false, feedback: FeedbackState = 'idle') {
   act(() => {
     root.render(
       <ImmersiveQuizView
         questions={questions}
-        session={sessionFor(current, modeDFailed)}
+        session={sessionFor(current, modeDFailed, feedback)}
         onAbort={() => {}}
       />,
     );
@@ -169,6 +174,28 @@ describe('復習セッションの枠', () => {
     // 選択肢は帯の直上に積む。お題の行そのものを伸ばすと、問題ごとに地図コンテナの
     // 高さが変わり、不正解後の自動フォーカスが安定しない。
     expect(bandRowHeight()).toBe(withoutChoices);
+  });
+
+  it('4択の文字を色分けしない（帯の上で赤が 7:1 に届かない）', () => {
+    render(modeB, false, 'incorrect');
+
+    const buttons = [...host.querySelectorAll('footer button')];
+    expect(buttons).toHaveLength(modeB.choices.length);
+    for (const b of buttons) {
+      expect(b.className).not.toMatch(/text-(green|red)-/);
+      expect(b.className).toContain('#fafafa');
+    }
+  });
+
+  it('正否は色付きアイコンで示す（色に依存しない判別）', () => {
+    render(modeB, false, 'incorrect');
+
+    const footer = host.querySelector('footer');
+    if (!footer) throw new Error('帯が出ていない');
+    // 正解と、選んだ誤答の2つに印が付く。
+    expect(footer.querySelectorAll('svg').length).toBeGreaterThanOrEqual(2);
+    expect(footer.textContent).toContain('正解');
+    expect(footer.textContent).toContain('不正解');
   });
 
   it('地図問題では4択を出さない', () => {

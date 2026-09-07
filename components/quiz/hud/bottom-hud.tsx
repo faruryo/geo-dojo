@@ -88,6 +88,7 @@ function ChoiceRegion({ choices }: Readonly<Pick<BottomHudProps, 'choices'>>) {
         correctChoice={choices.correct}
         feedback={choices.feedback}
         onSelectChoice={choices.onSelect}
+        appearance="hud"
       />
     </div>
   );
