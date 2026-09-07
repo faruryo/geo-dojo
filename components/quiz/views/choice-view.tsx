@@ -54,7 +54,9 @@ function hudChoiceStyle(outcome: ChoiceOutcome): string {
     case 'wrong':
       return 'border-[#ef4444] bg-[#ef4444]/10 text-[#fafafa]';
     case 'muted':
-      return 'border-white/20 text-[#fafafa]/70';
+      // 目立たせないのは枠の側だけにする。文字を薄めると帯の中の文字が
+      // #fafafa でなくなり、FR-037 の「白に統一」から外れる。
+      return 'border-white/10 text-[#fafafa]';
     default:
       return 'border-white/20 text-[#fafafa]';
   }

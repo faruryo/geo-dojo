@@ -183,7 +183,9 @@ describe('復習セッションの枠', () => {
     expect(buttons).toHaveLength(modeB.choices.length);
     for (const b of buttons) {
       expect(b.className).not.toMatch(/text-(green|red)-/);
-      expect(b.className).toContain('#fafafa');
+      expect(b.className).toContain('text-[#fafafa]');
+      // 透過を掛けると実効色が灰色になり、白に統一という規定から外れる。
+      expect(b.className).not.toMatch(/text-\[#fafafa\]\//);
     }
   });
 
