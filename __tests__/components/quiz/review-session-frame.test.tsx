@@ -165,6 +165,19 @@ describe('復習セッションの枠', () => {
     expect(footer.contains(choiceButton)).toBe(true);
   });
 
+  it('地図問題の下端 HUD はお題の行だけで、選択肢の領域を持たない', () => {
+    for (const q of [modeA, modeD]) {
+      render(q);
+      const footer = host.querySelector('footer');
+      if (!footer) throw new Error('帯が出ていない');
+
+      // 地図問題では下端 HUD の高さ上限が効く。選択肢の領域が混ざると上限を割る。
+      // 子はお題（またはフィードバック）の行ひとつだけ。
+      expect(footer.children).toHaveLength(1);
+      expect(choiceLabels()).toEqual([]);
+    }
+  });
+
   it('4択を足してもお題の行の高さは変えない', () => {
     render(modeD);
     const withoutChoices = bandRowHeight();
