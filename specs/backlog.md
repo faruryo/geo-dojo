@@ -70,6 +70,15 @@
     - **プレビューの誤認防止**: 「※ プレイ画面イメージ」「SAMPLE」といった明示ラベル・透かしの付与、薄いオーバーレイや端末フレーム風モック表現、`pointer-events-none` の明示など、触れないサンプルであることが一目でわかるスタイリングの適用。
   - 該当ファイル: `app/(app)/quiz/municipality/page.tsx`, `components/recommend/recommend-hero-card.tsx`
 
+- [ ] B028 【バグ/パフォーマンス】「今日のおすすめクイズ」シート開閉の反応遅延・タップフィードバックの改善（モバイル環境） → **#88**
+  - 概要: モバイル環境において、トップページ（およびモード選択画面）の「今日のおすすめクイズ」ボタン（開く）およびシート内の「キャンセル」ボタン（閉じる）をタップした際、画面が反応するまでに数秒の遅延が発生し、タップが認識されたかどうかが分からないUX上の問題を解消する。
+  - 原因: `components/recommend/recommend-sheet.tsx` で `Sheet` の `open` 状態が `searchParams.get('recommend') === 'open'` のみに依存しており、開閉時に `router.push` / `router.replace`（Next.js App Router の RSC 再フェッチを含む非同期ルーター遷移）を直結しているため、ネットワーク・端末負荷により1〜数秒のラグが生じる。またローカル state による即時反映やタップフィードバックがない。
+  - 改善案:
+    - `isOpen` をローカルの `useState` で管理し、タップした瞬間に即座にシートの開閉アニメーションを開始させる（オプティミスティック更新）。
+    - URL クエリ同期（`?recommend=open`）はバックグラウンドで行うか、RSC 再フェッチを回避する浅い更新（shallow routing / `history.replaceState`）を活用。
+    - モバイルでのタップフィードバック（active スタイルや即座の反応表示）を強化。
+  - 該当ファイル: `components/recommend/recommend-sheet.tsx`, `components/recommend/recommend-hero-card.tsx`, `components/recommend/recommend-content.tsx`
+
 - [x] B014 (022) 市区町村クイズの未制覇（未クリア）優先出題と進捗可視化 → **022-uncompleted-priority-quiz (#63, #64) で実装完了**
   - 関東・中部など母数の大きい地域・難易度における100%制覇の難易度（クーポンコレクター問題）を解消。
   - 実装: クイズ設定画面に「未クリア優先出題」トグル（デフォルトON）とリアルタイム進捗（クリア件数/総数/進捗率）表示を追加。「今日のおすすめ」でも未クリア優先を自動適用。
