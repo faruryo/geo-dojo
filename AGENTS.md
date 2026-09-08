@@ -127,13 +127,51 @@ supabase db reset           # マイグレーションをゼロから再適用�
   - 本番 DB read-only 集計: `node scripts/diag-srs.mjs`（`.env.prod.local` を読む）。SRS の `due_date` / `last_reviewed_at` / quiz_results の最新 `answered_at` を出す。**本番DB直クエリは安全機構がブロックするのでユーザーに `!node scripts/diag-srs.mjs` の実行を依頼する。**
 - **Preview デプロイは本番 DB を共有**するので、DB 書き込みを伴う修正はマージ前に PR の Preview URL でプレイ→`diag-srs.mjs` で確認できる（マージ＝本番反映の前に end-to-end 検証）。
 
-## Code Review Rules
+## Code Review Rules (for ChatGPT Codex Connector & AI Reviewers)
 
-- `user_id`を持つテーブルを追加・変更するのに、同じmigrationでRLS有効化と`auth.uid()`スコープのpolicyを設定しない変更をBLOCKERとする。アプリのDrizzle接続はRLSを迂回するため、アプリ動作だけでは安全性を確認できない。
-- serverコードが`public/`配下を実行時にfilesystem読みする変更をBLOCKERとする。参照データはDBを正とし、必要ならJSONをビルド時importする。
-- Previewは本番Supabaseを共有する。テスト/検証データを無確認で書き込む変更、ユーザー間データを混ぜるクエリ、破壊的migrationをBLOCKERとする。local stackかread-only診断を安全経路にする。
-- 保存系Server Actionの失敗をクライアントまたはサーバで握り潰す変更をBLOCKERとする。UX継続が必要でも両境界で理由を記録し、サーバ側は再throwする。
-- Mode Aの同名・複数県問題は1問表示・県別保存である。保存行数を完了問題数に使う変更を指摘し、`toQuestionResult()`相当の1問1件正規化を維持する。
-- UI変更では375px幅、ダークモード、回答前後の情報開示を確認する。機械的なformat/lint事項はレビュー指摘にせずCIへ任せる。
-- 製品/runtime挙動を変える変更は該当Spec Kitのspec/plan/tasksと整合させる。CI、lint、開発ツール、agent規約、文書、PR templateだけの変更には新規feature specを要求しない。
+### 1. Review Conduct & Anti-Fatigue Rules (レビューの進め方・小出し往復防止)
+
+- **Exhaustive First-Pass (初回網羅・出し切り原則)**:
+  - 指摘を複数回の往復にわたって小出し（drip-feed）にしてはならない。初回レビューで P1/P2 を含むすべての懸念・不整合・エッジケースを出し切ること。
+  - 「1つ直されたら次の潜在バグを指摘する」モグラ叩きを禁止する。初回のコード・仕様全体の静的走査ですべて列挙する。
+- **Cluster Systemic Issues (点ではなく面・ライフサイクル全体で指摘)**:
+  - 単一の行や関数の局所的な指摘（Point finding）にとどめず、同一の不変条件に関わるライフサイクル全体（開始・進行・保存・完了・中断・キャッシュ破棄・テスト）を全走査し、関連箇所を1つの指摘グループ（影響箇所リスト付き）としてまとめて提示すること。
+  - 例: 認証状態や非同期ガードの不備を指摘する場合、該当画面・フック内のすべての非同期フロー（autoStart, answer, complete, abort）を一度に検証して影響箇所を網羅する。
+- **Cross-artifact Impact (仕様変更時の波及先リスト同時提示)**:
+  - 仕様やデータモデル、契約の変更を指摘する場合は、影響を受ける関連ファイル（`spec.md`, `contracts/`, `data-model.md`, `tasks.md`, `queries/` 等）の該当箇所リストを初回の指摘に必ず含めること。
+- **Scope & Phase Discipline (PR 種別の尊重)**:
+  - `docs(spec):` や `specs/` 配下のファイルのみを変更している PR（仕様策定フェーズ）では、差分に含まれない既存コード（`app/`, `lib/` 等）への指摘を行わない。仕様ドキュメント（`spec.md`, `contracts/`, `data-model.md`, `tasks.md`）内の論理的一貫性とエッジケースのみを検証する。
+- **No Mechanical Linting (CI 領域の除外)**:
+  - ESLint、TypeScript strict、warning ratchet、jscpd、Knip などの CI で機械的に検知できる事項（構文、フォーマット、既存の警告在庫）は指摘しない。ドメイン不変条件と非同期・整合性バグに集中すること。
+
+### 2. High-Priority Domain Invariants (重点検証すべきドメイン不変条件)
+
+- **Mode A の 1問表示・県別保存の正規化**:
+  - Mode A の同名市（伊達市等）は 1問で出題され DB には県別で保存される。表示カウント、出題数、正答率推移、苦手判定、制覇率計算において、保存行数ではなく必ず `toQuestionResult()` 相当の 1問1件に正規化されているか。
+- **モードごとの集計・判定単位の不変条件**:
+  - Mode D（場所当て）は政令市・区単位（コード単位）で出題・正誤判定・制覇進捗を扱う。Mode B/C のような市単位（同名集約）と混同していないか。
+- **除外自治体の母数整合性**:
+  - Mode A/B/C の出題および制覇率母数から東京23区が除外されているか。
+- **Database & RLS Security**:
+  - `user_id` を持つテーブルを追加・変更する場合、同一マイグレーション内で RLS 有効化と `auth.uid()` スコープのポリシーが設定されているか（未設定は BLOCKER）。アプリの Drizzle 接続は RLS を迂回するため、アプリ動作だけでは安全性を確認できない。
+  - server コードで `public/` 配下を実行時 `fs` 読みしていないか（DB またはビルド時 import を正とする。違反は BLOCKER）。
+  - Preview 環境は本番 Supabase を共有する。テスト/検証データを無確認で書き込む変更、ユーザー間データを混ぜるクエリ、破壊的 migration を BLOCKER とする。local stack か read-only 診断を安全経路にする。
+
+### 3. Async, State & Error Handling Boundaries (非同期・状態・エラー設計)
+
+- **TanStack Query 状態ガード**:
+  - 自動開始や完了判定において、単なる `isSuccess` だけでなく `isSuccess && !isFetching && !isPaused`（バックグラウンド再取得やネットワーク切断の一時停止）が正しく考慮されているか。
+- **非同期失敗時のリカバリ**:
+  - 認証（`getBrowserUserId`）やマスター取得が失敗した際に、フラグ（`autoStarted` 等）が `true` のまま永久スタックせず、再試行可能な状態に復旧できるか。
+- **ユーザー別キャッシュ・状態分離**:
+  - ログイン/ログアウト時に前ユーザーのキャッシュや localStorage（おすすめ状態・カスタム出題範囲等）が漏洩・混在・誤上書きされないよう、ユーザー単位でキーが分離・破棄されているか。
+- **保存系 Server Action と部分失敗設計**:
+  - クイズ結果自体の保存失敗を握り潰す変更は BLOCKER とする。
+  - ただし、クイズ結果保存と SRS（復習レコード）更新の部分失敗において、SRS 失敗時に全体を `throw` せず `srsPersisted: false` などの部分失敗フラグを返してクライアント側で明示ログを出す設計は正当なアーキテクチャである。Next.js の本番環境で Server Action が throw するとエラー詳細が `digest` に隠蔽され、クイズ保存まで巻き込まれて失敗扱いになるのを避ける意図的な分離であるため、一律の `re-throw` を強制しないこと。
+- **UI・画面要件**:
+  - UI 変更では 375px 幅、ダークモード、回答前後の情報開示を確認する。
+- **仕様整合性**:
+  - 製品/runtime 挙動を変える変更は該当 Spec Kit の spec/plan/tasks と整合させる。CI、lint、開発ツール、agent 規約、文書、PR template だけの変更には新規 feature spec を要求しない。
+- **テストの実行経路検証**:
+  - 回帰テストが実際のプロダクションコードの実行経路（auto-start 出題関数など）を確実に通っているか。fixture が期待する誤答/正解状態を正しく模倣しているか（モックによる形骸化がないか）。
 
