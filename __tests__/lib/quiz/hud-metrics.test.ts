@@ -65,8 +65,16 @@ describe('bottomBandHeightPx', () => {
     expect(bottomBandHeightPx('BCD', 'correct')).toBe(bottomBandHeightPx('BCD', 'incorrect'));
   });
 
-  it('フィードバック中は定常状態より高い（最長形の折り返しを収めるため）', () => {
-    expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThan(BOTTOM_BAND_MODE_A_PX);
+  it('フィードバック中は定常状態より低くならない（解答した瞬間に帯が縮まない）', () => {
+    expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThanOrEqual(BOTTOM_BAND_MODE_A_PX);
+    expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThanOrEqual(BOTTOM_BAND_PX);
+  });
+
+  it('最長形が3行になっても割れない高さがある', () => {
+    // 375px での実測値。最長形は2行 30px で、行の高さは 15px。
+    // データが増えて3行になっても収まる高さを保つ。
+    const LINE_HEIGHT_PX = 15;
+    expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThanOrEqual(LINE_HEIGHT_PX * 3);
   });
 });
 

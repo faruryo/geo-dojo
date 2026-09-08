@@ -17,11 +17,15 @@ export const BOTTOM_BAND_MODE_A_PX = 52;
 /**
  * 正否フィードバック中の下端 HUD の高さ。
  *
- * 基準は feedback-labels が出しうる最長形が 375px 幅で折り返した状態
- * （例: `大和町 （正解: 宮城県: たいわちょう / 神奈川県: やまとまち）`）。
- * 暫定値なので、実機幅での実測に合わせて更新すること。
+ * 375px 幅での実測に基づく。`municipality_master` 全件から feedback-labels の
+ * 最長形を出すと `池田町 （正解: 北海道: … / 長野県: いけだまち）`（62文字）で、
+ * 折り返して2行・30px（行の高さ 15px）になる。
+ *
+ * その 30px に対して余裕を持たせた値にしている。データが増えて3行（45px）に
+ * なっても割れず、かつ県当て（A）の定常 52px を下回らないため、解答した瞬間に
+ * 帯が縮んで地図が広がり、また戻るという動きが起きない。
  */
-export const BOTTOM_BAND_FEEDBACK_PX = 72;
+export const BOTTOM_BAND_FEEDBACK_PX = 56;
 
 /** 出題直後に画面中央へ大きく出すお題の文字サイズ。 */
 export const INTRO_TEXT_PX = 34;
