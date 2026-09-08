@@ -1,0 +1,256 @@
+// @vitest-environment happy-dom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import React, { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { ImmersiveQuizView } from '@/components/quiz/hud/immersive-quiz-view';
+import type {
+  FeedbackState,
+  ModeAQuestion,
+  Question,
+  SingleQuestion,
+} from '@/components/quiz/use-quiz-session';
+import type { Municipality } from '@/lib/quiz/municipality-data';
+
+(globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
+
+// 地図そのものはこのテストの関心事ではない。枠の構成が問題の種類で変わらないことだけを見る。
+vi.mock('@/components/quiz/views/mode-a-view', () => ({
+  ModeAView: () => <div data-testid="stage-map-a" />,
+}));
+vi.mock('@/components/quiz/views/municipality-map-view', () => ({
+  MunicipalityMapView: () => <div data-testid="stage-map-d" />,
+}));
+
+function muni(over: Partial<Municipality> = {}): Municipality {
+  return {
+    code: '04101',
+    name: '青葉区',
+    prefecture: '宮城県',
+    region: '東北',
+    lat: 38,
+    lng: 140,
+    population: 1,
+    difficulty: 'easy',
+    kana: 'あおばく',
+    ...over,
+  } as Municipality;
+}
+
+const modeA: ModeAQuestion = {
+  kind: 'A',
+  name: '伊達市',
+  instances: [muni({ code: '01233', name: '伊達市', prefecture: '北海道' })],
+  correctPrefectures: new Set(['北海道']),
+};
+const modeB: SingleQuestion = {
+  kind: 'BCD',
+  mode: 'B',
+  municipality: muni(),
+  choices: ['宮城県', '山形県', '福島県', '岩手県'],
+};
+const modeD: SingleQuestion = {
+  kind: 'BCD',
+  mode: 'D',
+  municipality: muni(),
+  choices: ['青葉区', '若林区', '太白区', '泉区'],
+};
+
+const questions: readonly Question[] = [modeA, modeB, modeD];
+
+// 県当て（B）の正解は市区町村の県名。選ばれなかった誤答と区別するため、
+// 誤答をひとつ選んだ状態を作る。
+const CORRECT_ANSWER = modeB.municipality.prefecture;
+const WRONG_PICK = modeB.choices.find((c) => c !== CORRECT_ANSWER) as string;
+const UNPICKED = modeB.choices.filter((c) => c !== CORRECT_ANSWER && c !== WRONG_PICK);
+
+function sessionFor(
+  current: Question,
+  modeDFailed = false,
+  feedback: FeedbackState = 'idle',
+  selectedChoice: string | null = null,
+) {
+  return {
+    qIdx: 0,
+    currentQuestion: current,
+    feedback,
+    modeDFailed,
+    selectedPrefectures: new Set<string>(),
+    selectedChoice,
+    correctCodes: [],
+    wrongCodes: [],
+    timeLeft: 30,
+    handlePrefectureTap: () => {},
+    handleModeASubmit: () => {},
+    handleChoice: () => {},
+    handleDTap: () => {},
+    handleModeDFallback: () => {},
+    intro: {
+      phase: 'steady' as const,
+      plan: {
+        mode: 'motion' as const,
+        holdMs: 1000,
+        transitionMs: 320,
+        enlargedBandPx: null,
+        enlargedTextPx: null,
+      },
+      settled: true,
+      requestIntro: () => {},
+    },
+  };
+}
+
+let host: HTMLDivElement;
+let root: Root;
+
+function render(
+  current: Question,
+  modeDFailed = false,
+  feedback: FeedbackState = 'idle',
+  selectedChoice: string | null = null,
+) {
+  act(() => {
+    root.render(
+      <ImmersiveQuizView
+        questions={questions}
+        session={sessionFor(current, modeDFailed, feedback, selectedChoice)}
+        onAbort={() => {}}
+      />,
+    );
+  });
+}
+
+/** 枠として一度も変わってはいけない部分だけを取り出す。 */
+function frameShape() {
+  const shell = host.firstElementChild as HTMLElement | null;
+  return {
+    shell: shell?.className ?? null,
+    hasTopHud: !!host.querySelector('header'),
+    hasBottomHud: !!host.querySelector('footer'),
+    hasAbort: !!host.querySelector('[aria-label="クイズを中断する"]'),
+    progress: host.querySelector('header')?.textContent?.includes('1 / 3') ?? false,
+  };
+}
+
+/** お題（またはフィードバック）を載せる行の高さ。選択肢の有無で変わってはいけない。 */
+function bandRowHeight(): string | undefined {
+  const rows = host.querySelectorAll('footer > div');
+  const row = rows[rows.length - 1] as HTMLElement | undefined;
+  return row?.style.height;
+}
+
+const choiceLabels = () =>
+  [...host.querySelectorAll('button')]
+    .map((b) => b.textContent?.trim() ?? '')
+    .filter((t) => modeB.choices.includes(t) || modeD.choices.includes(t));
+
+beforeEach(() => {
+  host = document.createElement('div');
+  document.body.appendChild(host);
+  root = createRoot(host);
+});
+
+afterEach(() => {
+  act(() => root.unmount());
+  host.remove();
+});
+
+describe('復習セッションの枠', () => {
+  it('A・B・D のどれでも枠の構成が変わらない', () => {
+    render(modeA);
+    const a = frameShape();
+    render(modeB);
+    const b = frameShape();
+    render(modeD);
+    const d = frameShape();
+
+    expect(a.hasTopHud && a.hasBottomHud && a.hasAbort && a.progress).toBe(true);
+    expect(b).toEqual(a);
+    expect(d).toEqual(a);
+  });
+
+  it('4択は下端 HUD の中に出す', () => {
+    render(modeB);
+
+    expect(choiceLabels()).toEqual(modeB.choices);
+    const footer = host.querySelector('footer');
+    const choiceButton = [...host.querySelectorAll('button')].find(
+      (b) => b.textContent?.trim() === modeB.choices[0],
+    );
+    if (!footer || !choiceButton) throw new Error('帯と選択肢のどちらかが出ていない');
+
+    expect(footer.contains(choiceButton)).toBe(true);
+  });
+
+  it('地図問題の下端 HUD はお題の行だけで、選択肢の領域を持たない', () => {
+    for (const q of [modeA, modeD]) {
+      render(q);
+      const footer = host.querySelector('footer');
+      if (!footer) throw new Error('帯が出ていない');
+
+      // 地図問題では下端 HUD の高さ上限が効く。選択肢の領域が混ざると上限を割る。
+      // 子はお題（またはフィードバック）の行ひとつだけ。
+      expect(footer.children).toHaveLength(1);
+      expect(choiceLabels()).toEqual([]);
+    }
+  });
+
+  it('4択を足してもお題の行の高さは変えない', () => {
+    render(modeD);
+    const withoutChoices = bandRowHeight();
+
+    render(modeB);
+
+    // 選択肢は帯の直上に積む。お題の行そのものを伸ばすと、問題ごとに地図コンテナの
+    // 高さが変わり、不正解後の自動フォーカスが安定しない。
+    expect(bandRowHeight()).toBe(withoutChoices);
+  });
+
+  it('4択の文字を色分けしない（帯の上で赤が 7:1 に届かない）', () => {
+    render(modeB, false, 'incorrect', WRONG_PICK);
+
+    const buttons = [...host.querySelectorAll('footer button')];
+    expect(buttons).toHaveLength(modeB.choices.length);
+    for (const b of buttons) {
+      expect(b.className).not.toMatch(/text-(green|red)-/);
+      expect(b.className).toContain('text-[#fafafa]');
+      // 透過を掛けると実効色が灰色になり、白に統一という規定から外れる。
+      expect(b.className).not.toMatch(/text-\[#fafafa\]\//);
+    }
+  });
+
+  it('正解と選んだ誤答だけに印を付ける（色に依存しない判別）', () => {
+    render(modeB, false, 'incorrect', WRONG_PICK);
+
+    // 帯のフィードバック行も同じ印を出すので、選択肢のボタン単位で見る。
+    // 読み上げ用の「正解。」がボタンの文字列に混ざるため、ラベルは包含で引く。
+    const buttons = [...host.querySelectorAll('footer button')];
+    const find = (label: string) => buttons.find((b) => b.textContent?.includes(label));
+
+    expect(find(CORRECT_ANSWER)?.querySelectorAll('svg')).toHaveLength(1);
+    expect(find(CORRECT_ANSWER)?.textContent).toContain('正解');
+    expect(find(WRONG_PICK)?.querySelectorAll('svg')).toHaveLength(1);
+    expect(find(WRONG_PICK)?.textContent).toContain('不正解');
+    // 選ばれなかった誤答には印を付けない。
+    for (const label of UNPICKED) {
+      expect(find(label)?.querySelectorAll('svg')).toHaveLength(0);
+    }
+  });
+
+  it('地図問題では4択を出さない', () => {
+    render(modeD);
+
+    expect(choiceLabels()).toEqual([]);
+    expect(host.querySelector('[data-testid="stage-map-d"]')).not.toBeNull();
+  });
+
+  it('モード D が4択へ落ちても枠は維持する', () => {
+    render(modeD);
+    const beforeFallback = frameShape();
+
+    render(modeD, true);
+
+    expect(frameShape()).toEqual(beforeFallback);
+    expect(choiceLabels()).toEqual(modeD.choices);
+    expect(host.textContent).toContain('地図データの読み込みに失敗しました');
+  });
+});

@@ -76,7 +76,7 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 ### 実装
 
 - [x] T012 [US1] `components/quiz/hud/top-hud.tsx` を新規作成する。contracts C3 の Props に従い、中断・進捗（N/M）・`timer`・ミュートを 44px の帯に並べる。`timer` が `undefined` のとき**時間表示の領域を確保しない**（FR-013）。`padding-top: env(safe-area-inset-top)` を持つ。ミュートは既存 `components/quiz/mute-toggle.tsx` を使う。**正解数と難易度バッジを props に足さない**（FR-040 で廃止）
-- [x] T013 [US1] `components/quiz/hud/bottom-hud.tsx` を新規作成する。この段階では `kind: 'prompt'`（定常のお題 1行 16px）と `kind: 'error'`（地図読み込み失敗の1行）だけを実装する。高さは `bottomBandHeightPx()` のみで決まり、内容で伸縮しない。`padding-bottom: env(safe-area-inset-bottom)` を持つ。背景は `#111111` の完全不透明で、`bg-*/NN`・`backdrop-blur`・`bg-gradient-*` を使わない（FR-035）
+- [x] T013 [US1] `components/quiz/hud/bottom-hud.tsx` を新規作成する。この段階では `kind: 'prompt'`（定常のお題 1行 16px）だけを実装する（当初は `kind: 'error'` も置く想定だったが、地図読み込み失敗の告知は帯の高さを増やさないよう地図の領域へ1行で出す形にした）。高さは `bottomBandHeightPx()` のみで決まり、内容で伸縮しない。`padding-bottom: env(safe-area-inset-bottom)` を持つ。背景は `#111111` の完全不透明で、`bg-*/NN`・`backdrop-blur`・`bg-gradient-*` を使わない（FR-035）
 - [x] T014 [US1] `components/quiz/quiz-runner.tsx` を contracts C2 の3段骨格へ再構成する。`useImmersiveLayout(sessionUsesImmersiveLayout(questions))` を呼び、地図コンテナは `flex-1 min-h-0` にして高さを固定値で計算しない（FR-032 / FR-034 が副作用で満たされる）。帯と地図の間に `gap` を置かない
 - [x] T015 [US1] `components/quiz/views/mode-a-view.tsx` から確定ボタンと選択中バッジ列（現 70-84 行）を取り除き、`BottomHud` の `submit` と `selectedCount` へ移す。ボタンのラベルは「あと N か所選択」→「解答する」に統合し、お題側の「N か所あります」「あと N か所」表示（`quiz-runner.tsx` の `subTitle` / `extraPrompt`）を廃止する（FR-028 / FR-040）
 - [x] T016 [US1] `app/(app)/quiz/prefecture/page.tsx` の playing フェーズを3段骨格へ書き換える。`useImmersiveLayout(phase === 'playing')` を呼び、現行の「中断して設定に戻る」リンク・進捗・経過タイム・ミュートを `TopHud`（`timer: { kind: 'elapsed', elapsedMs }`）へ、お題カードを `BottomHud` へ移す。**`startTimeRef` と `performance.now()` の起点には触れない**（FR-024）
@@ -155,9 +155,35 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 
 ### 実装
 
-- [ ] T034 [US4] `components/quiz/hud/bottom-hud.tsx` に `kind: 'choices'` を追加し、復習セッション中の4択を下端 HUD の領域に表示する。既存の `components/quiz/views/choice-view.tsx` の見た目を帯の中へ収める（FR-029）
-- [ ] T035 [US4] `app/(app)/quiz/review/page.tsx` を通しで検証する。ローカルスタックの Studio（http://127.0.0.1:54323）で `srs_records` の `due_date` を過去日にして A・B/C・D が混ざるバッチを作り、セッション全体で枠が一度も変わらないことを確認する（SC-009）。**本番 DB では絶対に行わない**（Preview は本番 Supabase を共有する）
-- [ ] T036 [US4] モード D の地図読み込みに失敗させて4択へフォールバックさせ、**枠が維持される**ことを確認する（FR-005）。`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` を一時的に不正な値にすると `gm_authFailure` 経由で再現できる。確認後は必ず元へ戻す
+- [x] T034 [US4] 復習セッション中の4択を下端 HUD の領域に表示する（FR-029）。
+
+  `content` のバリアント（`kind: 'choices'`）にはしていない。C4 は同時に
+  「高さは `bottomBandHeightPx` の戻り値のみで決まる」とも定めており、44〜52px の行に
+  選択肢4つは入らないため、この2つは両立しない。FR-029 は「下端 HUD の**領域**に表示する」
+  なので、`BottomHud` が `choices` を別の領域として受け取り、お題の行の直上に積む形にした。
+  これで下端 HUD の内側という要件と、お題の行の高さ不変（FR-027 / SC-008）が両立する。
+  C4 の記述もこれに合わせて修正した。
+
+  あわせて SC-001 / SC-008 の適用範囲を限定した。どちらも文言にモードの限定が無く、
+  そのまま読むと FR-029 と両立しない（下端 HUD に選択肢を入れて地図問題と同じ高さに
+  保つことはできない）。SC-001 は SC-007 と同じく地図の描画面積を最大化するための上限で、
+  地図を持たない4択問題では削る対象が無いため地図問題に限定した。SC-008 は FR-027 が
+  既に持っていた「同一モード内で」という範囲へ揃えた。
+  回帰テスト: `__tests__/components/quiz/review-session-frame.test.tsx`
+- [x] T035 [US4] `app/(app)/quiz/review/page.tsx` を通しで検証する。ローカルスタックの Studio（http://127.0.0.1:54323）で `srs_records` の `due_date` を過去日にして A・B/C・D が混ざるバッチを作り、セッション全体で枠が一度も変わらないことを確認する（SC-009）。**本番 DB では絶対に行わない**（Preview は本番 Supabase を共有する）
+
+  実測（375×812 / ローカルスタック）: `test@example.com` は B しか持たず4択のみのセッションに
+  なるため、ローカル DB にだけ A・D の due 行を足して 18 問の混在セッションを作った（確認後に削除）。
+  q1〜q5（4択）→ q6（A・全国地図）→ q7〜q10（4択）→ q11（D・カウントダウンあり）と種類が変わっても、
+  `nav` 非表示・出典 footer 非表示・`main` が `overflow-hidden`・上端 header と下端 band ありの
+  5点が一度も変化しなかった。
+  なお B のみのセッションが通常レイアウトで出るのは FR-006 どおりの正しい挙動である。
+- [x] T036 [US4] モード D の地図読み込みに失敗させて4択へフォールバックさせ、**枠が維持される**ことを確認する（FR-005）。
+
+  API キーを不正な値にする手は採らなかった。ローカルでは `gm_authFailure` がそもそも発火せず
+  再現できないうえ、キーの差し戻し忘れが事故になる。代わりに `modeDFailed` を立てた状態を
+  `__tests__/components/quiz/review-session-frame.test.tsx` で固定し、枠の5点が地図表示時と
+  一致すること・4択と失敗の告知が出ることを回帰テストにした
 
 **Checkpoint**: 4ストーリーすべて完了
 
@@ -168,11 +194,16 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 **Purpose**: 実測で確定させる値と、横断的な受け入れ確認
 
 - [ ] T037 `BOTTOM_BAND_FEEDBACK_PX` の暫定値 72px を実測で確定する。`lib/quiz/feedback-labels.ts` の最長形（`大和町 （正解: 宮城県: たいわちょう / 神奈川県: やまとまち）`）を 375px 幅で描画し、折り返した実高に合わせて `lib/quiz/hud-metrics.ts` の定数と `__tests__/lib/quiz/hud-metrics.test.ts` の期待値を更新する（research D11）
-- [ ] T037b **SC-012（Google ロゴが帯の直上に可視）は Preview デプロイで検証する。** ローカルの
+- [x] T037b **SC-012（Google ロゴが帯の直上に可視）は Preview デプロイで検証する。** ローカルの
   `127.0.0.1:3000` では Maps API キーの referrer 制限を通らず、地図が `StaticMapService.Get` の
   静止画フォールバックで描画される。この状態ではロゴ・帰属表示・ズームコントロールがそもそも
   出ないため、可視性を確認できない。PR の Preview URL で確認すること
-- [ ] T038 モード D で不正解 → 自動フォーカスが働く際、帯の高さが変わったあとに Google Maps がビューポートサイズへ追随しているかを確認する。追随していなければ `components/map/MunicipalityMap.tsx` の `fitBounds` の前に `google.maps.event.trigger(map, 'resize')` を挟む（research D8 / FR-034）
+
+  PR #89 の Preview URL で確認済み。ロゴと帰属表示が帯の直上に可視で残っていることを確認した。
+- [x] T038 モード D で不正解 → 自動フォーカスが働く際、帯の高さが変わったあとに Google Maps がビューポートサイズへ追随しているかを確認する。追随していなければ `components/map/MunicipalityMap.tsx` の `fitBounds` の前に `google.maps.event.trigger(map, 'resize')` を挟む（research D8 / FR-034）
+
+  PR #89 の Preview URL で確認済み。帯の高さが変わったあとも正解地点が帯に隠れず、地図が追随していた。
+  `google.maps.event.trigger(map, 'resize')` の追加は不要と判断した。
 - [ ] T039 [P] セーフエリアを検証する。DevTools のデバイスツールバーで iPhone 系の端末をエミュレートし、上端・下端の HUD がノッチ／ホームインジケータと重なって押せなくならないことを確認する（Edge Cases）
 - [ ] T040 [P] アクセシビリティを検証する。HUD 内の通常文字が `#111111` 上で 7:1 以上・最小 12px 以上（SC-013）、操作対象が 44×44px 以上（SC-002）、DevTools の *Emulate vision deficiencies* → Achromatopsia で正否がアイコンの形だけでも判別できること（FR-037）
 - [ ] T041 [P] SC-001 を検証する。定常状態で上端＋下端の帯のコンテンツ高（セーフエリアのインセットを除く）が画面高の 15% 以下、375×812 で 122px 以下であること
