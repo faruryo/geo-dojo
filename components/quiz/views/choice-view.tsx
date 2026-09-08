@@ -4,7 +4,7 @@ import { CircleCheck, CircleX } from 'lucide-react';
 import type { FeedbackState } from '../use-quiz-session';
 
 /** HUD の中では文字を色分けしない。詳細は `hudChoiceStyle` の注記を参照。 */
-export type ChoiceAppearance = 'default' | 'hud';
+type ChoiceAppearance = 'default' | 'hud';
 
 interface ChoiceViewProps {
   readonly choices: readonly string[];
