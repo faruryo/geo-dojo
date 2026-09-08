@@ -9,9 +9,32 @@ import { BottomHud, type BottomHudContent } from '@/components/quiz/hud/bottom-h
 let host: HTMLDivElement;
 let root: Root;
 
-function render(content: BottomHudContent, onRequestIntro?: () => void) {
+const CHOICES = ['宮城県', '山形県', '福島県', '岩手県'] as const;
+
+function render(
+  content: BottomHudContent,
+  onRequestIntro?: () => void,
+  withChoices = false,
+) {
   act(() => {
-    root.render(<BottomHud content={content} mode="BCD" onRequestIntro={onRequestIntro} />);
+    root.render(
+      <BottomHud
+        content={content}
+        mode="BCD"
+        onRequestIntro={onRequestIntro}
+        choices={
+          withChoices
+            ? {
+                items: CHOICES,
+                selected: null,
+                correct: CHOICES[0],
+                feedback: 'idle',
+                onSelect: () => {},
+              }
+            : undefined
+        }
+      />,
+    );
   });
 }
 
@@ -67,5 +90,48 @@ describe('BottomHud のアクセシビリティ', () => {
     render(prompt, () => {});
 
     expect(host.querySelector('button p')).toBeNull();
+  });
+});
+
+describe('帯のタップでお題を再表示する', () => {
+  it('選択肢の余白を触ってもお題が戻る', () => {
+    let calls = 0;
+    render(prompt, () => { calls += 1; }, true);
+
+    const region = host.querySelector('footer > div');
+    if (!region) throw new Error('選択肢の領域が無い');
+    act(() => {
+      region.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(calls).toBe(1);
+  });
+
+  it('選択肢そのものを触ったときは戻さない', () => {
+    let calls = 0;
+    render(prompt, () => { calls += 1; }, true);
+
+    const choice = [...host.querySelectorAll('button')].find(
+      (b) => b.textContent?.trim() === CHOICES[0],
+    );
+    if (!choice) throw new Error('選択肢が無い');
+    act(() => {
+      choice.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(calls).toBe(0);
+  });
+
+  it('フィードバック中は帯を触っても戻さない', () => {
+    let calls = 0;
+    render(feedback, () => { calls += 1; }, true);
+
+    const footer = host.querySelector('footer');
+    if (!footer) throw new Error('帯が無い');
+    act(() => {
+      footer.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(calls).toBe(0);
   });
 });
