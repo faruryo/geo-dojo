@@ -63,6 +63,7 @@ pnpm lint:ratchet
 3. 下端の帯をタップ → **また中央に大きく出る**。3回繰り返しても同じ（FR-022 / SC-010）。
 4. DevTools → Rendering → *Emulate CSS media feature prefers-reduced-motion* を `reduce` に。
    次の問題で**移動が起きず**、最初の 2.5 秒だけ帯と文字が大きくなること（FR-023 / SC-011）。
+   2.5 秒後は**一段で戻らず、240ms ほどかけて通常サイズへ緩む**こと。
 
 ---
 

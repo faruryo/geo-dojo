@@ -54,7 +54,7 @@ export function sessionUsesImmersiveLayout(
 | 相 | 中央オーバーレイ | 下端 HUD | 継続 |
 |---|---|---|---|
 | `intro` | 表示（32〜36px） | `opacity: 0` | `holdMs` |
-| `settling` | 下端方向へ `translateY` + `scale` しながら `opacity: 0` へ | `opacity: 1` へ | `transitionMs` |
+| `settling` | 下端方向へ `translateY` + `scale` しながら `opacity: 0` へ（`'static'` では中央に出さないため、帯と文字を通常サイズへ緩ませる時間にあたる） | `opacity: 1` へ | `transitionMs` |
 | `steady` | 非表示 | 定常（1行 16px） | 次の遷移まで |
 
 ### 遷移
@@ -87,7 +87,7 @@ export function resolveIntroPlan(reducedMotion: boolean): IntroPlan;
 | `reducedMotion` | `mode` | `holdMs` | `transitionMs` | `enlargedBandPx` | `enlargedTextPx` |
 |---|---|---|---|---|---|
 | `false` | `'motion'` | 1000 | 320 | `null` | `null` |
-| `true` | `'static'` | 2500 | 0 | 64 | 24 |
+| `true` | `'static'` | 2500 | 240 | 64 | 24 |
 
 ---
 

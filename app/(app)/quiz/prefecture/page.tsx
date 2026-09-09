@@ -12,6 +12,7 @@ import { useImmersiveLayout } from '@/app/(app)/app-shell';
 import { QuestionIntro } from '@/components/quiz/hud/question-intro';
 import {
   introEmphasis,
+  introRestoreMs,
   questionIntroKey,
   showsIntroOverlay,
   useQuestionIntro,
@@ -500,6 +501,7 @@ export default function PrefectureQuizPage() {
   const isPrompt = bottomContent.kind === 'prompt';
   const showIntro = showsIntroOverlay(intro, isPrompt);
   const emphasis = introEmphasis(intro, isPrompt);
+  const restoreMs = introRestoreMs(intro, isPrompt);
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-[#111111]">
@@ -532,6 +534,7 @@ export default function PrefectureQuizPage() {
         mode="BCD"
         onRequestIntro={intro.requestIntro}
         emphasis={emphasis}
+        restoreMs={restoreMs}
       />
     </div>
   );

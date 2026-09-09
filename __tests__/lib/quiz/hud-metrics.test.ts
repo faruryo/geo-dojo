@@ -26,14 +26,23 @@ describe('resolveIntroPlan', () => {
     expect(resolveIntroPlan(true)).toEqual({
       mode: 'static',
       holdMs: 2500,
-      transitionMs: 0,
+      transitionMs: 240,
       enlargedBandPx: 64,
       enlargedTextPx: 24,
     });
   });
 
-  it('reduced-motion のとき遷移時間を 0 にする（移動アニメーションを行わない）', () => {
-    expect(resolveIntroPlan(true).transitionMs).toBe(0);
+  it('reduced-motion でも中央から下端への移動は持たない', () => {
+    // 移動を持たないことは enlargedBandPx / enlargedTextPx を使う分岐であることで表す。
+    // transitionMs は移動時間ではなく、拡大した帯を定常へ戻す緩和の長さ。
+    expect(resolveIntroPlan(true).mode).toBe('static');
+    expect(resolveIntroPlan(true).enlargedBandPx).not.toBeNull();
+  });
+
+  it('拡大した帯を戻す緩和は一瞬で終わらせない（かくっと落ちて見える）', () => {
+    expect(resolveIntroPlan(true).transitionMs).toBeGreaterThan(0);
+    // 長すぎると読み終えたあとも帯が動き続ける。
+    expect(resolveIntroPlan(true).transitionMs).toBeLessThanOrEqual(400);
   });
 
   it('通常時の導入表示は FR-021 の 0.8〜1.2 秒の範囲に収まる', () => {

@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import {
+  introEmphasis,
+  introRestoreMs,
   questionIntroKey,
   useQuestionIntro,
   type QuestionIntro,
@@ -38,7 +40,8 @@ function advance(ms: number) {
  */
 function settle(reducedMotion: boolean) {
   advance(reducedMotion ? 2500 : 1000);
-  advance(reducedMotion ? 0 : 320);
+  // settling の長さ。移動しない設定では帯を定常へ戻す緩和の時間にあたる。
+  advance(reducedMotion ? 240 : 320);
 }
 
 beforeEach(() => {
@@ -143,7 +146,7 @@ describe('useQuestionIntro（通常）', () => {
 });
 
 describe('useQuestionIntro（prefers-reduced-motion）', () => {
-  it('移動の遷移を挟まず、拡大表示から直接定常へ移る', () => {
+  it('拡大表示のあと、緩和ぶんだけ settling を挟んで定常へ移る', () => {
     render(0, true);
 
     expect(latest?.phase).toBe('intro');
@@ -175,5 +178,45 @@ describe('questionIntroKey', () => {
     const idle = questionIntroKey(false, 0);
     expect(idle).not.toBe(questionIntroKey(true, 0));
     expect(idle).toBeLessThan(0);
+  });
+});
+
+describe('拡大した帯を定常へ戻す緩和', () => {
+  it('拡大するのは intro の間だけで、settling では既定の寸法へ戻す', () => {
+    render(0, true);
+    expect(introEmphasis(latest as QuestionIntro, true)).not.toBeUndefined();
+
+    advance(2500); // hold が明けて settling へ
+
+    expect(latest?.phase).toBe('settling');
+    // ここで拡大を残すと、steady へ移る瞬間に緩和ごと外れて一段で切り替わる。
+    expect(introEmphasis(latest as QuestionIntro, true)).toBeUndefined();
+  });
+
+  it('settling の間だけ緩和の時間を返す', () => {
+    render(0, true);
+    expect(introRestoreMs(latest as QuestionIntro, true)).toBeGreaterThan(0);
+
+    advance(2500);
+    expect(introRestoreMs(latest as QuestionIntro, true)).toBeGreaterThan(0);
+
+    advance(240);
+    expect(latest?.phase).toBe('steady');
+    expect(introRestoreMs(latest as QuestionIntro, true)).toBe(0);
+  });
+
+  it('移動する設定では緩和を掛けない（定常とフィードバックの高さ差まで緩むため）', () => {
+    render(0, false);
+
+    expect(introRestoreMs(latest as QuestionIntro, true)).toBe(0);
+    advance(1000);
+    expect(introRestoreMs(latest as QuestionIntro, true)).toBe(0);
+  });
+
+  it('フィードバック中は緩和も拡大もしない', () => {
+    render(0, true);
+
+    expect(introRestoreMs(latest as QuestionIntro, false)).toBe(0);
+    expect(introEmphasis(latest as QuestionIntro, false)).toBeUndefined();
   });
 });

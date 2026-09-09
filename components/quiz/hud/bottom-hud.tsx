@@ -37,6 +37,14 @@ interface BottomHudProps {
    */
   readonly emphasis?: { readonly bandPx: number; readonly textPx: number };
   /**
+   * 帯の寸法を緩ませる時間（ms）。0 なら即時。
+   *
+   * 移動しない設定で拡大した帯を戻すときだけ値が入る。常時掛けると定常と
+   * フィードバックのあいだでも高さが緩み、不正解後の自動フォーカスが働く最中に
+   * 地図の見える範囲が変わり続ける。
+   */
+  readonly restoreMs?: number;
+  /**
    * 復習セッション中の4択（FR-029）。
    *
    * `content` のバリアントにはしない。帯の高さは `bottomBandHeightPx` だけで決まる
@@ -61,11 +69,21 @@ function PromptBody({
   subTitle,
   reshowable,
   textPx,
-}: Readonly<{ title: string; subTitle?: string; reshowable: boolean; textPx: number }>) {
+  restoreMs,
+}: Readonly<{
+  title: string;
+  subTitle?: string;
+  reshowable: boolean;
+  textPx: number;
+  restoreMs: number;
+}>) {
   return (
     <span
       className="flex items-baseline justify-center gap-1.5 truncate px-3 text-[#fafafa]"
-      style={{ fontSize: textPx }}
+      style={{
+        fontSize: textPx,
+        transition: restoreMs > 0 ? `font-size ${restoreMs}ms ease-out` : undefined,
+      }}
     >
       <span className="truncate font-semibold">{title}</span>
       {subTitle && <span className="shrink-0 text-xs text-[#fafafa]/80">{subTitle}</span>}
@@ -104,11 +122,13 @@ function BandBody({
   reshowable,
   onRequestIntro,
   textPx,
+  restoreMs,
 }: Readonly<{
   content: BottomHudContent;
   reshowable: boolean;
   onRequestIntro?: () => void;
   textPx: number;
+  restoreMs: number;
 }>) {
   if (content.kind !== 'prompt') {
     // フィードバックは操作対象ではない。button に入れると無効な操作要素として
@@ -132,6 +152,7 @@ function BandBody({
         subTitle={content.subTitle}
         reshowable={reshowable}
         textPx={textPx}
+        restoreMs={restoreMs}
       />
     </button>
   );
@@ -145,6 +166,7 @@ export function BottomHud({
   onRequestIntro,
   emphasis,
   choices,
+  restoreMs = 0,
 }: Readonly<BottomHudProps>) {
   const height = emphasis?.bandPx ?? bottomBandHeightPx(mode, feedbackStateOf(content));
   const reshowable = content.kind === 'prompt' && onRequestIntro !== undefined;
@@ -171,7 +193,10 @@ export function BottomHud({
         className="flex items-center justify-center gap-2 px-2"
         // 高さは内容の長短で変えない。伸縮すると地図コンテナの高さが毎問変わり、
         // 不正解後の自動フォーカスが安定しない。
-        style={{ height }}
+        style={{
+          height,
+          transition: restoreMs > 0 ? `height ${restoreMs}ms ease-out` : undefined,
+        }}
       >
         {/* aria-label は付けない。付けると子要素のお題がアクセシブル名から外れ、
             中央の導入表示は aria-hidden なので読み上げでお題を取得できなくなる。
@@ -181,6 +206,7 @@ export function BottomHud({
           reshowable={reshowable}
           onRequestIntro={onRequestIntro}
           textPx={emphasis?.textPx ?? STEADY_TEXT_PX}
+          restoreMs={restoreMs}
         />
 
         {selectedCount !== undefined && content.kind === 'prompt' && (

@@ -18,6 +18,7 @@ import { QuestionIntro } from './question-intro';
 import { TopHud, type HudTimer } from './top-hud';
 import {
   introEmphasis,
+  introRestoreMs,
   showsIntroOverlay,
   type QuestionIntro as QuestionIntroState,
 } from './use-question-intro';
@@ -122,6 +123,10 @@ function emphasisOf(intro: QuestionIntroState, content: BottomHudContent) {
   return introEmphasis(intro, content.kind === 'prompt');
 }
 
+function restoreMsOf(intro: QuestionIntroState, content: BottomHudContent) {
+  return introRestoreMs(intro, content.kind === 'prompt');
+}
+
 function IntroOverlay({
   intro,
   content,
@@ -186,6 +191,7 @@ function ModeAStageAndHud({
         selectedCount={feedback === 'idle' ? selectedPrefectures.size : undefined}
         onRequestIntro={intro.requestIntro}
         emphasis={emphasisOf(intro, content)}
+        restoreMs={restoreMsOf(intro, content)}
         submit={{
           label: submitLabel(remaining, canSubmit, feedback),
           disabled: !canSubmit,
@@ -257,6 +263,7 @@ function SingleStageAndHud({
         mode="BCD"
         onRequestIntro={intro.requestIntro}
         emphasis={emphasisOf(intro, content)}
+        restoreMs={restoreMsOf(intro, content)}
         choices={
           isMap
             ? undefined

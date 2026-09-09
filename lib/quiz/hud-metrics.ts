@@ -47,7 +47,7 @@ export interface IntroPlan {
   readonly mode: 'motion' | 'static';
   /** 縮小移動を始めるまでの待ち時間。 */
   readonly holdMs: number;
-  /** 縮小移動そのものにかける時間。 */
+  /** 定常へ落ち着くまでにかける時間。`'motion'` では縮小移動、`'static'` では寸法の緩和。 */
   readonly transitionMs: number;
   /** `'static'` のあいだ帯を広げる高さ。`'motion'` では使わない。 */
   readonly enlargedBandPx: number | null;
@@ -63,10 +63,17 @@ const MOTION_PLAN: IntroPlan = {
   enlargedTextPx: null,
 };
 
+/**
+ * 移動しない設定でも、拡大した帯を定常へ戻すときは寸法を緩ませる。
+ *
+ * 0 にすると 2.5 秒後に 64px→44px・24px→16px が一段で切り替わり、視界の端で
+ * かくっと落ちて見える。`prefers-reduced-motion` が避けたいのは移動であって
+ * 寸法の変化そのものではないため、短い緩和は付けてよい（FR-023 / SC-011）。
+ */
 const STATIC_PLAN: IntroPlan = {
   mode: 'static',
   holdMs: 2500,
-  transitionMs: 0,
+  transitionMs: 240,
   enlargedBandPx: 64,
   enlargedTextPx: 24,
 };
