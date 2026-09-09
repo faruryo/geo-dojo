@@ -54,7 +54,7 @@ export function sessionUsesImmersiveLayout(
 | 相 | 中央オーバーレイ | 下端 HUD | 継続 |
 |---|---|---|---|
 | `intro` | 表示（32〜36px） | `opacity: 0` | `holdMs` |
-| `settling` | 下端方向へ `translateY` + `scale` しながら `opacity: 0` へ | `opacity: 1` へ | `transitionMs` |
+| `settling` | 下端方向へ `translateY` + `scale` しながら `opacity: 0` へ（`'static'` では中央に出さないため、帯と文字を通常サイズへ緩ませる時間にあたる） | `opacity: 1` へ | `transitionMs` |
 | `steady` | 非表示 | 定常（1行 16px） | 次の遷移まで |
 
 ### 遷移
@@ -67,7 +67,7 @@ qIdx 変化 ──▶ intro ──(holdMs)──▶ settling ──(transitionMs
 ```
 
 `prefers-reduced-motion: reduce` のときは `intro` を飛ばし、`steady` から始めて
-最初の `holdMs`（2500ms）だけ帯と文字を拡大する（research D3）。
+最初の `holdMs`（2500ms）だけお題の**文字だけ**を拡大する。帯の高さは変えない（地図が縮んで拡大率と位置がずれるため）。研究は research D3。
 
 ### タイムライン決定関数（pure）
 
@@ -77,17 +77,16 @@ export interface IntroPlan {
   readonly mode: 'motion' | 'static';
   readonly holdMs: number;
   readonly transitionMs: number;
-  readonly enlargedBandPx: number | null;  // static のときのみ
   readonly enlargedTextPx: number | null;  // static のときのみ
 }
 
 export function resolveIntroPlan(reducedMotion: boolean): IntroPlan;
 ```
 
-| `reducedMotion` | `mode` | `holdMs` | `transitionMs` | `enlargedBandPx` | `enlargedTextPx` |
+| `reducedMotion` | `mode` | `holdMs` | `transitionMs` | `enlargedTextPx` |
 |---|---|---|---|---|---|
-| `false` | `'motion'` | 1000 | 320 | `null` | `null` |
-| `true` | `'static'` | 2500 | 0 | 64 | 24 |
+| `false` | `'motion'` | 1000 | 320 | `null` |
+| `true` | `'static'` | 2500 | 240 | 24 |
 
 ---
 
@@ -122,7 +121,7 @@ FR-024 の中核。モード D の制限時間だけを導入後に始めるた�
 | `TOP_BAND_PX` | 44 | FR-014 の 44×44px タップ領域 |
 | `BOTTOM_BAND_PX` | 44 | FR-021 |
 | `BOTTOM_BAND_MODE_A_PX` | 52 | FR-021（確定ボタンの 44px タップ領域を収める） |
-| `BOTTOM_BAND_FEEDBACK_PX` | 72（**暫定・実測で確定**） | FR-026 の最長形が 375px で折り返した高さ。research D11 |
+| `BOTTOM_BAND_FEEDBACK_PX` | 56（375px で実測） | FR-026 の最長形（62文字）は2行 30px。3行 45px でも割れず、`BOTTOM_BAND_MODE_A_PX`(52) を下回らない値。research D11 |
 | `INTRO_TEXT_PX` | 34 | FR-020 の 32〜36px の中央値 |
 | `STEADY_TEXT_PX` | 16 | FR-021 |
 | `MIN_TEXT_PX` | 12 | FR-039 |

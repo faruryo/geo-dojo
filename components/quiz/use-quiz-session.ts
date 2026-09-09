@@ -4,12 +4,11 @@ import { useCallback } from 'react';
 import type { Municipality } from '@/lib/quiz/municipality-data';
 import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
 import { useQuizState, type FeedbackState } from './use-quiz-state';
-import { useQuizTimer, TIME_LIMIT_SEC } from './use-quiz-timer';
+import { useQuizTimer } from './use-quiz-timer';
 import { useQuizActions } from './use-quiz-actions';
 import { usePrefersReducedMotion } from '@/lib/hooks/usePrefersReducedMotion';
 import { useQuestionIntro } from './hud/use-question-intro';
 
-export { TIME_LIMIT_SEC };
 export type { FeedbackState };
 
 export interface ModeAQuestion {

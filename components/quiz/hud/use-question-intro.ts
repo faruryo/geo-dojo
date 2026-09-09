@@ -82,7 +82,6 @@ export function useQuestionIntro(questionKey: number, reducedMotion: boolean): Q
 }
 
 export interface IntroEmphasis {
-  readonly bandPx: number;
   readonly textPx: number;
 }
 
@@ -91,13 +90,32 @@ export function showsIntroOverlay(intro: QuestionIntro, isPrompt: boolean): bool
   return isPrompt && intro.plan.mode === 'motion' && intro.phase !== 'steady';
 }
 
-/** 移動しない設定では、中央のオーバーレイの代わりに下端の帯を大きくして補う。 */
+/**
+ * 移動しない設定では、中央のオーバーレイの代わりに下端のお題の文字を大きくして補う。
+ *
+ * 大きくするのは `intro` の間だけ。`settling` では既定の寸法へ戻し、その落差を
+ * `introRestoreMs` の緩和で埋める。ここで `settling` も大きいままにすると、
+ * 相が `steady` へ移る瞬間に緩和ごと外れて一段で切り替わる。
+ */
 export function introEmphasis(
   intro: QuestionIntro,
   isPrompt: boolean,
 ): IntroEmphasis | undefined {
   const { plan, phase } = intro;
-  if (!isPrompt || plan.mode !== 'static' || phase === 'steady') return undefined;
-  if (plan.enlargedBandPx === null || plan.enlargedTextPx === null) return undefined;
-  return { bandPx: plan.enlargedBandPx, textPx: plan.enlargedTextPx };
+  if (!isPrompt || plan.mode !== 'static' || phase !== 'intro') return undefined;
+  if (plan.enlargedTextPx === null) return undefined;
+  return { textPx: plan.enlargedTextPx };
+}
+
+/**
+ * お題の文字を通常サイズへ戻すときに緩ませる時間。
+ *
+ * `settling` の間だけ返す。大きくする側まで緩めると、再表示のたびに文字が
+ * ぬるっと膨らみ、移動を減らしたい利用者に余計な動きを足すことになる。
+ * 大きくするのは即時、戻すときだけ緩やか、が FR-023 の求める形。
+ */
+export function introRestoreMs(intro: QuestionIntro, isPrompt: boolean): number {
+  const { plan, phase } = intro;
+  if (!isPrompt || plan.mode !== 'static' || phase !== 'settling') return 0;
+  return plan.transitionMs;
 }

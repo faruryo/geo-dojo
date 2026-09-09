@@ -48,12 +48,12 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 ### テストを先に書く（失敗することを確認する）
 
 - [x] T003 [P] `__tests__/lib/quiz/immersive-layout.test.ts` を新規作成する。`sessionUsesImmersiveLayout` のケース表: A のみ / D のみ / B・C のみ / A と B の混在 / D と C の混在 / 空配列。**モジュール未実装で失敗すること**を確認する
-- [x] T004 [P] `__tests__/lib/quiz/hud-metrics.test.ts` を新規作成する。`resolveIntroPlan(false)` が `mode:'motion'` / `holdMs:1000` / `transitionMs:320`、`resolveIntroPlan(true)` が `mode:'static'` / `holdMs:2500` / `transitionMs:0` / `enlargedBandPx:64` / `enlargedTextPx:24` を返すこと。`bottomBandHeightPx` の3分岐（feedback 時 72 / mode A 52 / それ以外 44）と、**feedback 時はモードによらず同値**（SC-008）であること
+- [x] T004 [P] `__tests__/lib/quiz/hud-metrics.test.ts` を新規作成する。`resolveIntroPlan(false)` が `mode:'motion'` / `holdMs:1000` / `transitionMs:320`、`resolveIntroPlan(true)` が `mode:'static'` / `holdMs:2500` / `transitionMs:240` / `enlargedTextPx:24` を返すこと（`transitionMs` は当初 0、`enlargedBandPx:64` も持っていた。一段で戻るとかくっと落ちて見え、帯を太らせると地図が縮んで拡大率と位置がずれたため、緩和 240ms と文字のみの拡大へ改めた）。`bottomBandHeightPx` の3分岐（feedback 時 / mode A 52 / それ以外 44）と、**feedback 時はモードによらず同値**（SC-008）であること（feedback 時の値は当時 72 の暫定。T037 で 56 に確定）
 
 ### 実装
 
 - [x] T005 [P] `lib/quiz/immersive-layout.ts` に `sessionUsesImmersiveLayout(questions: readonly Question[]): boolean` を実装する。判定条件は `kind === 'A'` または `kind === 'BCD' && mode === 'D'` を1問以上含むこと。**引数に `modeDFailed` / `currentQuestion` / `qIdx` を取らない**（research D2。取ると FR-004 / FR-005 が壊れる）
-- [x] T006 [P] `lib/quiz/hud-metrics.ts` に data-model.md 4節の定数（`TOP_BAND_PX`=44、`BOTTOM_BAND_PX`=44、`BOTTOM_BAND_MODE_A_PX`=52、`BOTTOM_BAND_FEEDBACK_PX`=72（暫定）、`INTRO_TEXT_PX`=34、`STEADY_TEXT_PX`=16、`MIN_TEXT_PX`=12）と `resolveIntroPlan` / `bottomBandHeightPx` を実装する
+- [x] T006 [P] `lib/quiz/hud-metrics.ts` に data-model.md 4節の定数（`TOP_BAND_PX`=44、`BOTTOM_BAND_PX`=44、`BOTTOM_BAND_MODE_A_PX`=52、`BOTTOM_BAND_FEEDBACK_PX`=72（暫定。T037 で 56 に確定）、`INTRO_TEXT_PX`=34、`STEADY_TEXT_PX`=16、`MIN_TEXT_PX`=12）と `resolveIntroPlan` / `bottomBandHeightPx` を実装する
 - [x] T007 T003・T004 の各テストについて、実装側の条件を1つずつ一時的に反転させて**実際に赤くなることを確認**し、確認後に復元して再実行する（`.agents/rules/testing.instructions.md` の MUST）
 - [x] T008 [P] `lib/hooks/usePrefersReducedMotion.ts` を新規作成する。`window.matchMedia('(prefers-reduced-motion: reduce)')` を購読し、`change` で追随する。SSR 安全に初期値 `false` から始める
 - [x] T009 `app/(app)/app-shell.tsx` を新規作成する（`'use client'`）。immersive の boolean Context と `useImmersiveLayout(active: boolean)` を公開し、`active` のとき出典 `<footer>`・`<BottomNav />` を描画せず、`<main>` の `paddingBottom` を `0`・`overflowY` を `hidden` にする。`useImmersiveLayout` は effect の cleanup で必ず `false` に戻す（contracts C1）
@@ -112,7 +112,7 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 - [x] T022 [US2] `components/quiz/hud/use-question-intro.ts` を新規作成する。`qIdx` と `usePrefersReducedMotion()` を入力に `'intro' | 'settling' | 'steady'` を進める。タイムラインは `resolveIntroPlan()` から取り、hook 側には `setTimeout` だけを残す（判断は pure 関数側。testing rules）。あわせて「その `qIdx` で導入が**初回**完了したか」のラッチを返す
 - [x] T023 [US2] `components/quiz/hud/question-intro.tsx` を新規作成する。3段骨格の**兄弟**として絶対配置し（地図コンテナの中に入れない）、`transform: translateY() scale()` と `opacity` のみを遷移させる。`height` / `top` / `width` はアニメーションさせない（Performance Goals）。文字は `INTRO_TEXT_PX`（34px）
 - [x] T024 [US2] `BottomHud` に `onRequestIntro` を追加し、帯タップで導入表示を再現できるようにする。再表示できることを示す拡大アイコンを `kind: 'prompt'` のとき添える。`submit` ボタンと4択ボタンの上ではタップを発火させない（FR-022 / contracts C4）
-- [x] T025 [US2] reduced motion 分岐を実装する。`resolveIntroPlan(true)` のとき中央オーバーレイを描画せず、最初の 2500ms だけ下端の帯を 64px・文字を 24px にしてから通常サイズへ戻す。サイズ変更に transition を付けない（FR-023 / SC-011）
+- [x] T025 [US2] reduced motion 分岐を実装する。`resolveIntroPlan(true)` のとき中央オーバーレイを描画せず、最初の 2500ms だけ下端のお題の文字を 24px にしてから通常サイズへ戻す（FR-023 / SC-011）。**当初は「帯を 64px にする」「サイズ変更に transition を付けない」としていたが、実画面で（a）帯を太らせると地図が縮み戻すときに拡大率と位置がずれる、（b）一段で戻るとかくっと落ちて見える、の2点が出たため、帯の高さは変えず文字だけを拡大し 240ms の緩和を付ける方針へ改めた。**
 - [x] T026 [US2] `components/quiz/use-quiz-timer.ts` に `armed: boolean` を追加し、`armed === false` の間はインターバルを張らないようにする（`timeLeft` は `TIME_LIMIT_SEC` のまま）。**`components/quiz/use-quiz-state.ts` の `startTimeRef` には触れない**（contracts C5 / FR-024）
 - [x] T027 [US2] `quiz-runner.tsx` で T022 のラッチを `useQuizTimer` の `armed` に渡す。**下端タップによる再表示で `armed` を `false` に戻さない**（戻すと読み返すたびに持ち時間が延び、事実上の無制限になる）
 - [x] T028 [P] [US2] `components/quiz/hud/feedback-line.tsx` を新規作成する。文字は `#fafafa` に統一し、正解は `#22c55e` の塗り丸＋チェック、不正解は `#ef4444` の塗り丸＋× のアイコンで示す。**文字色に `#22c55e` / `#ef4444` / `#4a7c59` を使わない**（FR-037 / FR-038）（**T013 と同時に実施済み**。フィードバック表示を欠いた中間状態を作らないため）
@@ -193,7 +193,12 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 
 **Purpose**: 実測で確定させる値と、横断的な受け入れ確認
 
-- [ ] T037 `BOTTOM_BAND_FEEDBACK_PX` の暫定値 72px を実測で確定する。`lib/quiz/feedback-labels.ts` の最長形（`大和町 （正解: 宮城県: たいわちょう / 神奈川県: やまとまち）`）を 375px 幅で描画し、折り返した実高に合わせて `lib/quiz/hud-metrics.ts` の定数と `__tests__/lib/quiz/hud-metrics.test.ts` の期待値を更新する（research D11）
+- [x] T037 `BOTTOM_BAND_FEEDBACK_PX` の暫定値 72px を実測で確定する。`lib/quiz/feedback-labels.ts` の最長形（`大和町 （正解: 宮城県: たいわちょう / 神奈川県: やまとまち）`）を 375px 幅で描画し、折り返した実高に合わせて `lib/quiz/hud-metrics.ts` の定数と `__tests__/lib/quiz/hud-metrics.test.ts` の期待値を更新する（research D11）
+
+  実測（375px）: `municipality_master` 全件で最長形は想定の `大和町 …`（37文字）ではなく
+  `池田町 （正解: 北海道: … / 長野県: いけだまち）`（62文字・4県）だった。折り返して**2行 30px**
+  （行の高さ 15px。3行なら 45px、4行なら 60px）。定数は **56px** に確定。実測の 30px に余裕があり、
+  3行になっても割れず、県当て（A）の定常 52px を下回らないので解答時に帯が縮まない。
 - [x] T037b **SC-012（Google ロゴが帯の直上に可視）は Preview デプロイで検証する。** ローカルの
   `127.0.0.1:3000` では Maps API キーの referrer 制限を通らず、地図が `StaticMapService.Get` の
   静止画フォールバックで描画される。この状態ではロゴ・帰属表示・ズームコントロールがそもそも
@@ -204,12 +209,49 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 
   PR #89 の Preview URL で確認済み。帯の高さが変わったあとも正解地点が帯に隠れず、地図が追随していた。
   `google.maps.event.trigger(map, 'resize')` の追加は不要と判断した。
-- [ ] T039 [P] セーフエリアを検証する。DevTools のデバイスツールバーで iPhone 系の端末をエミュレートし、上端・下端の HUD がノッチ／ホームインジケータと重なって押せなくならないことを確認する（Edge Cases）
-- [ ] T040 [P] アクセシビリティを検証する。HUD 内の通常文字が `#111111` 上で 7:1 以上・最小 12px 以上（SC-013）、操作対象が 44×44px 以上（SC-002）、DevTools の *Emulate vision deficiencies* → Achromatopsia で正否がアイコンの形だけでも判別できること（FR-037）
-- [ ] T041 [P] SC-001 を検証する。定常状態で上端＋下端の帯のコンテンツ高（セーフエリアのインセットを除く）が画面高の 15% 以下、375×812 で 122px 以下であること
-- [ ] T042 [P] FR-041 を検証する。出題中は出典 footer が見えず、中断して `/quiz` や `/`・分析画面へ戻ると出典 footer が見えていること
-- [ ] T043 [quickstart.md](./quickstart.md) の S1〜S9 を通しで実施する
-- [ ] T044 `pnpm type-check` / `pnpm lint:ratchet` / `pnpm test` / `pnpm audit:dead-code` を実行し、いずれも通ることを確認する
+- [x] T039 [P] セーフエリアを検証する。DevTools のデバイスツールバーで iPhone 系の端末をエミュレートし、上端・下端の HUD がノッチ／ホームインジケータと重なって押せなくならないことを確認する（Edge Cases）
+
+  実測: 上端 `pt-[env(safe-area-inset-top)]` / 下端 `pb-[env(safe-area-inset-bottom)]` が入っている。
+  iPhone X 系の値（上 44px・下 34px）を注入すると、中断ボタンは top=44・高さ 44 でノッチの下に収まり、
+  お題ボタンの下端は 778px でホームインジケータ（812-34=778）に接する位置に留まった。
+- [x] T040 [P] アクセシビリティを検証する。HUD 内の通常文字が `#111111` 上で 7:1 以上・最小 12px 以上（SC-013）、操作対象が 44×44px 以上（SC-002）、DevTools の *Emulate vision deficiencies* → Achromatopsia で正否がアイコンの形だけでも判別できること（FR-037）
+
+  実測（375px・地色 `#111111`）: 中断/進捗/タイマー/お題 いずれも `#fafafa` で **18.09:1**・12px 以上。
+  副題（県名）は Tailwind v4 の `oklab(... / 0.8)` で実効 `#cbcbcb`・**11.64:1**・12px。
+  フィードバック文 18.09:1。4択は文字 18.09:1（14px）、枠は正解 8.29:1 / 誤答 5.02:1 でいずれも非テキストの 3:1 以上。
+  タップ領域は中断 58×44、ミュート 44×44、4択 46px、ズーム 44×44。正否は塗り丸＋チェック/× の形で区別できる。
+- [x] T041 [P] SC-001 を検証する。定常状態で上端＋下端の帯のコンテンツ高（セーフエリアのインセットを除く）が画面高の 15% 以下、375×812 で 122px 以下であること
+
+  実測（375×812・インセット 0 の状態）: 都道府県 44+44=**88px**、場所当て D 44+44=**88px**、
+  県当て A 44+52=**96px**。いずれも上限 122px（画面高の 15%）以内。
+- [x] T042 [P] FR-041 を検証する。出題中は出典 footer が見えず、中断して `/quiz` や `/`・分析画面へ戻ると出典 footer が見えていること
+
+  実測: 出題前は出典 footer とボトムナビが見え、出題中は両方消え、中断で戻ると両方復帰した。
+- [x] T043 [quickstart.md](./quickstart.md) の S1〜S9 を通しで実施する
+
+  | | 結果 |
+  |---|---|
+  | S1 枠 | ✅ 3画面とも帯・地図・帯だけ。`main` が `overflow-hidden` でページはスクロールしない。4択のみのセッションはボトムナビが出たまま |
+  | S2 導入表示 | ✅ 中央→下端の移動と再表示。**S2.4（`prefers-reduced-motion`）だけこの環境から media emulation を操作できず実画面未確認**。位相は `question-intro.test.tsx` で固定済み |
+  | S3 タイマーの起点 | ✅ 導入中はカウントが減らず、再表示でも止まらない。**S3.4 は実データで確認**: 導入後からは 1002ms のところ記録は `answer_time_ms = 2942`。起点が導入後へずれていない（FR-024 / FR-050） |
+  | S4 下端 HUD | ✅ 件数1行「0 件」、確定ラベル「あと N か所」→「解答する」。最長形（62文字）は 56px の帯に 30px で収まり上下 13px 余る |
+  | S5 地図 | ✅ 帯は `rgb(17,17,17)` の完全不透明・`backdrop-filter: none`。ズームは右側面 44×44px で縦 44〜55%、帯と重ならない。**ロゴと自動フォーカス（S5.1/5.2/5.5）は Preview で確認済み**（T037b / T038） |
+  | S6 復習セッション | ✅ T035 で 18 問の混在セッションを通し、枠が一度も変わらないことを確認 |
+  | S7 中断と復帰 | ✅ T032 / T033 で確認（確認1段・取り消し・承認・戻るボタン） |
+  | S8 アクセシビリティ | ✅ T040 の実測どおり |
+  | S9 出典 | ✅ T042 の実測どおり |
+
+  **検証中に見つけたローカル環境の不整合**（製品コードの問題ではない）: ローカル DB が
+  `0001` 以降のマイグレーション未適用で、`answer_time_ms` 列が無く保存が 500 で落ちていた。
+  さらに3テーブルとも RLS が無効だった。`0004` / `0005` と `0000` / `0001` の RLS 文を
+  当てて解消した。なお保存失敗はサーバログに理由が出て再 throw されており、
+  握り潰し防止（CLAUDE.md）は期待どおり働いていた。
+- [x] T044 `pnpm type-check` / `pnpm lint:ratchet` / `pnpm test` / `pnpm audit:dead-code` を実行し、いずれも通ることを確認する
+
+  `type-check` 通過、`lint` 0 errors、`lint:ratchet` 増加なし、`test` 351 passed / 18 skipped。
+  `audit:dead-code` は report-only だが、本 spec の作業で新たに増えた未使用エクスポート2件
+  （`use-quiz-session` の `TIME_LIMIT_SEC` 再エクスポート、`choice-view` の `ChoiceAppearance`）を
+  取り除き、027 関連の指摘を 0 にした。
 
 ---
 

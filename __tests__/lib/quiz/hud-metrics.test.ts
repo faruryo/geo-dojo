@@ -17,7 +17,6 @@ describe('resolveIntroPlan', () => {
       mode: 'motion',
       holdMs: 1000,
       transitionMs: 320,
-      enlargedBandPx: null,
       enlargedTextPx: null,
     });
   });
@@ -26,14 +25,22 @@ describe('resolveIntroPlan', () => {
     expect(resolveIntroPlan(true)).toEqual({
       mode: 'static',
       holdMs: 2500,
-      transitionMs: 0,
-      enlargedBandPx: 64,
+      transitionMs: 240,
       enlargedTextPx: 24,
     });
   });
 
-  it('reduced-motion のとき遷移時間を 0 にする（移動アニメーションを行わない）', () => {
-    expect(resolveIntroPlan(true).transitionMs).toBe(0);
+  it('reduced-motion でも中央から下端への移動は持たない', () => {
+    // 移動を持たないことは enlargedBandPx / enlargedTextPx を使う分岐であることで表す。
+    // transitionMs は移動時間ではなく、拡大した帯を定常へ戻す緩和の長さ。
+    expect(resolveIntroPlan(true).mode).toBe('static');
+    expect(resolveIntroPlan(true).enlargedTextPx).not.toBeNull();
+  });
+
+  it('拡大した帯を戻す緩和は一瞬で終わらせない（かくっと落ちて見える）', () => {
+    expect(resolveIntroPlan(true).transitionMs).toBeGreaterThan(0);
+    // 長すぎると読み終えたあとも帯が動き続ける。
+    expect(resolveIntroPlan(true).transitionMs).toBeLessThanOrEqual(400);
   });
 
   it('通常時の導入表示は FR-021 の 0.8〜1.2 秒の範囲に収まる', () => {
@@ -65,8 +72,21 @@ describe('bottomBandHeightPx', () => {
     expect(bottomBandHeightPx('BCD', 'correct')).toBe(bottomBandHeightPx('BCD', 'incorrect'));
   });
 
-  it('フィードバック中は定常状態より高い（最長形の折り返しを収めるため）', () => {
-    expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThan(BOTTOM_BAND_MODE_A_PX);
+  it('フィードバック中は定常状態より低くならない（解答した瞬間に帯が縮まない）', () => {
+    expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThanOrEqual(BOTTOM_BAND_MODE_A_PX);
+    expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThanOrEqual(BOTTOM_BAND_PX);
+  });
+
+  it('実測で確定した高さから動かさない', () => {
+    // 375px の実測に基づく値。最長形（62文字）は2行 30px、行の高さは 15px。
+    // 下の関係だけでは暫定値だった 72px も通ってしまい、実測へ詰めた変更を守れない。
+    // 動かすときは測り直し、この期待値も一緒に更新する。
+    expect(BOTTOM_BAND_FEEDBACK_PX).toBe(56);
+  });
+
+  it('最長形が3行になっても割れない高さがある', () => {
+    const LINE_HEIGHT_PX = 15;
+    expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThanOrEqual(LINE_HEIGHT_PX * 3);
   });
 });
 
