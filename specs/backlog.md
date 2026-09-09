@@ -22,7 +22,7 @@
   - 実装: 024 でトップ画面から外した学習の内訳データ（正答率推移グラフ、苦手市区町村ランキング、モード別・難易度別クリア状況、4サマリーカード）を独立した詳細分析画面（`/analytics`）に移行・集約。ボトムナビに「分析」タブ（BarChart2アイコン）を追加。動的フィルター連動、Mode A 同名市複数県（および政令指定都市）のアトミック保存・1問1件正規化・代表難易度集約を実装。
   - 該当: `app/(app)/analytics/page.tsx`, `components/analytics/analytics-client.tsx`, `app/(app)/quiz/municipality/actions.ts`, `lib/db/queries/dashboard.ts`, `specs/025-detailed-analytics/`
 
-- [ ] B022 【UI/UX】地図クイズのフルスクリーン化とHUD（オーバーレイ）UI（GeoGuessr風レイアウト） → **027-map-quiz-hud で spec 策定済み・Claude Design での試作反映済み（#82）**
+- [x] B022 【UI/UX】地図クイズのフルスクリーン化とHUD（オーバーレイ）UI（GeoGuessr風レイアウト） → **027-map-quiz-hud で実装完了（#82）**
   - 仕様: `specs/027-map-quiz-hud/spec.md`（決定の根拠は `checklists/requirements.md` の Notes）
   - スコープ確定: 3画面とも地図を拡大する。全国 SVG 地図の投影フレーミング詰め直し（[[B026]]）も 027 に取り込んだ。
   - 概要: 地図を操作するクイズ（市区町村 Mode A / Mode D、都道府県クイズ）において、地図を画面いっぱいに広げ、問題文やお題、進捗ゲージ、タイマー、フィードバックなどを地図の上に浮かぶオーバーレイ（HUD: Heads-Up Display）として配置する。
@@ -40,6 +40,12 @@
     - 地図のパン/ピンチ操作とオーバーレイUIのインタラクション制御（`pointer-events-none` と `pointer-events-auto` の切り分け）
     - モバイル（375px基準・セーフエリア考慮）とデスクトップでのレスポンシブ配置
     - 不正解時の自動フォーカス（016-map-autofocus）やダークモード（`#111111`）との親和性
+  - 実装: PR #85（US1・フルスクリーン枠と全国地図の詰め直し）、#86（US2・お題の導入表示とタイマー起点の分離）、
+    #89（US3・中断の確認）、#91（US4・復習セッションの枠）、#93（Polish・実測と reduced-motion の是正）。
+    tasks.md は 48/50 完了（残る T019・T020e は N/A 注記済み）。
+  - 検討事項の結論: オーバーレイは半透明にせず `#111111` の完全不透明とした（明るい地図タイルの上で
+    コントラストを数値で保証できないため・FR-035）。地図は上下の帯に挟んで `flex-1` で埋め、
+    帯の外なら地図のパン・ピンチが従来どおり効く。セーフエリアは帯の padding で受ける。
 
 - [x] B026 【UI/UX】全国 SVG 地図の縦画面最適化 → **027-map-quiz-hud に取り込んで実装完了**
   - 概要: `components/map/JapanMap.tsx` は 400×500 の viewBox を `preserveAspectRatio` 既定で描画しており、縦長ビューポートでは幅律速でレターボックスされる。375×812 では地図が 375×469 にしかならず、上下に計 343px の空白が出る。027 でフルスクリーン化しても Mode A・都道府県クイズの地図は大きくならない。
