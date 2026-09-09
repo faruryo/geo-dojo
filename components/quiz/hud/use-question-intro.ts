@@ -82,7 +82,6 @@ export function useQuestionIntro(questionKey: number, reducedMotion: boolean): Q
 }
 
 export interface IntroEmphasis {
-  readonly bandPx: number;
   readonly textPx: number;
 }
 
@@ -92,7 +91,7 @@ export function showsIntroOverlay(intro: QuestionIntro, isPrompt: boolean): bool
 }
 
 /**
- * 移動しない設定では、中央のオーバーレイの代わりに下端の帯を大きくして補う。
+ * 移動しない設定では、中央のオーバーレイの代わりに下端のお題の文字を大きくして補う。
  *
  * 大きくするのは `intro` の間だけ。`settling` では既定の寸法へ戻し、その落差を
  * `introRestoreMs` の緩和で埋める。ここで `settling` も大きいままにすると、
@@ -104,15 +103,12 @@ export function introEmphasis(
 ): IntroEmphasis | undefined {
   const { plan, phase } = intro;
   if (!isPrompt || plan.mode !== 'static' || phase !== 'intro') return undefined;
-  if (plan.enlargedBandPx === null || plan.enlargedTextPx === null) return undefined;
-  return { bandPx: plan.enlargedBandPx, textPx: plan.enlargedTextPx };
+  if (plan.enlargedTextPx === null) return undefined;
+  return { textPx: plan.enlargedTextPx };
 }
 
 /**
- * 帯の寸法を緩ませる時間。移動しない設定の導入表示の間だけ効かせる。
- *
- * 常時掛けてはいけない。定常とフィードバックのあいだ（44↔56px）まで緩むと、
- * 不正解後の自動フォーカスが働く最中に地図の見える範囲が変わり続ける。
+ * お題の文字を緩ませる時間。移動しない設定の導入表示の間だけ効かせる。
  */
 export function introRestoreMs(intro: QuestionIntro, isPrompt: boolean): number {
   const { plan, phase } = intro;

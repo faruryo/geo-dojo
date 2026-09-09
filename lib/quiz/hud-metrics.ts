@@ -49,8 +49,6 @@ export interface IntroPlan {
   readonly holdMs: number;
   /** 定常へ落ち着くまでにかける時間。`'motion'` では縮小移動、`'static'` では寸法の緩和。 */
   readonly transitionMs: number;
-  /** `'static'` のあいだ帯を広げる高さ。`'motion'` では使わない。 */
-  readonly enlargedBandPx: number | null;
   /** `'static'` のあいだ文字を大きくするサイズ。`'motion'` では使わない。 */
   readonly enlargedTextPx: number | null;
 }
@@ -59,22 +57,23 @@ const MOTION_PLAN: IntroPlan = {
   mode: 'motion',
   holdMs: 1000,
   transitionMs: 320,
-  enlargedBandPx: null,
   enlargedTextPx: null,
 };
 
 /**
- * 移動しない設定でも、拡大した帯を定常へ戻すときは寸法を緩ませる。
+ * 移動しない設定では、中央へ出す代わりに下端のお題の文字を大きくする。
  *
- * 0 にすると 2.5 秒後に 64px→44px・24px→16px が一段で切り替わり、視界の端で
- * かくっと落ちて見える。`prefers-reduced-motion` が避けたいのは移動であって
- * 寸法の変化そのものではないため、短い緩和は付けてよい（FR-023 / SC-011）。
+ * **帯の高さは変えない。** 地図は上下の帯に挟まれた領域いっぱいに描かれるので、
+ * 帯を太らせるとその分だけ地図が縮み、戻すときに拡大率と位置がずれて見える。
+ * 中央のオーバーレイが絶対配置でレイアウトに影響しないのと揃える。
+ *
+ * 文字を戻すときは短く緩ませる。一段で切り替えると視界の端でかくっと落ちて見える。
+ * `prefers-reduced-motion` が避けたいのは移動であって寸法の変化そのものではない。
  */
 const STATIC_PLAN: IntroPlan = {
   mode: 'static',
   holdMs: 2500,
   transitionMs: 240,
-  enlargedBandPx: 64,
   enlargedTextPx: 24,
 };
 

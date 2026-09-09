@@ -67,7 +67,7 @@ qIdx 変化 ──▶ intro ──(holdMs)──▶ settling ──(transitionMs
 ```
 
 `prefers-reduced-motion: reduce` のときは `intro` を飛ばし、`steady` から始めて
-最初の `holdMs`（2500ms）だけ帯と文字を拡大する（research D3）。
+最初の `holdMs`（2500ms）だけお題の**文字だけ**を拡大する。帯の高さは変えない（地図が縮んで拡大率と位置がずれるため）。研究は research D3。
 
 ### タイムライン決定関数（pure）
 
@@ -77,17 +77,16 @@ export interface IntroPlan {
   readonly mode: 'motion' | 'static';
   readonly holdMs: number;
   readonly transitionMs: number;
-  readonly enlargedBandPx: number | null;  // static のときのみ
   readonly enlargedTextPx: number | null;  // static のときのみ
 }
 
 export function resolveIntroPlan(reducedMotion: boolean): IntroPlan;
 ```
 
-| `reducedMotion` | `mode` | `holdMs` | `transitionMs` | `enlargedBandPx` | `enlargedTextPx` |
+| `reducedMotion` | `mode` | `holdMs` | `transitionMs` | `enlargedTextPx` |
 |---|---|---|---|---|---|
-| `false` | `'motion'` | 1000 | 320 | `null` | `null` |
-| `true` | `'static'` | 2500 | 240 | 64 | 24 |
+| `false` | `'motion'` | 1000 | 320 | `null` |
+| `true` | `'static'` | 2500 | 240 | 24 |
 
 ---
 

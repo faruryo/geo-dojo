@@ -17,7 +17,6 @@ describe('resolveIntroPlan', () => {
       mode: 'motion',
       holdMs: 1000,
       transitionMs: 320,
-      enlargedBandPx: null,
       enlargedTextPx: null,
     });
   });
@@ -27,7 +26,6 @@ describe('resolveIntroPlan', () => {
       mode: 'static',
       holdMs: 2500,
       transitionMs: 240,
-      enlargedBandPx: 64,
       enlargedTextPx: 24,
     });
   });
@@ -36,7 +34,7 @@ describe('resolveIntroPlan', () => {
     // 移動を持たないことは enlargedBandPx / enlargedTextPx を使う分岐であることで表す。
     // transitionMs は移動時間ではなく、拡大した帯を定常へ戻す緩和の長さ。
     expect(resolveIntroPlan(true).mode).toBe('static');
-    expect(resolveIntroPlan(true).enlargedBandPx).not.toBeNull();
+    expect(resolveIntroPlan(true).enlargedTextPx).not.toBeNull();
   });
 
   it('拡大した帯を戻す緩和は一瞬で終わらせない（かくっと落ちて見える）', () => {

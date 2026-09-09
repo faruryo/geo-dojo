@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { BottomHud, type BottomHudContent } from '@/components/quiz/hud/bottom-hud';
+import { BOTTOM_BAND_PX } from '@/lib/quiz/hud-metrics';
 
 (globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -133,5 +134,52 @@ describe('帯のタップでお題を再表示する', () => {
     });
 
     expect(calls).toBe(0);
+  });
+});
+
+describe('導入表示で帯の高さを変えない', () => {
+  const bandHeight = () =>
+    host.querySelector<HTMLElement>('footer > div')?.style.height;
+
+  it('文字を大きくしても帯の高さは定常のまま', () => {
+    act(() => {
+      root.render(<BottomHud content={prompt} mode="BCD" onRequestIntro={() => {}} />);
+    });
+    const steady = bandHeight();
+
+    act(() => {
+      root.render(
+        <BottomHud
+          content={prompt}
+          mode="BCD"
+          onRequestIntro={() => {}}
+          emphasis={{ textPx: 24 }}
+          restoreMs={240}
+        />,
+      );
+    });
+
+    // 帯が太ると地図の高さがその分だけ変わり、拡大率と位置がずれて見える。
+    expect(bandHeight()).toBe(steady);
+    expect(bandHeight()).toBe(`${BOTTOM_BAND_PX}px`);
+  });
+
+  it('緩和は文字だけに掛け、帯の高さには掛けない', () => {
+    act(() => {
+      root.render(
+        <BottomHud
+          content={prompt}
+          mode="BCD"
+          onRequestIntro={() => {}}
+          emphasis={{ textPx: 24 }}
+          restoreMs={240}
+        />,
+      );
+    });
+
+    const row = host.querySelector<HTMLElement>('footer > div');
+    expect(row?.style.transition).toBe('');
+    const text = host.querySelector<HTMLElement>('button span');
+    expect(text?.style.transition).toContain('font-size');
   });
 });

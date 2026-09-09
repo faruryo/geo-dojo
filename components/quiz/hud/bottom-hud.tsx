@@ -32,17 +32,14 @@ interface BottomHudProps {
   /** 帯をタップしたときにお題を中央へ再表示する。 */
   readonly onRequestIntro?: () => void;
   /**
-   * 移動アニメーションを行わない設定のとき、導入の代わりに帯ごと大きく見せる。
+   * 移動アニメーションを行わない設定のとき、導入の代わりにお題の文字を大きく見せる。
    * 中央のオーバーレイを出さない分をここで補う。
-   */
-  readonly emphasis?: { readonly bandPx: number; readonly textPx: number };
-  /**
-   * 帯の寸法を緩ませる時間（ms）。0 なら即時。
    *
-   * 移動しない設定で拡大した帯を戻すときだけ値が入る。常時掛けると定常と
-   * フィードバックのあいだでも高さが緩み、不正解後の自動フォーカスが働く最中に
-   * 地図の見える範囲が変わり続ける。
+   * **帯の高さは変えない。** 地図は上下の帯に挟まれた領域いっぱいに描かれるので、
+   * 帯を太らせるとその分だけ地図が縮み、戻すときに拡大率と位置がずれて見える。
    */
+  readonly emphasis?: { readonly textPx: number };
+  /** お題の文字を緩ませる時間（ms）。0 なら即時。 */
   readonly restoreMs?: number;
   /**
    * 復習セッション中の4択（FR-029）。
@@ -168,7 +165,7 @@ export function BottomHud({
   choices,
   restoreMs = 0,
 }: Readonly<BottomHudProps>) {
-  const height = emphasis?.bandPx ?? bottomBandHeightPx(mode, feedbackStateOf(content));
+  const height = bottomBandHeightPx(mode, feedbackStateOf(content));
   const reshowable = content.kind === 'prompt' && onRequestIntro !== undefined;
 
   // 帯のどこを触ってもお題が戻るようにする。選択肢を帯の中に積んだことで、
@@ -191,12 +188,9 @@ export function BottomHud({
       <ChoiceRegion choices={choices} />
       <div
         className="flex items-center justify-center gap-2 px-2"
-        // 高さは内容の長短で変えない。伸縮すると地図コンテナの高さが毎問変わり、
-        // 不正解後の自動フォーカスが安定しない。
-        style={{
-          height,
-          transition: restoreMs > 0 ? `height ${restoreMs}ms ease-out` : undefined,
-        }}
+        // 高さは内容の長短でも導入表示でも変えない。伸縮すると地図コンテナの高さが
+        // 変わり、拡大率と位置がずれるうえ、不正解後の自動フォーカスも安定しない。
+        style={{ height }}
       >
         {/* aria-label は付けない。付けると子要素のお題がアクセシブル名から外れ、
             中央の導入表示は aria-hidden なので読み上げでお題を取得できなくなる。

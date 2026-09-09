@@ -48,7 +48,7 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 ### テストを先に書く（失敗することを確認する）
 
 - [x] T003 [P] `__tests__/lib/quiz/immersive-layout.test.ts` を新規作成する。`sessionUsesImmersiveLayout` のケース表: A のみ / D のみ / B・C のみ / A と B の混在 / D と C の混在 / 空配列。**モジュール未実装で失敗すること**を確認する
-- [x] T004 [P] `__tests__/lib/quiz/hud-metrics.test.ts` を新規作成する。`resolveIntroPlan(false)` が `mode:'motion'` / `holdMs:1000` / `transitionMs:320`、`resolveIntroPlan(true)` が `mode:'static'` / `holdMs:2500` / `transitionMs:240` / `enlargedBandPx:64` / `enlargedTextPx:24` を返すこと（`transitionMs` は当初 0。通常サイズへ一段で戻るとかくっと落ちて見えたため 240 へ改めた）。`bottomBandHeightPx` の3分岐（feedback 時 / mode A 52 / それ以外 44）と、**feedback 時はモードによらず同値**（SC-008）であること（feedback 時の値は当時 72 の暫定。T037 で 56 に確定）
+- [x] T004 [P] `__tests__/lib/quiz/hud-metrics.test.ts` を新規作成する。`resolveIntroPlan(false)` が `mode:'motion'` / `holdMs:1000` / `transitionMs:320`、`resolveIntroPlan(true)` が `mode:'static'` / `holdMs:2500` / `transitionMs:240` / `enlargedTextPx:24` を返すこと（`transitionMs` は当初 0、`enlargedBandPx:64` も持っていた。一段で戻るとかくっと落ちて見え、帯を太らせると地図が縮んで拡大率と位置がずれたため、緩和 240ms と文字のみの拡大へ改めた）。`bottomBandHeightPx` の3分岐（feedback 時 / mode A 52 / それ以外 44）と、**feedback 時はモードによらず同値**（SC-008）であること（feedback 時の値は当時 72 の暫定。T037 で 56 に確定）
 
 ### 実装
 
@@ -112,7 +112,7 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 - [x] T022 [US2] `components/quiz/hud/use-question-intro.ts` を新規作成する。`qIdx` と `usePrefersReducedMotion()` を入力に `'intro' | 'settling' | 'steady'` を進める。タイムラインは `resolveIntroPlan()` から取り、hook 側には `setTimeout` だけを残す（判断は pure 関数側。testing rules）。あわせて「その `qIdx` で導入が**初回**完了したか」のラッチを返す
 - [x] T023 [US2] `components/quiz/hud/question-intro.tsx` を新規作成する。3段骨格の**兄弟**として絶対配置し（地図コンテナの中に入れない）、`transform: translateY() scale()` と `opacity` のみを遷移させる。`height` / `top` / `width` はアニメーションさせない（Performance Goals）。文字は `INTRO_TEXT_PX`（34px）
 - [x] T024 [US2] `BottomHud` に `onRequestIntro` を追加し、帯タップで導入表示を再現できるようにする。再表示できることを示す拡大アイコンを `kind: 'prompt'` のとき添える。`submit` ボタンと4択ボタンの上ではタップを発火させない（FR-022 / contracts C4）
-- [x] T025 [US2] reduced motion 分岐を実装する。`resolveIntroPlan(true)` のとき中央オーバーレイを描画せず、最初の 2500ms だけ下端の帯を 64px・文字を 24px にしてから通常サイズへ戻す（FR-023 / SC-011）。**当初は「サイズ変更に transition を付けない」としていたが、実画面で一段で落ちて見えたため 240ms の緩和を付ける方針へ改めた。**緩和を掛けるのは導入から定常へ戻る局面だけで、定常とフィードバックの高さ差には掛けない（掛けると自動フォーカス中に地図の見える範囲が変わり続ける）
+- [x] T025 [US2] reduced motion 分岐を実装する。`resolveIntroPlan(true)` のとき中央オーバーレイを描画せず、最初の 2500ms だけ下端のお題の文字を 24px にしてから通常サイズへ戻す（FR-023 / SC-011）。**当初は「帯を 64px にする」「サイズ変更に transition を付けない」としていたが、実画面で（a）帯を太らせると地図が縮み戻すときに拡大率と位置がずれる、（b）一段で戻るとかくっと落ちて見える、の2点が出たため、帯の高さは変えず文字だけを拡大し 240ms の緩和を付ける方針へ改めた。**
 - [x] T026 [US2] `components/quiz/use-quiz-timer.ts` に `armed: boolean` を追加し、`armed === false` の間はインターバルを張らないようにする（`timeLeft` は `TIME_LIMIT_SEC` のまま）。**`components/quiz/use-quiz-state.ts` の `startTimeRef` には触れない**（contracts C5 / FR-024）
 - [x] T027 [US2] `quiz-runner.tsx` で T022 のラッチを `useQuizTimer` の `armed` に渡す。**下端タップによる再表示で `armed` を `false` に戻さない**（戻すと読み返すたびに持ち時間が延び、事実上の無制限になる）
 - [x] T028 [P] [US2] `components/quiz/hud/feedback-line.tsx` を新規作成する。文字は `#fafafa` に統一し、正解は `#22c55e` の塗り丸＋チェック、不正解は `#ef4444` の塗り丸＋× のアイコンで示す。**文字色に `#22c55e` / `#ef4444` / `#4a7c59` を使わない**（FR-037 / FR-038）（**T013 と同時に実施済み**。フィードバック表示を欠いた中間状態を作らないため）
