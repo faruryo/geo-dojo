@@ -1,10 +1,10 @@
 'use client';
 
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useRecommendation } from '@/lib/hooks/useRecommendation';
 import { RecommendRationale } from './recommend-rationale';
 import { RecommendSheet } from './recommend-sheet';
+import { useRecommendSheet } from './use-recommend-sheet';
 
 const MODE_SHORT: Record<string, string> = {
   A: 'モードA', B: 'モードB', C: 'モードC', D: 'モードD',
@@ -14,16 +14,8 @@ const DIFFICULTY_SHORT: Record<string, string> = {
 };
 
 export function RecommendHeroCard() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
   const { data, isLoading, isError } = useRecommendation();
-
-  function openSheet() {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('recommend', 'open');
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  }
+  const { isOpen, setOpen } = useRecommendSheet();
 
   return (
     <>
@@ -55,7 +47,7 @@ export function RecommendHeroCard() {
         </div>
 
         <Button
-          onClick={openSheet}
+          onClick={() => setOpen(true)}
           disabled={isLoading}
           size="sm"
           className="w-full"
@@ -64,7 +56,7 @@ export function RecommendHeroCard() {
         </Button>
       </div>
 
-      <RecommendSheet />
+      <RecommendSheet open={isOpen} onOpenChange={setOpen} />
     </>
   );
 }
