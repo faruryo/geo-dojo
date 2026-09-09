@@ -30,7 +30,9 @@ export function useRecommendSheet(): RecommendSheetState {
 
   const [isOpen, setIsOpen] = useState(urlOpen);
 
-  // URL 側が変わったときだけ追従する。戻る操作と、他画面からのリンクで開く経路。
+  // URL 側が変わったときに追従する。他画面からの `/?recommend=open` で開く経路と、
+  // 開いている間の戻る操作で閉じる経路の両方がここを通る（history API で書き換えた
+  // 履歴を辿り直しても `useSearchParams` は更新されることを実機で確認済み）。
   useEffect(() => {
     setIsOpen(urlOpen);
   }, [urlOpen]);
