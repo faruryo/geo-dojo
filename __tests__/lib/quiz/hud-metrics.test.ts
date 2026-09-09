@@ -70,9 +70,14 @@ describe('bottomBandHeightPx', () => {
     expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThanOrEqual(BOTTOM_BAND_PX);
   });
 
+  it('実測で確定した高さから動かさない', () => {
+    // 375px の実測に基づく値。最長形（62文字）は2行 30px、行の高さは 15px。
+    // 下の関係だけでは暫定値だった 72px も通ってしまい、実測へ詰めた変更を守れない。
+    // 動かすときは測り直し、この期待値も一緒に更新する。
+    expect(BOTTOM_BAND_FEEDBACK_PX).toBe(56);
+  });
+
   it('最長形が3行になっても割れない高さがある', () => {
-    // 375px での実測値。最長形は2行 30px で、行の高さは 15px。
-    // データが増えて3行になっても収まる高さを保つ。
     const LINE_HEIGHT_PX = 15;
     expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThanOrEqual(LINE_HEIGHT_PX * 3);
   });
