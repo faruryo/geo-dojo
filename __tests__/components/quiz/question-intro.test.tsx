@@ -193,15 +193,29 @@ describe('拡大した帯を定常へ戻す緩和', () => {
     expect(introEmphasis(latest as QuestionIntro, true)).toBeUndefined();
   });
 
-  it('settling の間だけ緩和の時間を返す', () => {
+  it('大きくするときは即時、戻すときだけ緩やかにする', () => {
     render(0, true);
-    expect(introRestoreMs(latest as QuestionIntro, true)).toBeGreaterThan(0);
+
+    // 大きくする側まで緩めると、再表示のたびに文字がぬるっと膨らむ。
+    expect(introRestoreMs(latest as QuestionIntro, true)).toBe(0);
 
     advance(2500);
+    expect(latest?.phase).toBe('settling');
     expect(introRestoreMs(latest as QuestionIntro, true)).toBeGreaterThan(0);
 
     advance(240);
     expect(latest?.phase).toBe('steady');
+    expect(introRestoreMs(latest as QuestionIntro, true)).toBe(0);
+  });
+
+  it('下端タップの再表示でも大きくするのは即時', () => {
+    render(0, true);
+    settle(true);
+    expect(latest?.phase).toBe('steady');
+
+    act(() => latest?.requestIntro());
+
+    expect(latest?.phase).toBe('intro');
     expect(introRestoreMs(latest as QuestionIntro, true)).toBe(0);
   });
 

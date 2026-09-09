@@ -108,10 +108,14 @@ export function introEmphasis(
 }
 
 /**
- * お題の文字を緩ませる時間。移動しない設定の導入表示の間だけ効かせる。
+ * お題の文字を通常サイズへ戻すときに緩ませる時間。
+ *
+ * `settling` の間だけ返す。大きくする側まで緩めると、再表示のたびに文字が
+ * ぬるっと膨らみ、移動を減らしたい利用者に余計な動きを足すことになる。
+ * 大きくするのは即時、戻すときだけ緩やか、が FR-023 の求める形。
  */
 export function introRestoreMs(intro: QuestionIntro, isPrompt: boolean): number {
   const { plan, phase } = intro;
-  if (!isPrompt || plan.mode !== 'static' || phase === 'steady') return 0;
+  if (!isPrompt || plan.mode !== 'static' || phase !== 'settling') return 0;
   return plan.transitionMs;
 }
