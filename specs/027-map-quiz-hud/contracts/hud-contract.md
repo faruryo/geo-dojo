@@ -48,7 +48,7 @@ immersive 中の出題画面は、必ずこの3段構造にする。
   <div className="flex-1 min-h-0 relative">     {/* 地図。帯の内側に閉じる */}
     …map…
   </div>
-  <BottomHud … />                               {/* 44 / 52 / 72px + safe-area-inset-bottom */}
+  <BottomHud … />                               {/* 44 / 52 / 56px + safe-area-inset-bottom */}
 </div>
 ```
 

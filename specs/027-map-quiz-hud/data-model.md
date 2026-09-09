@@ -122,7 +122,7 @@ FR-024 の中核。モード D の制限時間だけを導入後に始めるた�
 | `TOP_BAND_PX` | 44 | FR-014 の 44×44px タップ領域 |
 | `BOTTOM_BAND_PX` | 44 | FR-021 |
 | `BOTTOM_BAND_MODE_A_PX` | 52 | FR-021（確定ボタンの 44px タップ領域を収める） |
-| `BOTTOM_BAND_FEEDBACK_PX` | 72（**暫定・実測で確定**） | FR-026 の最長形が 375px で折り返した高さ。research D11 |
+| `BOTTOM_BAND_FEEDBACK_PX` | 56（375px で実測） | FR-026 の最長形（62文字）は2行 30px。3行 45px でも割れず、`BOTTOM_BAND_MODE_A_PX`(52) を下回らない値。research D11 |
 | `INTRO_TEXT_PX` | 34 | FR-020 の 32〜36px の中央値 |
 | `STEADY_TEXT_PX` | 16 | FR-021 |
 | `MIN_TEXT_PX` | 12 | FR-039 |

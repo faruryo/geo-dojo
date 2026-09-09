@@ -48,12 +48,12 @@ Next.js 単一プロジェクト。`app/` / `components/` / `lib/` / `__tests__/
 ### テストを先に書く（失敗することを確認する）
 
 - [x] T003 [P] `__tests__/lib/quiz/immersive-layout.test.ts` を新規作成する。`sessionUsesImmersiveLayout` のケース表: A のみ / D のみ / B・C のみ / A と B の混在 / D と C の混在 / 空配列。**モジュール未実装で失敗すること**を確認する
-- [x] T004 [P] `__tests__/lib/quiz/hud-metrics.test.ts` を新規作成する。`resolveIntroPlan(false)` が `mode:'motion'` / `holdMs:1000` / `transitionMs:320`、`resolveIntroPlan(true)` が `mode:'static'` / `holdMs:2500` / `transitionMs:0` / `enlargedBandPx:64` / `enlargedTextPx:24` を返すこと。`bottomBandHeightPx` の3分岐（feedback 時 72 / mode A 52 / それ以外 44）と、**feedback 時はモードによらず同値**（SC-008）であること
+- [x] T004 [P] `__tests__/lib/quiz/hud-metrics.test.ts` を新規作成する。`resolveIntroPlan(false)` が `mode:'motion'` / `holdMs:1000` / `transitionMs:320`、`resolveIntroPlan(true)` が `mode:'static'` / `holdMs:2500` / `transitionMs:0` / `enlargedBandPx:64` / `enlargedTextPx:24` を返すこと。`bottomBandHeightPx` の3分岐（feedback 時 / mode A 52 / それ以外 44）と、**feedback 時はモードによらず同値**（SC-008）であること（feedback 時の値は当時 72 の暫定。T037 で 56 に確定）
 
 ### 実装
 
 - [x] T005 [P] `lib/quiz/immersive-layout.ts` に `sessionUsesImmersiveLayout(questions: readonly Question[]): boolean` を実装する。判定条件は `kind === 'A'` または `kind === 'BCD' && mode === 'D'` を1問以上含むこと。**引数に `modeDFailed` / `currentQuestion` / `qIdx` を取らない**（research D2。取ると FR-004 / FR-005 が壊れる）
-- [x] T006 [P] `lib/quiz/hud-metrics.ts` に data-model.md 4節の定数（`TOP_BAND_PX`=44、`BOTTOM_BAND_PX`=44、`BOTTOM_BAND_MODE_A_PX`=52、`BOTTOM_BAND_FEEDBACK_PX`=72（暫定）、`INTRO_TEXT_PX`=34、`STEADY_TEXT_PX`=16、`MIN_TEXT_PX`=12）と `resolveIntroPlan` / `bottomBandHeightPx` を実装する
+- [x] T006 [P] `lib/quiz/hud-metrics.ts` に data-model.md 4節の定数（`TOP_BAND_PX`=44、`BOTTOM_BAND_PX`=44、`BOTTOM_BAND_MODE_A_PX`=52、`BOTTOM_BAND_FEEDBACK_PX`=72（暫定。T037 で 56 に確定）、`INTRO_TEXT_PX`=34、`STEADY_TEXT_PX`=16、`MIN_TEXT_PX`=12）と `resolveIntroPlan` / `bottomBandHeightPx` を実装する
 - [x] T007 T003・T004 の各テストについて、実装側の条件を1つずつ一時的に反転させて**実際に赤くなることを確認**し、確認後に復元して再実行する（`.agents/rules/testing.instructions.md` の MUST）
 - [x] T008 [P] `lib/hooks/usePrefersReducedMotion.ts` を新規作成する。`window.matchMedia('(prefers-reduced-motion: reduce)')` を購読し、`change` で追随する。SSR 安全に初期値 `false` から始める
 - [x] T009 `app/(app)/app-shell.tsx` を新規作成する（`'use client'`）。immersive の boolean Context と `useImmersiveLayout(active: boolean)` を公開し、`active` のとき出典 `<footer>`・`<BottomNav />` を描画せず、`<main>` の `paddingBottom` を `0`・`overflowY` を `hidden` にする。`useImmersiveLayout` は effect の cleanup で必ず `false` に戻す（contracts C1）
