@@ -339,3 +339,14 @@ Task: "lib/hooks/usePrefersReducedMotion.ts"
   `app/(app)/quiz/prefecture/page.tsx` の `performance.now()` 起点、
   `lib/quiz/srs/` 配下、DB スキーマ、Server Actions
 - **Preview は本番 Supabase を共有する**。検証用のデータ投入はローカルスタックのみで行う
+
+
+### Issue #90: 地図タップの取りこぼし（2026-09-12 ローカル検証）
+
+- [x] `JapanMap` の地図要素を親更新・選択・正誤表示で再マウントしないよう修正。
+- [x] ドラッグ後の遅延clickを、次のpointerdownまで抑止。
+- [x] 実ライブラリを使う回帰テストで要素の同一性・最新callback・表示色・遅延click抑止を確認。再マウント修正と10ms解除の各修正を外すと失敗することも確認。
+- [x] iOS 26.5 Simulator / 375pxのタイマー付きローカル検証ページで比較。修正前は通常タップで選択されず、修正後の再試行は3回すべて選択→解除→選択。ドラッグ・ピンチで誤選択せず、リセット後のタップも成功。
+- [ ] 修正後のMode A・都道府県クイズの製品画面全体、および実機Safari・Chromeで確認（ローカル検証ページは実際のJapanMapを使用するが、認証・DB・クイズ親画面は含まない）。
+
+自動操作の初回には1回のpointercancelがあり再試行した。成功した試行ではdown/up/click/選択callbackが各3回。通常タップの確認と、DOM再マウントの回帰テストは別の検証として扱う。
