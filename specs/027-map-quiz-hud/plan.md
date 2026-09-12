@@ -149,3 +149,7 @@ Phase 0 の調査でコードと spec の食い違いが2件、記述より軽�
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |---|---|---|
 | React Context を1つ追加（`AppShell` の immersive フラグ） | 枠を消す判断は出題コンポーネント（`QuizRunner` / 都道府県ページ）が持つが、消す対象（footer・`BottomNav`・`paddingBottom`）は祖先の layout にある。子から祖先へ状態を渡す経路が要る | **URL ステート**（憲法が推奨する第一候補）は却下。`?immersive=1` を出し入れすると history エントリが増え、`usePopstateGuard`（戻るボタンで中断させる既存の仕組み）と競合して中断が二重に走る。**CSS のみ**（`body[data-immersive]`）も却下。`BottomNav` を `display:none` にできても `main` の `paddingBottom: 6rem` と footer の DOM が残り、地図の高さ計算がずれる |
+
+### Issue #90: タイマー更新中の地図タップ
+
+`JapanMap` は `Geographies` 1.2.1 の描画関数変更による再マウントを避け、固定の子コンポーネント内で同ライブラリの `useGeographies` と `Geography` を使う。親更新・選択・正誤表示でもSVG pathの同一性を維持する。ドラッグ・ピンチ後のclick抑止は10msタイマーで解除せず、次のpointerdownで解除する。遅延clickの誤回答を防ぎ、通常タップ・選択色・正誤表示の仕様を維持する。

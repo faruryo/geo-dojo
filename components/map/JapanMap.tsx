@@ -3,10 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ComposableMap,
-  Geographies,
+  useGeographies,
   Geography,
   createCoordinates,
-  type PreparedFeature,
 } from '@vnedyalk0v/react19-simple-maps';
 import type { Topology } from 'topojson-specification';
 import { Plus, Minus, RotateCcw } from 'lucide-react';
@@ -36,10 +35,6 @@ export function JapanMap({
   isIncorrect = false,
   qIdx,
 }: JapanMapProps) {
-  const correctSet = new Set(
-    Array.isArray(highlightCorrect) ? highlightCorrect : highlightCorrect ? [highlightCorrect] : [],
-  );
-  const selectedSet = new Set(selectedNames ?? []);
   const [topology, setTopology] = useState<Topology | null>(null);
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
@@ -56,6 +51,7 @@ export function JapanMap({
     startTranslate: { x: number; y: number };
   } | null>(null);
   const didDrag = useRef(false);
+  const suppressNextClick = useRef(false);
 
   useEffect(() => {
     fetch('/japan.topojson').then((r) => r.json()).then(setTopology).catch(console.error);
@@ -175,8 +171,8 @@ export function JapanMap({
     } else {
       pinchState.current = null;
       dragState.current = null;
-      // click イベントが先に発火するよう1フレーム後にリセット
-      setTimeout(() => { didDrag.current = false; }, 10);
+      // 遅れて届く click は次の pointerdown 後でも1回消費するまで抑止する。
+      if (didDrag.current) suppressNextClick.current = true;
     }
   }
 
@@ -236,30 +232,19 @@ export function JapanMap({
             height={JAPAN_VIEWBOX_HEIGHT}
             className="w-full h-full"
           >
-            <Geographies geography={topology}>
-              {({ geographies }) =>
-                (geographies as PreparedFeature[]).map((geo) => {
-                  const name = (geo.properties as { nam_ja: string }).nam_ja;
-                  const isCorrect = correctSet.has(name);
-                  const isWrong = name === highlightWrong;
-                  const isSelected = selectedSet.has(name);
-                  const baseFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#3b82f6' : '#2a2a2a';
-                  const hoverFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#60a5fa' : '#3a3a3a';
-                  return (
-                    <Geography
-                      key={name || geo.rsmKey}
-                      geography={geo}
-                      onClick={() => { if (!didDrag.current) onPrefectureClick(name); }}
-                      style={{
-                        default: { fill: baseFill, stroke: '#444', strokeWidth: 0.5, outline: 'none' },
-                        hover:   { fill: hoverFill, stroke: '#555', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
-                        pressed: { fill: '#2d5a3d', outline: 'none' },
-                      }}
-                    />
-                  );
-                })
-              }
-            </Geographies>
+            <PrefectureGeographies
+              topology={topology}
+              highlightCorrect={highlightCorrect}
+              highlightWrong={highlightWrong}
+              selectedNames={selectedNames}
+              onPrefectureClick={(name) => {
+                if (didDrag.current || suppressNextClick.current) {
+                  suppressNextClick.current = false;
+                  return;
+                }
+                onPrefectureClick(name);
+              }}
+            />
           </ComposableMap>
         </div>
       </div>
@@ -280,5 +265,43 @@ export function JapanMap({
         ))}
       </div>
     </div>
+  );
+}
+
+// Geographies 1.2.1 は children が変わるたびに内部のコンポーネント型を作り直す。
+// タイマーなどの親更新でタップ対象が消えないよう、同じ hook で直接描画する。
+function PrefectureGeographies({
+  topology, highlightCorrect, highlightWrong, selectedNames, onPrefectureClick,
+}: Pick<JapanMapProps, 'highlightCorrect' | 'highlightWrong' | 'selectedNames' | 'onPrefectureClick'> & {
+  topology: Topology;
+}) {
+  const { geographies } = useGeographies({ geography: topology });
+  const correctSet = new Set(
+    Array.isArray(highlightCorrect) ? highlightCorrect : highlightCorrect ? [highlightCorrect] : [],
+  );
+  const selectedSet = new Set(selectedNames ?? []);
+  return (
+    <g className="rsm-geographies">
+      {geographies.map((geo) => {
+        const name = (geo.properties as { nam_ja: string }).nam_ja;
+        const isCorrect = correctSet.has(name);
+        const isWrong = name === highlightWrong;
+        const isSelected = selectedSet.has(name);
+        const baseFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#3b82f6' : '#2a2a2a';
+        const hoverFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#60a5fa' : '#3a3a3a';
+        return (
+          <Geography
+            key={name || geo.rsmKey}
+            geography={geo}
+            onClick={() => onPrefectureClick(name)}
+            style={{
+              default: { fill: baseFill, stroke: '#444', strokeWidth: 0.5, outline: 'none' },
+              hover:   { fill: hoverFill, stroke: '#555', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
+              pressed: { fill: '#2d5a3d', outline: 'none' },
+            }}
+          />
+        );
+      })}
+    </g>
   );
 }
