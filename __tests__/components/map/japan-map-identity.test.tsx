@@ -70,6 +70,22 @@ it('親更新・選択・正誤表示で地図DOMを維持し、最新の回答�
       path.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(latest).toHaveBeenCalledExactlyOnceWith(name);
+
+    latest.mockClear();
+    act(() => {
+      path.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 5, pointerType: 'touch', clientX: 100, clientY: 100 }));
+      path.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 5, pointerType: 'touch', clientX: 124, clientY: 100 }));
+      path.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 5, pointerType: 'touch', clientX: 124, clientY: 100 }));
+    });
+    vi.advanceTimersByTime(300);
+    act(() => {
+      path.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 6, pointerType: 'touch', clientX: 100, clientY: 100 }));
+      path.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 6, pointerType: 'touch', clientX: 100, clientY: 100 }));
+      path.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(latest).toHaveBeenCalledExactlyOnceWith(name);
+
+    expect(path.tabIndex).toBe(-1);
     vi.useRealTimers();
 
     for (const [props, fill] of [

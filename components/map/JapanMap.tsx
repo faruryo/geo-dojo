@@ -19,6 +19,13 @@ import {
   JAPAN_VIEWBOX_WIDTH,
 } from '@/lib/map/japan-projection';
 
+/** マウスでのパン開始閾値（px） */
+const PAN_SLOP_MOUSE_PX = 8;
+/** タッチでのパン開始閾値。指の腹タップの微小ズレで didDrag にならないよう緩める */
+const PAN_SLOP_TOUCH_PX = 16;
+/** ドラッグ後に遅延 click が来ない端末向け。これを過ぎたら suppressNextClick を自動解除 */
+const SUPPRESS_CLICK_AFTER_DRAG_MS = 300;
+
 interface JapanMapProps {
   onPrefectureClick: (name: string) => void;
   highlightCorrect?: string | string[];
@@ -53,6 +60,23 @@ export function JapanMap({
   } | null>(null);
   const didDrag = useRef(false);
   const suppressNextClick = useRef(false);
+  const suppressClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearSuppressClickTimer() {
+    if (suppressClickTimer.current !== null) {
+      clearTimeout(suppressClickTimer.current);
+      suppressClickTimer.current = null;
+    }
+  }
+
+  function armSuppressNextClick() {
+    suppressNextClick.current = true;
+    clearSuppressClickTimer();
+    suppressClickTimer.current = setTimeout(() => {
+      suppressNextClick.current = false;
+      suppressClickTimer.current = null;
+    }, SUPPRESS_CLICK_AFTER_DRAG_MS);
+  }
 
   useEffect(() => {
     fetch('/japan.topojson').then((r) => r.json()).then(setTopology).catch(console.error);
@@ -152,7 +176,8 @@ export function JapanMap({
     if (!dragState.current) return;
     const dx = e.clientX - dragState.current.startX;
     const dy = e.clientY - dragState.current.startY;
-    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+    const slop = e.pointerType === 'touch' ? PAN_SLOP_TOUCH_PX : PAN_SLOP_MOUSE_PX;
+    if (Math.abs(dx) > slop || Math.abs(dy) > slop) {
       didDrag.current = true;
       setTranslate({ x: dragState.current.tx + dx, y: dragState.current.ty + dy });
     }
@@ -172,8 +197,8 @@ export function JapanMap({
     } else {
       pinchState.current = null;
       dragState.current = null;
-      // 遅れて届く click は次の pointerdown 後でも1回消費するまで抑止する。
-      if (didDrag.current) suppressNextClick.current = true;
+      // 遅れて届く click を1回抑止。モバイルは click が来ないことが多いので期限後に自動解除。
+      if (didDrag.current) armSuppressNextClick();
     }
   }
 
@@ -195,6 +220,8 @@ export function JapanMap({
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [topology]);
+
+  useEffect(() => () => clearSuppressClickTimer(), []);
 
   function zoomIn()  { setScale((s) => Math.min(8, s * 2)); }
   function zoomOut() { setScale((s) => Math.max(1, s / 2)); }
@@ -241,6 +268,7 @@ export function JapanMap({
               onPrefectureClick={(name) => {
                 if (didDrag.current || suppressNextClick.current) {
                   suppressNextClick.current = false;
+                  clearSuppressClickTimer();
                   return;
                 }
                 onPrefectureClick(name);
@@ -310,6 +338,7 @@ function PrefectureGeographies({
           <Geography
             key={name || geo.rsmKey}
             geography={geo}
+            tabIndex={-1}
             onClick={() => onPrefectureClick(name)}
             style={{
               default: defaultStyle,
