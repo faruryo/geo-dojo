@@ -69,6 +69,11 @@ export function JapanMap({
     }
   }
 
+  function disarmSuppressNextClick() {
+    suppressNextClick.current = false;
+    clearSuppressClickTimer();
+  }
+
   function armSuppressNextClick() {
     suppressNextClick.current = true;
     clearSuppressClickTimer();
@@ -197,8 +202,12 @@ export function JapanMap({
     } else {
       pinchState.current = null;
       dragState.current = null;
-      // 遅れて届く click を1回抑止。モバイルは click が来ないことが多いので期限後に自動解除。
-      if (didDrag.current) armSuppressNextClick();
+      // 遅れて届く click を1回抑止。非ドラッグのタップ完了時は stale な抑止を解除する。
+      if (didDrag.current) {
+        armSuppressNextClick();
+      } else if (suppressNextClick.current) {
+        disarmSuppressNextClick();
+      }
     }
   }
 
@@ -232,7 +241,7 @@ export function JapanMap({
   }
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className="japan-map relative w-full h-full overflow-hidden">
       <div
         ref={containerRef}
         className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
@@ -267,8 +276,7 @@ export function JapanMap({
               selectedNames={selectedNames}
               onPrefectureClick={(name) => {
                 if (didDrag.current || suppressNextClick.current) {
-                  suppressNextClick.current = false;
-                  clearSuppressClickTimer();
+                  disarmSuppressNextClick();
                   return;
                 }
                 onPrefectureClick(name);

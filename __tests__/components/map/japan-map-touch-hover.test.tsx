@@ -34,9 +34,10 @@ async function renderMap(matches: boolean) {
   return { host, root, path };
 }
 
-it('タッチ端末ではフォーカスでも hover 色を付けない', async () => {
+it('タッチ端末ではフォーカスでも hover 塗りを変えず、focus-visible は CSS で付ける', async () => {
   const { host, root, path } = await renderMap(false);
   try {
+    expect(host.querySelector('.japan-map')).not.toBeNull();
     expect(path.style.fill).toBe('#2a2a2a');
     act(() => { path.focus(); });
     expect(path.style.fill).toBe('#2a2a2a');
