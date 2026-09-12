@@ -152,4 +152,4 @@ Phase 0 の調査でコードと spec の食い違いが2件、記述より軽�
 
 ### Issue #90: タイマー更新中の地図タップ
 
-`JapanMap` は `Geographies` 1.2.1 の描画関数変更による再マウントを避け、固定の子コンポーネント内で同ライブラリの `useGeographies` と `Geography` を使う。親更新・選択・正誤表示でもSVG pathの同一性を維持する。ドラッグ・ピンチ後のclick抑止は10msタイマーで解除せず、次のpointerdownで解除する。遅延clickの誤回答を防ぎ、通常タップ・選択色・正誤表示の仕様を維持する。
+`JapanMap` は `Geographies` 1.2.1 の描画関数変更による再マウントを避け、固定の子コンポーネント内で同ライブラリの `useGeographies` と `Geography` を使う。親更新・選択・正誤表示でもSVG pathの同一性を維持する。ドラッグ・ピンチ後の click 抑止は、遅延 click を最大1回破棄し、300ms で自動解除する。click が来ない端末では、続く非ドラッグタップの `pointerup` でも stale 抑止を解除する。遅延 click の誤回答を防ぎつつ、通常タップ・選択色・正誤表示の仕様を維持する。

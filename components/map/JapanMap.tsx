@@ -10,6 +10,7 @@ import {
 import type { Topology } from 'topojson-specification';
 import { Plus, Minus, RotateCcw } from 'lucide-react';
 
+import { useCanHover } from '@/lib/hooks/useCanHover';
 import { calculateFocusTransform } from '@/lib/map/autofocus-bounds';
 import {
   JAPAN_PROJECTION_CENTER,
@@ -17,6 +18,13 @@ import {
   JAPAN_VIEWBOX_HEIGHT,
   JAPAN_VIEWBOX_WIDTH,
 } from '@/lib/map/japan-projection';
+
+/** マウスでのパン開始閾値（px） */
+const PAN_SLOP_MOUSE_PX = 8;
+/** タッチでのパン開始閾値。指の腹タップの微小ズレで didDrag にならないよう緩める */
+const PAN_SLOP_TOUCH_PX = 16;
+/** ドラッグ後に遅延 click が来ない端末向け。これを過ぎたら suppressNextClick を自動解除 */
+const SUPPRESS_CLICK_AFTER_DRAG_MS = 300;
 
 interface JapanMapProps {
   onPrefectureClick: (name: string) => void;
@@ -52,6 +60,28 @@ export function JapanMap({
   } | null>(null);
   const didDrag = useRef(false);
   const suppressNextClick = useRef(false);
+  const suppressClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearSuppressClickTimer() {
+    if (suppressClickTimer.current !== null) {
+      clearTimeout(suppressClickTimer.current);
+      suppressClickTimer.current = null;
+    }
+  }
+
+  function disarmSuppressNextClick() {
+    suppressNextClick.current = false;
+    clearSuppressClickTimer();
+  }
+
+  function armSuppressNextClick() {
+    suppressNextClick.current = true;
+    clearSuppressClickTimer();
+    suppressClickTimer.current = setTimeout(() => {
+      suppressNextClick.current = false;
+      suppressClickTimer.current = null;
+    }, SUPPRESS_CLICK_AFTER_DRAG_MS);
+  }
 
   useEffect(() => {
     fetch('/japan.topojson').then((r) => r.json()).then(setTopology).catch(console.error);
@@ -151,7 +181,8 @@ export function JapanMap({
     if (!dragState.current) return;
     const dx = e.clientX - dragState.current.startX;
     const dy = e.clientY - dragState.current.startY;
-    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+    const slop = e.pointerType === 'touch' ? PAN_SLOP_TOUCH_PX : PAN_SLOP_MOUSE_PX;
+    if (Math.abs(dx) > slop || Math.abs(dy) > slop) {
       didDrag.current = true;
       setTranslate({ x: dragState.current.tx + dx, y: dragState.current.ty + dy });
     }
@@ -171,8 +202,12 @@ export function JapanMap({
     } else {
       pinchState.current = null;
       dragState.current = null;
-      // 遅れて届く click は次の pointerdown 後でも1回消費するまで抑止する。
-      if (didDrag.current) suppressNextClick.current = true;
+      // 遅れて届く click を1回抑止。非ドラッグのタップ完了時は stale な抑止を解除する。
+      if (didDrag.current) {
+        armSuppressNextClick();
+      } else if (suppressNextClick.current) {
+        disarmSuppressNextClick();
+      }
     }
   }
 
@@ -195,6 +230,8 @@ export function JapanMap({
     return () => el.removeEventListener('wheel', onWheel);
   }, [topology]);
 
+  useEffect(() => () => clearSuppressClickTimer(), []);
+
   function zoomIn()  { setScale((s) => Math.min(8, s * 2)); }
   function zoomOut() { setScale((s) => Math.max(1, s / 2)); }
   function reset()   { setScale(1); setTranslate({ x: 0, y: 0 }); }
@@ -204,7 +241,7 @@ export function JapanMap({
   }
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className="japan-map relative w-full h-full overflow-hidden">
       <div
         ref={containerRef}
         className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
@@ -239,7 +276,7 @@ export function JapanMap({
               selectedNames={selectedNames}
               onPrefectureClick={(name) => {
                 if (didDrag.current || suppressNextClick.current) {
-                  suppressNextClick.current = false;
+                  disarmSuppressNextClick();
                   return;
                 }
                 onPrefectureClick(name);
@@ -276,6 +313,7 @@ function PrefectureGeographies({
   topology: Topology;
 }) {
   const { geographies } = useGeographies({ geography: topology });
+  const canHover = useCanHover();
   const correctSet = new Set(
     Array.isArray(highlightCorrect) ? highlightCorrect : highlightCorrect ? [highlightCorrect] : [],
   );
@@ -289,15 +327,31 @@ function PrefectureGeographies({
         const isSelected = selectedSet.has(name);
         const baseFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#3b82f6' : '#2a2a2a';
         const hoverFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#60a5fa' : '#3a3a3a';
+        const defaultStyle = {
+          fill: baseFill,
+          stroke: '#444',
+          strokeWidth: 0.5,
+          outline: 'none',
+          cursor: 'pointer',
+        };
+        const hoverStyle = {
+          fill: hoverFill,
+          stroke: '#555',
+          strokeWidth: 0.5,
+          outline: 'none',
+          cursor: 'pointer',
+        };
+        const pressedStyle = { fill: '#2d5a3d', outline: 'none', cursor: 'pointer' };
         return (
           <Geography
             key={name || geo.rsmKey}
             geography={geo}
+            tabIndex={-1}
             onClick={() => onPrefectureClick(name)}
             style={{
-              default: { fill: baseFill, stroke: '#444', strokeWidth: 0.5, outline: 'none' },
-              hover:   { fill: hoverFill, stroke: '#555', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
-              pressed: { fill: '#2d5a3d', outline: 'none' },
+              default: defaultStyle,
+              hover: canHover ? hoverStyle : defaultStyle,
+              pressed: canHover ? pressedStyle : defaultStyle,
             }}
           />
         );
