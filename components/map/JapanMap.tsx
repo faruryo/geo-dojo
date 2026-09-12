@@ -10,6 +10,7 @@ import {
 import type { Topology } from 'topojson-specification';
 import { Plus, Minus, RotateCcw } from 'lucide-react';
 
+import { useCanHover } from '@/lib/hooks/useCanHover';
 import { calculateFocusTransform } from '@/lib/map/autofocus-bounds';
 import {
   JAPAN_PROJECTION_CENTER,
@@ -276,6 +277,7 @@ function PrefectureGeographies({
   topology: Topology;
 }) {
   const { geographies } = useGeographies({ geography: topology });
+  const canHover = useCanHover();
   const correctSet = new Set(
     Array.isArray(highlightCorrect) ? highlightCorrect : highlightCorrect ? [highlightCorrect] : [],
   );
@@ -289,15 +291,30 @@ function PrefectureGeographies({
         const isSelected = selectedSet.has(name);
         const baseFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#3b82f6' : '#2a2a2a';
         const hoverFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#60a5fa' : '#3a3a3a';
+        const defaultStyle = {
+          fill: baseFill,
+          stroke: '#444',
+          strokeWidth: 0.5,
+          outline: 'none',
+          cursor: 'pointer',
+        };
+        const hoverStyle = {
+          fill: hoverFill,
+          stroke: '#555',
+          strokeWidth: 0.5,
+          outline: 'none',
+          cursor: 'pointer',
+        };
+        const pressedStyle = { fill: '#2d5a3d', outline: 'none', cursor: 'pointer' };
         return (
           <Geography
             key={name || geo.rsmKey}
             geography={geo}
             onClick={() => onPrefectureClick(name)}
             style={{
-              default: { fill: baseFill, stroke: '#444', strokeWidth: 0.5, outline: 'none' },
-              hover:   { fill: hoverFill, stroke: '#555', strokeWidth: 0.5, outline: 'none', cursor: 'pointer' },
-              pressed: { fill: '#2d5a3d', outline: 'none' },
+              default: defaultStyle,
+              hover: canHover ? hoverStyle : defaultStyle,
+              pressed: canHover ? pressedStyle : defaultStyle,
             }}
           />
         );
