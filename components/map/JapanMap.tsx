@@ -51,6 +51,7 @@ export function JapanMap({
     startTranslate: { x: number; y: number };
   } | null>(null);
   const didDrag = useRef(false);
+  const suppressNextClick = useRef(false);
 
   useEffect(() => {
     fetch('/japan.topojson').then((r) => r.json()).then(setTopology).catch(console.error);
@@ -170,7 +171,8 @@ export function JapanMap({
     } else {
       pinchState.current = null;
       dragState.current = null;
-      // 遅れて届く click も抑止する。didDrag は次の pointerdown で解除する。
+      // 遅れて届く click は次の pointerdown 後でも1回消費するまで抑止する。
+      if (didDrag.current) suppressNextClick.current = true;
     }
   }
 
@@ -235,7 +237,13 @@ export function JapanMap({
               highlightCorrect={highlightCorrect}
               highlightWrong={highlightWrong}
               selectedNames={selectedNames}
-              onPrefectureClick={(name) => { if (!didDrag.current) onPrefectureClick(name); }}
+              onPrefectureClick={(name) => {
+                if (didDrag.current || suppressNextClick.current) {
+                  suppressNextClick.current = false;
+                  return;
+                }
+                onPrefectureClick(name);
+              }}
             />
           </ComposableMap>
         </div>
