@@ -28,6 +28,8 @@ Backlog（将来の spec 候補）は specs/backlog.md に管理
 - `scripts/` — データ投入・検証スクリプト（下記）
 - `public/` — `municipalities.json`（市区町村シード）、`japan-municipalities.topojson`（16MB 地図）
 - `supabase/` — `config.toml` とマイグレーション（`migrations/`）
+- `.design-sync/` — Claude Design プロジェクトへの同期設定（下記「Claude Design 同期」）
+- `design.md` — 2026-05 の初期構想文書（機能候補20案 → MVP選定）。**現行仕様の正ではない**。以後の設計は `specs/<feature>/` が正
 
 ## コマンド
 
@@ -47,6 +49,25 @@ pnpm audit:dead-code  # Knip未使用候補レポート（report-only）
 
 - **Testing**: テスト追加・既存ロジックのテスタビリティ改善前に `.agents/rules/testing.instructions.md` を読む。pure関数、I/O境界への依存注入、ケース表、新規回帰テストが実際に赤くなる確認を定義している。
 - **Automated quality**: lint ratchet、jscpd/Knip、AIレビュー運用の詳細は `docs/automated-quality.md` を参照。
+
+## Claude Design 同期
+
+`components/` の一部（18個）を Claude Design のプロジェクト（`.design-sync/config.json` の `projectId`）へ
+同期している。**geo-dojo はアプリでコンポーネントライブラリではない**ため、
+自己参照 symlink・`process` シム・CSS の自前ビルド・topojson の fetch シムといった回避策が要る。
+**手順・除外理由・再同期時の落とし穴はすべて [.design-sync/NOTES.md](file:///Users/faru/geo-dojo/.design-sync/NOTES.md) が正**（このファイルには写さない）。
+
+`components/` にコンポーネントを追加・変更したら、次の追随が必要（片方だけ直すと同期が壊れる）:
+
+| 変更 | 追随先 |
+|---|---|
+| コンポーネント追加 | `.design-sync/entry.tsx` の export、`config.json` の `componentSrcMap`、`previews/<Name>.tsx`（named export = バリアント） |
+| props 変更 | `config.json` の `dtsPropsFor`（ソースから手で写した写しで、自動追随しない） |
+| class の追加・削除 | `node .design-sync/build-css.mjs`（`.design-sync/tailwind.css` は生成物・gitignore 対象） |
+| `public/japan.topojson` の更新 | `.design-sync/previews/japan-topology.json`（写し）の取り直し |
+
+サーバーアクション経路（`lib/hooks/*` → `app/**/actions.ts` → drizzle）を値 import するコンポーネントは
+ブラウザにバンドルできないため同期対象外。`QuizRunner` と dashboard のデータ取得カード 11 個が該当する。
 
 ## 環境分離
 
@@ -143,6 +164,9 @@ supabase db reset           # マイグレーションをゼロから再適用�
   - `docs(spec):` や `specs/` 配下のファイルのみを変更している PR（仕様策定フェーズ）では、差分に含まれない既存コード（`app/`, `lib/` 等）への指摘を行わない。仕様ドキュメント（`spec.md`, `contracts/`, `data-model.md`, `tasks.md`）内の論理的一貫性とエッジケースのみを検証する。
 - **No Mechanical Linting (CI 領域の除外)**:
   - ESLint、TypeScript strict、warning ratchet、jscpd、Knip などの CI で機械的に検知できる事項（構文、フォーマット、既存の警告在庫）は指摘しない。ドメイン不変条件と非同期・整合性バグに集中すること。
+- **Review Language (レビュー言語は日本語)**:
+  - レビューサマリー、インラインコメント、指摘の見出し・本文・修正提案は原則としてすべて**日本語**で記述すること。英語でのレビュー出力は禁止する。
+  - コード識別子（関数名、変数名、型名など）、ファイル名、パス、CLI コマンド、コミットハッシュなどの技術的固有名詞はそのままで構わないが、解説や推論は英語ではなく日本語で行うこと。
 
 ### 2. High-Priority Domain Invariants (重点検証すべきドメイン不変条件)
 
