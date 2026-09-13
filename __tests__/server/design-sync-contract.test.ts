@@ -86,9 +86,16 @@ function propsBody(source: string, annotation: string): string | null {
   return null;
 }
 
+/**
+ * props 本体からプロパティ名を拾う。
+ *
+ * 改行だけで区切ると `Readonly<{ caption: string; children: ReactNode }>` のような
+ * 1行のインライン型で先頭の1件しか取れず、2件目以降が dtsPropsFor から消えても気付けない。
+ * セミコロンでも区切る。
+ */
 function propNames(body: string): string[] {
   return body
-    .split('\n')
+    .split(/[\n;]/)
     .map((line) => /^\s*(?:readonly\s+)?([A-Za-z_$][\w$]*)\??\s*:/.exec(line))
     .filter((m): m is RegExpExecArray => m !== null)
     .map((m) => m[1]);
@@ -122,6 +129,20 @@ describe('topLevelColon が引数リストの区切りを見つける', () => {
 
   it.each(cases)('%s の注釈は %s', (params, annotation) => {
     expect(params.slice(topLevelColon(params) + 1).trim()).toBe(annotation);
+  });
+});
+
+describe('propNames が props 名をすべて拾う', () => {
+  // 2件目以降を落とすと、その props が dtsPropsFor から消えても missing に出ない
+  const cases: Array<[string, string[]]> = [
+    // 1行のインライン型（ModePreviewFrame の形）
+    [' caption: string; children: ReactNode ', ['caption', 'children']],
+    // 複数行の interface 本体
+    ['\n  readonly a: string;\n  b?: number;\n', ['a', 'b']],
+  ];
+
+  it.each(cases)('%j から %j を拾う', (body, expected) => {
+    expect(propNames(body)).toEqual(expected);
   });
 });
 
