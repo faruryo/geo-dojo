@@ -237,7 +237,7 @@ export default function MunicipalityModeSelectPage() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <div className="h-px flex-1 bg-border" />
-            <span className="text-[11px] text-muted-foreground">以下は参考</span>
+            <span className="text-xs text-muted-foreground">以下は参考</span>
             <div className="h-px flex-1 bg-border" />
           </div>
 

@@ -51,8 +51,9 @@
    - `handleSelectMode` / `handleProceed` / `resolveInitialSelectedMode` の挙動（B018 の前回モード保持）は変更しない。
 
 2. `components/quiz/mode-preview-frame.tsx`（新規・小）
-   - `ModePreview` を包むラッパー。`border-dashed` + `bg-muted/20` の枠、左上に「プレイ画面イメージ」バッジ、
-     `pointer-events-none select-none opacity-[0.85]`。`ModePreviewA`〜`D` の中身は触らない。
+   - `ModePreview` を包むラッパー。`border-dashed` + `bg-muted/10` の枠、左上に「プレイ画面イメージ」バッジ、
+     中身に `inert` + `pointer-events-none select-none opacity-85`。`ModePreviewA`〜`D` の中身は触らない。
+     `inert` はキーボード用（react-simple-maps が各パスに `tabIndex={0}` を付けるため、ポインタだけ止めても Tab で入れる）。
    - おすすめ系ではなくクイズ画面の部品なので `components/quiz/` に置く。
 
 3. `.design-sync/`（Claude Design プロジェクトへの同期。`components/` に1つ足すので追随が要る）
@@ -79,7 +80,8 @@
 守る失敗モード = **CTA が再び説明ブロックの下に埋もれる**。
 `__tests__/components/quiz/hud-layout.test.tsx` と同じ happy-dom + `react-dom/client` の `createRoot` + `act` で描画し、次を検証する。
 
-- モードカードをクリックすると、CTA の押下で `router.push` に `/quiz/municipality/<mode>` が渡る（A と D の2ケース）。
+- モードカードをクリックすると、CTA の押下で `router.push` に `/quiz/municipality/<mode>` が渡る（既定 B と、選択した D の2ケース）。
+- サンプル枠に `inert` が付いており、ラベルはその外にある。
 - CTA 要素が、プレビューのサンプル枠より DOM 上で前に来ている（`compareDocumentPosition` で判定）。
 - この画面が `RecommendHeroCard` をマウントしない。
 
