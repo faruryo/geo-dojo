@@ -72,11 +72,35 @@ const SE_TONES: Record<SeEvent, Tone[]> = {
 };
 
 let audioContext: AudioContext | null = null;
+const activeNodes = new Set<{ osc: OscillatorNode; gain: GainNode }>();
+
+export function stopAllSe(): void {
+  try {
+    for (const node of activeNodes) {
+      try {
+        node.osc.stop();
+        node.osc.disconnect();
+        node.gain.disconnect();
+      } catch {
+        // すでに停止済みの場合は無視
+      }
+    }
+    activeNodes.clear();
+  } catch {
+    // 安全に握り潰す
+  }
+}
 
 export function playSe(event: SeEvent): void {
   try {
     if (isSoundMuted()) return;
     if (typeof window === 'undefined' || typeof window.AudioContext !== 'function') return;
+
+    // 解答判定・セッション完了時は、進行中のタイマーSE等の余韻を即座に停止する
+    if (event === 'correct' || event === 'incorrect' || event === 'complete' || event === 'perfect') {
+      stopAllSe();
+    }
+
     audioContext ??= new window.AudioContext();
     const ctx = audioContext;
     if (ctx.state === 'suspended') {
@@ -86,6 +110,9 @@ export function playSe(event: SeEvent): void {
     for (const tone of SE_TONES[event]) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+      const node = { osc, gain };
+      activeNodes.add(node);
+
       osc.type = tone.type;
       osc.frequency.value = tone.frequency;
       const start = now + tone.startAt;
@@ -96,8 +123,13 @@ export function playSe(event: SeEvent): void {
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.onended = () => {
-        osc.disconnect();
-        gain.disconnect();
+        activeNodes.delete(node);
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch {
+          // すでに切断済みの場合は無視
+        }
       };
       osc.start(start);
       osc.stop(end + 0.05);

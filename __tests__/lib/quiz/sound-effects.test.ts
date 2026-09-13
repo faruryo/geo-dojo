@@ -98,4 +98,90 @@ describe('sound-effects', () => {
     expect(completionSeEvent([{ correct: false }])).toBe('complete');
     expect(completionSeEvent([])).toBe('complete');
   });
+
+  it('stopAllSe を呼ぶとアクティブなオシレーターが停止・切断される', async () => {
+    const stopFn = vi.fn();
+    const disconnectFn = vi.fn();
+    class MockAudioContext {
+      state = 'running';
+      currentTime = 0;
+      destination = {};
+      createOscillator() {
+        return {
+          type: 'sine',
+          frequency: { value: 0 },
+          start: vi.fn(),
+          stop: stopFn,
+          connect: vi.fn(),
+          disconnect: disconnectFn,
+        };
+      }
+      createGain() {
+        return {
+          gain: {
+            setValueAtTime: vi.fn(),
+            linearRampToValueAtTime: vi.fn(),
+            exponentialRampToValueAtTime: vi.fn(),
+          },
+          connect: vi.fn(),
+          disconnect: disconnectFn,
+        };
+      }
+    }
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      AudioContext: MockAudioContext,
+    });
+    const { playSe, stopAllSe } = await loadModule();
+
+    playSe('warning');
+    // start と stop(futureTime) がスケジュールされているが、早期切断はまだ行われていない
+    expect(disconnectFn).not.toHaveBeenCalled();
+
+    stopAllSe();
+    // stopAllSe により即時切断・停止が行われる
+    expect(stopFn).toHaveBeenCalledWith();
+    expect(disconnectFn).toHaveBeenCalled();
+  });
+
+  it('解答判定SE（correct）再生時に先行するSEが停止される', async () => {
+    const stopFn = vi.fn();
+    class MockAudioContext {
+      state = 'running';
+      currentTime = 0;
+      destination = {};
+      createOscillator() {
+        return {
+          type: 'sine',
+          frequency: { value: 0 },
+          start: vi.fn(),
+          stop: stopFn,
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        };
+      }
+      createGain() {
+        return {
+          gain: {
+            setValueAtTime: vi.fn(),
+            linearRampToValueAtTime: vi.fn(),
+            exponentialRampToValueAtTime: vi.fn(),
+          },
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+        };
+      }
+    }
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      AudioContext: MockAudioContext,
+    });
+    const { playSe } = await loadModule();
+
+    playSe('warning');
+    stopFn.mockClear();
+
+    playSe('correct');
+    expect(stopFn).toHaveBeenCalled();
+  });
 });

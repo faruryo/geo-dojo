@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { playSe } from '@/lib/quiz/sound-effects';
+import { playSe, stopAllSe } from '@/lib/quiz/sound-effects';
 import type { FeedbackState, Question } from './use-quiz-session';
 
 export const TIME_LIMIT_SEC = 30;
@@ -27,6 +27,32 @@ interface UseQuizTimerProps {
    * テスト時のモック注入および拡張用。未指定時は playSe が呼ばれる。
    */
   readonly onTickSe?: (event: TimerSeEvent, remaining: number) => void;
+  /**
+   * タイマー停止・クリーンアップ時のSE停止コールバック。
+   * テスト時のモック注入用。未指定時は stopAllSe が呼ばれる。
+   */
+  readonly onStopSe?: () => void;
+}
+
+function notifyCountdownSe(
+  remaining: number,
+  onTickSe?: (event: TimerSeEvent, remaining: number) => void,
+): void {
+  let event: TimerSeEvent | null = null;
+  if (remaining === COUNTDOWN_HALFWAY_SEC) {
+    event = 'halfway';
+  } else if (remaining === COUNTDOWN_DANGER_SEC) {
+    event = 'warning';
+  } else if (remaining <= COUNTDOWN_WARNING_SEC) {
+    event = 'tick';
+  }
+
+  if (!event) return;
+  if (onTickSe) {
+    onTickSe(event, remaining);
+  } else {
+    playSe(event);
+  }
 }
 
 export function useQuizTimer({
@@ -37,18 +63,19 @@ export function useQuizTimer({
   onTimeout,
   armed,
   onTickSe,
+  onStopSe,
 }: Readonly<UseQuizTimerProps>) {
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_SEC);
   const onTimeoutRef = useRef(onTimeout);
   const onTickSeRef = useRef(onTickSe);
+  const onStopSeRef = useRef(onStopSe);
 
   useEffect(() => {
     onTimeoutRef.current = onTimeout;
     onTickSeRef.current = onTickSe;
+    onStopSeRef.current = onStopSe;
   });
 
-  // 問題が変わったら armed を待たずに戻す。armed が立つまでの導入表示のあいだ、
-  // 前問の残秒数（タイムアウトなら 0）が出たままになり、開始と同時に跳ね上がる。
   useEffect(() => {
     setTimeLeft(TIME_LIMIT_SEC);
   }, [qIdx]);
@@ -68,24 +95,18 @@ export function useQuizTimer({
         onTimeoutRef.current();
       } else {
         setTimeLeft(remaining);
-        const triggerSe = (event: TimerSeEvent) => {
-          if (onTickSeRef.current) {
-            onTickSeRef.current(event, remaining);
-          } else {
-            playSe(event);
-          }
-        };
-
-        if (remaining === COUNTDOWN_HALFWAY_SEC) {
-          triggerSe('halfway');
-        } else if (remaining === COUNTDOWN_DANGER_SEC) {
-          triggerSe('warning');
-        } else if (remaining <= COUNTDOWN_WARNING_SEC) {
-          triggerSe('tick');
-        }
+        notifyCountdownSe(remaining, onTickSeRef.current);
       }
     }, 1000);
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(interval);
+      if (onStopSeRef.current) {
+        onStopSeRef.current();
+      } else {
+        stopAllSe();
+      }
+    };
   }, [feedback, qIdx, currentQuestion, modeDFailed, armed]);
 
   return { timeLeft };

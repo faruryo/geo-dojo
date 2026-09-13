@@ -27,6 +27,7 @@ function modeD(name: string): Question {
 let timeLeft = -1;
 let timeouts = 0;
 let seEvents: { event: string; remaining: number }[] = [];
+let stopSeCalls = 0;
 
 function Probe({
   question,
@@ -44,6 +45,9 @@ function Probe({
     },
     onTickSe: (event, remaining) => {
       seEvents.push({ event, remaining });
+    },
+    onStopSe: () => {
+      stopSeCalls += 1;
     },
     armed,
   });
@@ -73,6 +77,7 @@ beforeEach(() => {
   timeLeft = -1;
   timeouts = 0;
   seEvents = [];
+  stopSeCalls = 0;
   host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
@@ -175,6 +180,7 @@ describe('useQuizTimer', () => {
 
     // 回答完了で feedback が変化
     render(0, true, 'correct');
+    expect(stopSeCalls).toBeGreaterThan(0);
     tick(5);
 
     // 追加の tick は発火しない
@@ -182,5 +188,16 @@ describe('useQuizTimer', () => {
       { event: 'halfway', remaining: 15 },
       { event: 'warning', remaining: 6 },
     ]);
+  });
+
+  it('タイマー破棄・アンマウント時に SE 停止（stopAllSe）が呼ばれる', () => {
+    render(0, true, 'idle');
+    expect(stopSeCalls).toBe(0);
+
+    act(() => {
+      root.render(<span />);
+    });
+
+    expect(stopSeCalls).toBe(1);
   });
 });
