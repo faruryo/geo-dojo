@@ -52,6 +52,22 @@ function buttonByText(host: HTMLElement, text: string): HTMLButtonElement {
   return found;
 }
 
+function modeRadios(host: HTMLElement): HTMLInputElement[] {
+  return [...host.querySelectorAll<HTMLInputElement>('input[type="radio"][name="quiz-mode"]')];
+}
+
+/** モードカードを選ぶ。カードは label なので button 経由では押せない */
+function selectMode(host: HTMLElement, longLabel: string): void {
+  const card = [...host.querySelectorAll('label')].find((l) =>
+    l.textContent?.includes(longLabel),
+  );
+  const radio = card?.querySelector('input');
+  if (!radio) throw new Error(`モードカードが見つからない: ${longLabel}`);
+  act(() => {
+    radio.click();
+  });
+}
+
 function inertBox(host: HTMLElement): HTMLElement {
   const found = host.querySelector<HTMLElement>('[inert]');
   if (!found) throw new Error('inert なプレビュー枠が見つからない');
@@ -123,12 +139,25 @@ describe('市区町村クイズ・モード選択の導線', () => {
     ).toBeTruthy();
   });
 
+  it('選択中のモードを radio の checked で支援技術に伝える', () => {
+    const host = mount();
+    const radios = modeRadios(host);
+
+    expect(radios).toHaveLength(4);
+    // 4つから1つの排他選択。トグルボタン（aria-pressed）では表せない関係なので、
+    // radiogroup に入れて選択状態を checked で伝える
+    expect(host.querySelector('[role="radiogroup"]')?.contains(radios[0])).toBe(true);
+    // CTA の文言からモード名を外したので、選択状態はここでしか伝わらない
+    expect(radios.map((r) => r.checked)).toEqual([false, true, false, false]);
+
+    selectMode(host, '場所当て（地図）');
+    expect(modeRadios(host).map((r) => r.checked)).toEqual([false, false, false, true]);
+  });
+
   it('選んだモードの設定画面へ遷移する', () => {
     const host = mount();
 
-    act(() => {
-      buttonByText(host, '場所当て（地図）').click();
-    });
+    selectMode(host, '場所当て（地図）');
     act(() => {
       buttonByText(host, 'このモードで遊ぶ').click();
     });
