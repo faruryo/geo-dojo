@@ -44,16 +44,17 @@ function balanced(source: string, open: number, o: string, c: string): string | 
  * 素朴に lastIndexOf すると `Readonly<{ caption: string; children: ReactNode }>` のような
  * インライン型の中の最後のコロンを拾い、注釈が `ReactNode }>` に切れて検査ごと落ちる。
  * 逆に indexOf だと `{ a: b }` のリネーム付き分割代入で落ちる。入れ子の外側から探す。
+ *
+ * 山括弧は数えない。この関数が見るのは区切りコロンより手前、つまり分割代入パターンの中だけで、
+ * そこに現れる `<` `>` はデフォルト式の比較演算子（`{ limit = n > 0 }`）やアロー（`() => {}`）
+ * であり、括弧として対応しない。数えると深さがずれ、コンポーネントごと検査から漏れる。
  */
 function topLevelColon(params: string): number {
   let depth = 0;
   for (let i = 0; i < params.length; i += 1) {
     const ch = params.charAt(i);
-    if (ch === '{' || ch === '(' || ch === '[' || ch === '<') depth += 1;
-    // `{ onAbort = () => {} }` のアロー。`=>` の `>` を閉じ括弧と数えると深さがずれ、
-    // 区切りのコロンを見失ってコンポーネントごと検査から漏れる
-    else if (ch === '>' && params.charAt(i - 1) === '=') continue;
-    else if (ch === '}' || ch === ')' || ch === ']' || ch === '>') depth -= 1;
+    if (ch === '{' || ch === '(' || ch === '[') depth += 1;
+    else if (ch === '}' || ch === ')' || ch === ']') depth -= 1;
     else if (ch === ':' && depth === 0) return i;
   }
   return -1;
@@ -112,6 +113,11 @@ describe('topLevelColon が引数リストの区切りを見つける', () => {
     ['{ a: b }: Props', 'Props'],
     // デフォルト値のアロー。`=>` の `>` を閉じ括弧と数えると深さがずれる
     ['{ onAbort = () => {} }: Props', 'Props'],
+    // デフォルト値の比較演算子。新規コンポーネントがこれだと、既存分で件数下限を
+    // 満たしてしまい dtsPropsFor の欠落に気付けない
+    ['{ limit = n > 0 }: Props', 'Props'],
+    // デフォルト値のジェネリック呼び出し
+    ['{ items = make<Item>() }: Readonly<Props>', 'Readonly<Props>'],
   ];
 
   it.each(cases)('%s の注釈は %s', (params, annotation) => {
