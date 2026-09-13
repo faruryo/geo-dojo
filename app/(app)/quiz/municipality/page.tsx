@@ -192,23 +192,32 @@ export default function MunicipalityModeSelectPage() {
             間に説明（プレビュー・出題ルール）を挟むと、375px では CTA が
             ファーストビュー（608px）の外へ落ちる。specs/028-mode-select-ux 参照 */}
         <div className="flex flex-col gap-3 self-start">
-          <div className="grid grid-cols-2 gap-2">
+          {/* 4つから1つを選ぶ排他選択。選択状態は色でしか表しておらず、CTA の文言からも
+              モード名を外したので、支援技術には radio の checked で伝える。ネイティブの
+              radio なら排他・矢印キー移動・読み上げをブラウザが持つ（aria-pressed は
+              トグルボタンの状態で、この関係を表せない） */}
+          <div role="radiogroup" aria-label="クイズモード" className="grid grid-cols-2 gap-2">
             {MODES.map((m) => {
               const isSelected = m.key === selected;
               const Icon = m.Icon;
               return (
-                <button
+                <label
                   key={m.key}
-                  onClick={() => handleSelectMode(m.key)}
-                  // 選択状態は色でしか表していない。CTA の文言からもモード名を外したので、
-                  // これが無いと支援技術からはどのモードで開始するのか分からない
-                  aria-pressed={isSelected}
-                  className={`rounded-xl border p-3 text-left transition-colors ${
+                  className={`rounded-xl border p-3 text-left transition-colors cursor-pointer has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 ${
                     isSelected
                       ? 'border-primary bg-primary/10'
                       : 'border-border hover:border-primary/50'
                   }`}
                 >
+                  {/* 見た目はカードが担うので input 自体は隠すが、フォーカスは受け取る */}
+                  <input
+                    type="radio"
+                    name="quiz-mode"
+                    value={m.key}
+                    checked={isSelected}
+                    onChange={() => handleSelectMode(m.key)}
+                    className="sr-only"
+                  />
                   <div className="flex items-center gap-2 mb-1">
                     <Icon size={16} className={isSelected ? 'text-primary' : 'text-muted-foreground'} />
                     <span className={`text-xs font-bold ${isSelected ? 'text-primary' : ''}`}>
@@ -218,7 +227,7 @@ export default function MunicipalityModeSelectPage() {
                   <p className={`text-sm font-medium ${isSelected ? 'text-primary' : ''}`}>
                     {m.longLabel}
                   </p>
-                </button>
+                </label>
               );
             })}
           </div>
