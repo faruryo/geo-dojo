@@ -1,4 +1,11 @@
-export type SeEvent = 'correct' | 'incorrect' | 'complete' | 'perfect';
+export type SeEvent =
+  | 'correct'
+  | 'incorrect'
+  | 'complete'
+  | 'perfect'
+  | 'tick'
+  | 'halfway'
+  | 'warning';
 
 const MUTE_STORAGE_KEY = 'geo-dojo:se-muted';
 
@@ -52,23 +59,131 @@ const SE_TONES: Record<SeEvent, Tone[]> = {
     { frequency: 1046.5, startAt: 0.3, duration: 0.35, type: 'triangle', peakGain: 0.65 },
     { frequency: 783.99, startAt: 0.3, duration: 0.35, type: 'sine', peakGain: 0.3 },
   ],
+  tick: [
+    { frequency: 880, startAt: 0, duration: 0.04, type: 'sine', peakGain: 0.35 },
+  ],
+  halfway: [
+    { frequency: 587.33, startAt: 0, duration: 0.12, type: 'sine', peakGain: 0.4 },
+  ],
+  warning: [
+    { frequency: 783.99, startAt: 0, duration: 0.06, type: 'sine', peakGain: 0.5 },
+    { frequency: 880, startAt: 0.08, duration: 0.08, type: 'sine', peakGain: 0.5 },
+  ],
 };
 
 let audioContext: AudioContext | null = null;
+const COUNTDOWN_EVENTS = new Set<SeEvent>(['tick', 'halfway', 'warning']);
+const activeCountdownNodes = new Set<{ osc: OscillatorNode; gain: GainNode }>();
+const activeAllNodes = new Set<{ osc: OscillatorNode; gain: GainNode }>();
+
+export function stopCountdownSe(): void {
+  try {
+    for (const node of activeCountdownNodes) {
+      try {
+        node.osc.stop();
+        node.osc.disconnect();
+        node.gain.disconnect();
+      } catch {
+        // すでに停止済みの場合は無視
+      }
+    }
+    activeCountdownNodes.clear();
+  } catch {
+    // 安全に握り潰す
+  }
+}
+
+export function stopAllSe(): void {
+  stopCountdownSe();
+  try {
+    for (const node of activeAllNodes) {
+      try {
+        node.osc.stop();
+        node.osc.disconnect();
+        node.gain.disconnect();
+      } catch {
+        // すでに停止済みの場合は無視
+      }
+    }
+    activeAllNodes.clear();
+  } catch {
+    // 安全に握り潰す
+  }
+}
+
+export function isAudioContextRunning(): boolean {
+  return audioContext !== null && audioContext.state === 'running';
+}
+
+export function unlockAudioContext(): void {
+  try {
+    if (isSoundMuted()) return;
+    if (typeof window === 'undefined' || typeof window.AudioContext !== 'function') return;
+
+    audioContext ??= new window.AudioContext();
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch(() => {});
+    }
+  } catch {
+    // 安全に握り潰す
+  }
+}
+
+let hasRegisteredUnlockListener = false;
+export function registerAudioUnlockListener(): void {
+  if (hasRegisteredUnlockListener) return;
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  hasRegisteredUnlockListener = true;
+
+  const onUserGesture = () => {
+    unlockAudioContext();
+    if (audioContext && audioContext.state === 'running') {
+      if (typeof window.removeEventListener === 'function') {
+        window.removeEventListener('pointerdown', onUserGesture);
+        window.removeEventListener('keydown', onUserGesture);
+        window.removeEventListener('touchstart', onUserGesture);
+      }
+    }
+  };
+
+  window.addEventListener('pointerdown', onUserGesture, { passive: true });
+  window.addEventListener('keydown', onUserGesture, { passive: true });
+  window.addEventListener('touchstart', onUserGesture, { passive: true });
+}
 
 export function playSe(event: SeEvent): void {
   try {
     if (isSoundMuted()) return;
     if (typeof window === 'undefined' || typeof window.AudioContext !== 'function') return;
+
+    registerAudioUnlockListener();
+
+    const isCountdown = COUNTDOWN_EVENTS.has(event);
+    if (!isCountdown) {
+      // 解答判定・セッション完了時は、進行中のカウントダウンSEのみ即座に停止する
+      stopCountdownSe();
+    }
+
     audioContext ??= new window.AudioContext();
     const ctx = audioContext;
     if (ctx.state === 'suspended') {
       ctx.resume().catch(() => {});
+      // AudioContext が suspended（未アンロック）の場合、
+      // タイマー駆動のSEはスケジュールせず破棄し、後からの遅延重複再生を防ぐ
+      if (isCountdown) {
+        return;
+      }
     }
     const now = ctx.currentTime;
     for (const tone of SE_TONES[event]) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+      const node = { osc, gain };
+      activeAllNodes.add(node);
+      if (isCountdown) {
+        activeCountdownNodes.add(node);
+      }
+
       osc.type = tone.type;
       osc.frequency.value = tone.frequency;
       const start = now + tone.startAt;
@@ -79,8 +194,14 @@ export function playSe(event: SeEvent): void {
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.onended = () => {
-        osc.disconnect();
-        gain.disconnect();
+        activeAllNodes.delete(node);
+        activeCountdownNodes.delete(node);
+        try {
+          osc.disconnect();
+          gain.disconnect();
+        } catch {
+          // すでに切断済みの場合は無視
+        }
       };
       osc.start(start);
       osc.stop(end + 0.05);
