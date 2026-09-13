@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; }
+    .gd { font-family: 'Geist', system-ui, -apple-system, sans-serif; }
+    .gd * { box-sizing: border-box; margin: 0; padding: 0; }
+    a { color: #e5e5e5; } a:hover { color: #fafafa; }
+  </style>
+</helmet>
+
+<div class="gd" style="width: 375px; height: 1080px; background: #111111; color: #fafafa; position: relative; overflow: hidden;">
+
+  <div style="display: flex; flex-direction: column; gap: 16px; padding: 16px;">
+
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <span style="display: inline-flex; align-items: center; gap: 4px; min-height: 44px; width: fit-content; font-size: 12px; line-height: 16px; color: #a1a1a1;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+        クイズ選択に戻る
+      </span>
+      <div style="min-height: 44px; display: flex; align-items: center; gap: 4px; padding: 0 10px; border-radius: 8px; font-size: 12.8px; font-weight: 500; color: #fafafa; flex-shrink: 0;">✨ おすすめ</div>
+    </div>
+
+    <h1 style="font-size: 20px; line-height: 28px; font-weight: 600;">市区町村クイズ・モード選択</h1>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+          <div style="border-radius: 14px; border: 1px solid #e5e5e5; background: rgba(229, 229, 229, 0.1); padding: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e5e5e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              <span style="font-size: 12px; line-height: 16px; font-weight: 700; color: #e5e5e5;">モードA</span>
+            </div>
+            <p style="font-size: 14px; line-height: 20px; font-weight: 500; color: #e5e5e5;">県当て（地図）</p>
+          </div>
+          <div style="border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1); padding: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h.01"></path><path d="M3 12h.01"></path><path d="M3 19h.01"></path><path d="M8 5h13"></path><path d="M8 12h13"></path><path d="M8 19h13"></path></svg>
+              <span style="font-size: 12px; line-height: 16px; font-weight: 700;">モードB</span>
+            </div>
+            <p style="font-size: 14px; line-height: 20px; font-weight: 500;">県当て（4択）・練習</p>
+          </div>
+          <div style="border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1); padding: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h.01"></path><path d="M3 12h.01"></path><path d="M3 19h.01"></path><path d="M8 5h13"></path><path d="M8 12h13"></path><path d="M8 19h13"></path></svg>
+              <span style="font-size: 12px; line-height: 16px; font-weight: 700;">モードC</span>
+            </div>
+            <p style="font-size: 14px; line-height: 20px; font-weight: 500;">市当て（4択）・練習</p>
+          </div>
+          <div style="border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1); padding: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              <span style="font-size: 12px; line-height: 16px; font-weight: 700;">モードD</span>
+            </div>
+            <p style="font-size: 14px; line-height: 20px; font-weight: 500;">場所当て（地図）</p>
+          </div>
+        </div>
+
+        <div>
+          <p style="font-size: 14px; line-height: 20px; font-weight: 500;">県当て（地図）</p>
+          <p style="font-size: 12px; line-height: 19.5px; color: #a1a1a1; margin-top: 4px; min-height: 40px;">市区町村名から所属県を日本地図で答える。本番。</p>
+        </div>
+
+        <div style="width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #e5e5e5; color: #262626; font-size: 14px; font-weight: 500;">このモードで遊ぶ</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="height: 1px; flex: 1; background: rgba(255, 255, 255, 0.1);"></div>
+          <span style="font-size: 11px; line-height: 16px; color: #a1a1a1;">以下は参考</span>
+          <div style="height: 1px; flex: 1; background: rgba(255, 255, 255, 0.1);"></div>
+        </div>
+
+        <div style="border: 1px dashed rgba(255, 255, 255, 0.22); border-radius: 14px; background: rgba(64, 64, 64, 0.1); padding: 12px;">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a1a1a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><rect width="18" height="18" x="3" y="3" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
+            <span style="font-size: 11px; line-height: 16px; color: #a1a1a1; letter-spacing: 0.02em;">プレイ画面イメージ（操作できません）</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px; opacity: 0.85; pointer-events: none; user-select: none;">
+            <div style="border-radius: 14px; background: #262626; border: 1px solid rgba(255, 255, 255, 0.1); padding: 12px; text-align: center;">
+              <p style="font-size: 12px; line-height: 16px; color: #a1a1a1; margin-bottom: 4px;">この市区町村がある都道府県を地図でタップ</p>
+              <p style="font-size: 20px; line-height: 28px; font-weight: 700;">中央区</p>
+              <p style="font-size: 12px; line-height: 16px; color: #a1a1a1; margin-top: 4px;">5 か所あります</p>
+            </div>
+            <div style="border-radius: 14px; background: #111111; border: 1px solid rgba(255, 255, 255, 0.1); height: 288px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+              <svg width="170" height="250" viewBox="0 0 160 220" fill="none">
+                <g stroke="#9ca3af" stroke-width="0.6">
+                  <path d="M104 14c8-6 24-4 28 6s-4 20-12 24-20 0-22-10-2-16 6-20z" fill="#e5e7eb"></path>
+                  <path d="M96 52c8 4 16 10 18 18s-6 16-14 22c-10 8-22 16-32 24-10 8-20 14-28 16s-14-2-14-8 8-12 16-16c10-6 20-14 28-22s16-20 18-30c2-6 4-8 8-4z" fill="#e5e7eb"></path>
+                  <path d="M44 142c6-2 14 0 14 5s-8 8-14 6-6-9 0-11z" fill="#e5e7eb"></path>
+                  <path d="M26 146c6-2 12 2 12 10s-6 22-14 24-12-6-10-16 6-16 12-18z" fill="#e5e7eb"></path>
+                  <ellipse cx="12" cy="196" rx="5" ry="2.5" fill="#e5e7eb"></ellipse>
+                  <ellipse cx="5" cy="206" rx="3.5" ry="2" fill="#e5e7eb"></ellipse>
+                </g>
+                <path d="M50 100c6-2 12 2 10 8s-10 6-12 0-1-7 2-8z" fill="#4a7c59" stroke="#9ca3af" stroke-width="0.6"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div style="border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 14px; padding: 12px; background: rgba(64, 64, 64, 0.1); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; font-weight: 500; color: #a1a1a1;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>
+            出題ルールと除外について（同名市区町村など）
+          </span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; top: 608px; width: 100%; height: 0; border-top: 1px dashed rgba(255, 255, 255, 0.25);"></div>
+  <div style="position: absolute; right: 8px; top: 612px; font-size: 10px; line-height: 14px; color: #a1a1a1; background: #111111; padding: 2px 6px; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 9999px;">ファーストビュー下端 608px</div>
+  <div style="position: absolute; left: 16px; top: 396px; display: flex; align-items: center; gap: 6px; font-size: 10px; line-height: 14px; color: #22c55e;">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg>
+    CTA 348–392 — fold まで 216px の余裕（実測）
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

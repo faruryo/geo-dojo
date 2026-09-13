@@ -62,3 +62,7 @@ ds-bundle/
 .design-sync/learnings/
 .design-sync/node_modules
 .design-sync/tailwind.css
+
+# design-sync canvas の seed 出力（.dc.html + canvas.json から再生成できる 2.5MB の生成物）
+specs/*/design/*.html
+!specs/*/design/*.dc.html
