@@ -11,7 +11,7 @@ import {
   createTimeoutEntry,
   type QuizSessionEntry,
 } from '@/lib/quiz/quiz-session-core';
-import { playSe } from '@/lib/quiz/sound-effects';
+import { isAudioContextRunning, playSe } from '@/lib/quiz/sound-effects';
 import { isModeDTapCorrect } from '@/lib/quiz/mode-d-judge';
 import { toQuestionResult } from '@/lib/quiz/quiz-results';
 import { appendRecommendQuestion, readActiveRecommendUserId } from '@/lib/quiz/recommendation/history-cache';
@@ -106,7 +106,9 @@ export function useMapAction(
       const { municipality } = currentQuestion;
       state.setCorrectCodes([municipality.code]);
       state.setFeedback('incorrect');
-      playSe('incorrect');
+      if (isAudioContextRunning()) {
+        playSe('incorrect');
+      }
       await recordAndAdvance([createTimeoutEntry(municipality, TIME_LIMIT_SEC)], 1500);
     }
   }, [state, currentQuestion, recordAndAdvance]);

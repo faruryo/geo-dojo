@@ -37,14 +37,19 @@ interface MockOscillator {
 }
 
 function createMockAudioContextClass(options?: {
+  readonly state?: AudioContextState;
+  readonly onResume?: () => void;
   readonly onStop?: () => void;
   readonly onDisconnect?: () => void;
   readonly onOscillatorCreated?: (osc: MockOscillator) => void;
 }) {
   return class MockAudioContext {
-    state = 'running';
+    state = options?.state ?? 'running';
     currentTime = 0;
     destination = {};
+    resume = vi.fn(async () => {
+      options?.onResume?.();
+    });
     createOscillator() {
       const osc = {
         type: 'sine',
@@ -217,5 +222,61 @@ describe('sound-effects', () => {
       expect(osc.stop).not.toHaveBeenCalledWith();
       expect(osc.disconnect).not.toHaveBeenCalled();
     }
+  });
+
+  it('unlockAudioContext は AudioContext が suspended の場合に resume を呼ぶ', async () => {
+    const resumeFn = vi.fn();
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      AudioContext: createMockAudioContextClass({
+        state: 'suspended',
+        onResume: resumeFn,
+      }),
+    });
+    const { unlockAudioContext, isAudioContextRunning } = await loadModule();
+
+    expect(isAudioContextRunning()).toBe(false);
+    unlockAudioContext();
+    expect(resumeFn).toHaveBeenCalled();
+  });
+
+  it('AudioContext が suspended の場合、カウントダウンSEはオシレーターをスケジュールせず遅延再生を防ぐ', async () => {
+    const oscList: MockOscillator[] = [];
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      AudioContext: createMockAudioContextClass({
+        state: 'suspended',
+        onOscillatorCreated: (osc) => oscList.push(osc),
+      }),
+    });
+    const { playSe } = await loadModule();
+
+    playSe('warning');
+    // suspended 状態のままではオシレーターが生成・スケジュールされない
+    expect(oscList).toHaveLength(0);
+  });
+
+  it('registerAudioUnlockListener は pointerdown 等の操作で unlockAudioContext を呼び出す', async () => {
+    const resumeFn = vi.fn();
+    const listeners = new Map<string, () => void>();
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      addEventListener: vi.fn((event: string, handler: () => void) => {
+        listeners.set(event, handler);
+      }),
+      removeEventListener: vi.fn(),
+      AudioContext: createMockAudioContextClass({
+        state: 'suspended',
+        onResume: resumeFn,
+      }),
+    });
+    const { registerAudioUnlockListener } = await loadModule();
+
+    registerAudioUnlockListener();
+    expect(listeners.has('pointerdown')).toBe(true);
+
+    // ユーザージェスチャー（pointerdown）をシミュレート
+    listeners.get('pointerdown')?.();
+    expect(resumeFn).toHaveBeenCalled();
   });
 });

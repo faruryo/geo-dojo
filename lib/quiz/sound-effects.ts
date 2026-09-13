@@ -111,10 +111,52 @@ export function stopAllSe(): void {
   }
 }
 
+export function isAudioContextRunning(): boolean {
+  return audioContext !== null && audioContext.state === 'running';
+}
+
+export function unlockAudioContext(): void {
+  try {
+    if (isSoundMuted()) return;
+    if (typeof window === 'undefined' || typeof window.AudioContext !== 'function') return;
+
+    audioContext ??= new window.AudioContext();
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch(() => {});
+    }
+  } catch {
+    // 安全に握り潰す
+  }
+}
+
+let hasRegisteredUnlockListener = false;
+export function registerAudioUnlockListener(): void {
+  if (hasRegisteredUnlockListener) return;
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+  hasRegisteredUnlockListener = true;
+
+  const onUserGesture = () => {
+    unlockAudioContext();
+    if (audioContext && audioContext.state === 'running') {
+      if (typeof window.removeEventListener === 'function') {
+        window.removeEventListener('pointerdown', onUserGesture);
+        window.removeEventListener('keydown', onUserGesture);
+        window.removeEventListener('touchstart', onUserGesture);
+      }
+    }
+  };
+
+  window.addEventListener('pointerdown', onUserGesture, { passive: true });
+  window.addEventListener('keydown', onUserGesture, { passive: true });
+  window.addEventListener('touchstart', onUserGesture, { passive: true });
+}
+
 export function playSe(event: SeEvent): void {
   try {
     if (isSoundMuted()) return;
     if (typeof window === 'undefined' || typeof window.AudioContext !== 'function') return;
+
+    registerAudioUnlockListener();
 
     const isCountdown = COUNTDOWN_EVENTS.has(event);
     if (!isCountdown) {
@@ -126,6 +168,11 @@ export function playSe(event: SeEvent): void {
     const ctx = audioContext;
     if (ctx.state === 'suspended') {
       ctx.resume().catch(() => {});
+      // AudioContext が suspended（未アンロック）の場合、
+      // タイマー駆動のSEはスケジュールせず破棄し、後からの遅延重複再生を防ぐ
+      if (isCountdown) {
+        return;
+      }
     }
     const now = ctx.currentTime;
     for (const tone of SE_TONES[event]) {
