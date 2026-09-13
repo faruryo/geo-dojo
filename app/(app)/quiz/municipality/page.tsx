@@ -200,6 +200,9 @@ export default function MunicipalityModeSelectPage() {
                 <button
                   key={m.key}
                   onClick={() => handleSelectMode(m.key)}
+                  // 選択状態は色でしか表していない。CTA の文言からもモード名を外したので、
+                  // これが無いと支援技術からはどのモードで開始するのか分からない
+                  aria-pressed={isSelected}
                   className={`rounded-xl border p-3 text-left transition-colors ${
                     isSelected
                       ? 'border-primary bg-primary/10'

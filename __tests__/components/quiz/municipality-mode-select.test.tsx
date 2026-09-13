@@ -123,6 +123,32 @@ describe('市区町村クイズ・モード選択の導線', () => {
     ).toBeTruthy();
   });
 
+  it('選択中のモードを aria-pressed で支援技術に伝える', () => {
+    const host = mount();
+    const cards = [...host.querySelectorAll('button')].filter((b) =>
+      /^モード[ABCD]/.test(b.textContent ?? ''),
+    );
+
+    expect(cards).toHaveLength(4);
+    // CTA の文言からモード名を外したので、選択状態はここでしか伝わらない
+    expect(cards.map((c) => c.getAttribute('aria-pressed'))).toEqual([
+      'false',
+      'true',
+      'false',
+      'false',
+    ]);
+
+    act(() => {
+      buttonByText(host, '場所当て（地図）').click();
+    });
+    expect(cards.map((c) => c.getAttribute('aria-pressed'))).toEqual([
+      'false',
+      'false',
+      'false',
+      'true',
+    ]);
+  });
+
   it('選んだモードの設定画面へ遷移する', () => {
     const host = mount();
 
