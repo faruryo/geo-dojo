@@ -14,6 +14,7 @@ import { TIME_LIMIT_SEC } from '../use-quiz-timer';
 import { ModeAView } from '../views/mode-a-view';
 import { MunicipalityMapView } from '../views/municipality-map-view';
 import { BottomHud, type BottomHudContent } from './bottom-hud';
+import { MapCountdownPulse } from './map-countdown-pulse';
 import { QuestionIntro } from './question-intro';
 import { TopHud, type HudTimer } from './top-hud';
 import {
@@ -256,6 +257,9 @@ function SingleStageAndHud({
           session={session}
           isMap={isMap}
         />
+        {isMap && (
+          <MapCountdownPulse secondsLeft={timeLeft} feedback={feedback} />
+        )}
       </Stage>
       <IntroOverlay intro={intro} content={content} />
       <BottomHud

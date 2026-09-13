@@ -31,6 +31,55 @@ async function loadModule() {
   return import('@/lib/quiz/sound-effects');
 }
 
+interface MockOscillator {
+  readonly stop: ReturnType<typeof vi.fn>;
+  readonly disconnect: ReturnType<typeof vi.fn>;
+}
+
+function createMockAudioContextClass(options?: {
+  readonly state?: AudioContextState;
+  readonly onResume?: () => void;
+  readonly onStop?: () => void;
+  readonly onDisconnect?: () => void;
+  readonly onOscillatorCreated?: (osc: MockOscillator) => void;
+}) {
+  return class MockAudioContext {
+    state = options?.state ?? 'running';
+    currentTime = 0;
+    destination = {};
+    resume = vi.fn(async () => {
+      options?.onResume?.();
+    });
+    createOscillator() {
+      const osc = {
+        type: 'sine',
+        frequency: { value: 0 },
+        start: vi.fn(),
+        stop: vi.fn((..._args: unknown[]) => {
+          options?.onStop?.();
+        }),
+        connect: vi.fn(),
+        disconnect: vi.fn((..._args: unknown[]) => {
+          options?.onDisconnect?.();
+        }),
+      };
+      options?.onOscillatorCreated?.(osc);
+      return osc;
+    }
+    createGain() {
+      return {
+        gain: {
+          setValueAtTime: vi.fn(),
+          linearRampToValueAtTime: vi.fn(),
+          exponentialRampToValueAtTime: vi.fn(),
+        },
+        connect: vi.fn(),
+        disconnect: options?.onDisconnect ?? vi.fn(),
+      };
+    }
+  };
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -49,6 +98,9 @@ describe('sound-effects', () => {
     playSe('incorrect');
     playSe('complete');
     playSe('perfect');
+    playSe('tick');
+    playSe('halfway');
+    playSe('warning');
     expect(audioContextSpy).not.toHaveBeenCalled();
   });
 
@@ -94,5 +146,137 @@ describe('sound-effects', () => {
     expect(completionSeEvent([{ correct: true }, { correct: false }])).toBe('complete');
     expect(completionSeEvent([{ correct: false }])).toBe('complete');
     expect(completionSeEvent([])).toBe('complete');
+  });
+
+  it('stopAllSe を呼ぶとアクティブなオシレーターが停止・切断される', async () => {
+    const stopFn = vi.fn();
+    const disconnectFn = vi.fn();
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      AudioContext: createMockAudioContextClass({
+        onStop: stopFn,
+        onDisconnect: disconnectFn,
+      }),
+    });
+    const { playSe, stopAllSe } = await loadModule();
+
+    playSe('warning');
+    // start と stop(futureTime) がスケジュールされているが、早期切断はまだ行われていない
+    expect(disconnectFn).not.toHaveBeenCalled();
+
+    stopAllSe();
+    // stopAllSe により即時切断・停止が行われる
+    expect(stopFn).toHaveBeenCalledWith();
+    expect(disconnectFn).toHaveBeenCalled();
+  });
+
+  it('解答判定SE（correct）再生時に先行するカウントダウンSE（warning）が即時停止される', async () => {
+    const oscList: MockOscillator[] = [];
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      AudioContext: createMockAudioContextClass({
+        onOscillatorCreated: (osc) => oscList.push(osc),
+      }),
+    });
+    const { playSe } = await loadModule();
+
+    playSe('warning');
+    expect(oscList.length).toBeGreaterThan(0);
+    const warningOscs = [...oscList];
+    oscList.length = 0;
+
+    // warning のオシレーターはいずれもまだ即時停止（引数なし stop()）されていない
+    for (const osc of warningOscs) {
+      expect(osc.stop).not.toHaveBeenCalledWith();
+    }
+
+    playSe('correct');
+    // correct 呼び出しにより、先行する warning の全オシレーターに対して即時 stop() が呼ばれていること
+    for (const osc of warningOscs) {
+      expect(osc.stop).toHaveBeenCalledWith();
+    }
+  });
+
+  it('stopCountdownSe は正答音（correct）を切断・停止しない', async () => {
+    const oscList: MockOscillator[] = [];
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      AudioContext: createMockAudioContextClass({
+        onOscillatorCreated: (osc) => oscList.push(osc),
+      }),
+    });
+    const { playSe, stopCountdownSe } = await loadModule();
+
+    playSe('correct');
+    expect(oscList.length).toBeGreaterThan(0);
+    const correctOscs = [...oscList];
+
+    for (const osc of correctOscs) {
+      osc.stop.mockClear();
+      osc.disconnect.mockClear();
+    }
+
+    // タイマークリーンアップ等で stopCountdownSe が走っても、correct 音の即時停止・切断は行われない
+    stopCountdownSe();
+    for (const osc of correctOscs) {
+      expect(osc.stop).not.toHaveBeenCalledWith();
+      expect(osc.disconnect).not.toHaveBeenCalled();
+    }
+  });
+
+  it('unlockAudioContext は AudioContext が suspended の場合に resume を呼ぶ', async () => {
+    const resumeFn = vi.fn();
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      AudioContext: createMockAudioContextClass({
+        state: 'suspended',
+        onResume: resumeFn,
+      }),
+    });
+    const { unlockAudioContext, isAudioContextRunning } = await loadModule();
+
+    expect(isAudioContextRunning()).toBe(false);
+    unlockAudioContext();
+    expect(resumeFn).toHaveBeenCalled();
+  });
+
+  it('AudioContext が suspended の場合、カウントダウンSEはオシレーターをスケジュールせず遅延再生を防ぐ', async () => {
+    const oscList: MockOscillator[] = [];
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      AudioContext: createMockAudioContextClass({
+        state: 'suspended',
+        onOscillatorCreated: (osc) => oscList.push(osc),
+      }),
+    });
+    const { playSe } = await loadModule();
+
+    playSe('warning');
+    // suspended 状態のままではオシレーターが生成・スケジュールされない
+    expect(oscList).toHaveLength(0);
+  });
+
+  it('registerAudioUnlockListener は pointerdown 等の操作で unlockAudioContext を呼び出す', async () => {
+    const resumeFn = vi.fn();
+    const listeners = new Map<string, () => void>();
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      addEventListener: vi.fn((event: string, handler: () => void) => {
+        listeners.set(event, handler);
+      }),
+      removeEventListener: vi.fn(),
+      AudioContext: createMockAudioContextClass({
+        state: 'suspended',
+        onResume: resumeFn,
+      }),
+    });
+    const { registerAudioUnlockListener } = await loadModule();
+
+    registerAudioUnlockListener();
+    expect(listeners.has('pointerdown')).toBe(true);
+
+    // ユーザージェスチャー（pointerdown）をシミュレート
+    listeners.get('pointerdown')?.();
+    expect(resumeFn).toHaveBeenCalled();
   });
 });

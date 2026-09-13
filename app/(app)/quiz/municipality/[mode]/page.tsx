@@ -29,6 +29,7 @@ import { QuizPoolProgress } from '@/components/quiz/quiz-pool-progress';
 import { ScopeSelector } from '@/components/quiz/scope-selector';
 import { MunicipalityPickerDialog } from '@/components/quiz/municipality-picker-dialog';
 import type { Question } from '@/components/quiz/quiz-runner';
+import { unlockAudioContext } from '@/lib/quiz/sound-effects';
 import { LAST_SELECTED_MODE_KEY, parseGameMode } from '@/lib/quiz/last-selected-mode';
 import {
   startRecommendSession,
@@ -322,6 +323,7 @@ export default function MunicipalityQuizPage() {
 
   // ── Start ──
   const handleStart = useCallback(async () => {
+    unlockAudioContext();
     const qs = buildMunicipalityQuestions(
       allMunicipalities,
       settings,
@@ -341,6 +343,7 @@ export default function MunicipalityQuizPage() {
 
   // ── Replay with cache synchronization ──
   const handleReplay = useCallback(async () => {
+    unlockAudioContext();
     if (isReplaying) return;
     setIsReplaying(true);
     setReplayError(null);

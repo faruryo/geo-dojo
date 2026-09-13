@@ -26,19 +26,28 @@ function modeD(name: string): Question {
 
 let timeLeft = -1;
 let timeouts = 0;
+let seEvents: { event: string; remaining: number }[] = [];
+let stopSeCalls = 0;
 
 function Probe({
   question,
   qIdx,
   armed,
-}: Readonly<{ question: Question; qIdx: number; armed: boolean }>) {
+  feedback = 'idle',
+}: Readonly<{ question: Question; qIdx: number; armed: boolean; feedback?: 'idle' | 'correct' | 'incorrect' }>) {
   const r = useQuizTimer({
     currentQuestion: question,
-    feedback: 'idle',
+    feedback,
     modeDFailed: false,
     qIdx,
     onTimeout: () => {
       timeouts += 1;
+    },
+    onTickSe: (event, remaining) => {
+      seEvents.push({ event, remaining });
+    },
+    onStopSe: () => {
+      stopSeCalls += 1;
     },
     armed,
   });
@@ -49,9 +58,9 @@ function Probe({
 let host: HTMLDivElement;
 let root: Root;
 
-function render(qIdx: number, armed: boolean) {
+function render(qIdx: number, armed: boolean, feedback: 'idle' | 'correct' | 'incorrect' = 'idle') {
   act(() => {
-    root.render(<Probe question={modeD(`q${qIdx}`)} qIdx={qIdx} armed={armed} />);
+    root.render(<Probe question={modeD(`q${qIdx}`)} qIdx={qIdx} armed={armed} feedback={feedback} />);
   });
 }
 
@@ -67,6 +76,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   timeLeft = -1;
   timeouts = 0;
+  seEvents = [];
+  stopSeCalls = 0;
   host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
@@ -118,5 +129,75 @@ describe('useQuizTimer', () => {
     render(1, false);
 
     expect(timeLeft).toBe(TIME_LIMIT_SEC);
+  });
+
+  it('残り15秒（半分）到達時に halfway 音が発火する', () => {
+    render(0, true);
+    tick(14);
+    expect(seEvents).toEqual([]);
+
+    tick(1); // 15秒経過（残り15秒）
+    expect(timeLeft).toBe(15);
+    expect(seEvents).toEqual([{ event: 'halfway', remaining: 15 }]);
+  });
+
+  it('残り6秒（危険ゾーン突入）で warning 音、5〜1秒で tick 音が発火する', () => {
+    render(0, true);
+    tick(24); // 残り6秒
+    expect(timeLeft).toBe(6);
+    expect(seEvents).toEqual([
+      { event: 'halfway', remaining: 15 },
+      { event: 'warning', remaining: 6 },
+    ]);
+
+    tick(5); // 残り1秒まで
+    expect(timeLeft).toBe(1);
+    expect(seEvents).toEqual([
+      { event: 'halfway', remaining: 15 },
+      { event: 'warning', remaining: 6 },
+      { event: 'tick', remaining: 5 },
+      { event: 'tick', remaining: 4 },
+      { event: 'tick', remaining: 3 },
+      { event: 'tick', remaining: 2 },
+      { event: 'tick', remaining: 1 },
+    ]);
+
+    // 0秒（タイムアウト）
+    tick(1);
+    expect(timeLeft).toBe(0);
+    expect(timeouts).toBe(1);
+    // 0秒では tick は追加されない（タイムアウト処理へ委譲）
+    expect(seEvents).toHaveLength(7);
+  });
+
+  it('途中で回答（feedback変化）した場合は以降のSEが鳴らない', () => {
+    render(0, true, 'idle');
+    tick(24); // 残り6秒まで進行
+    expect(seEvents).toEqual([
+      { event: 'halfway', remaining: 15 },
+      { event: 'warning', remaining: 6 },
+    ]);
+
+    // 回答完了で feedback が変化
+    render(0, true, 'correct');
+    expect(stopSeCalls).toBeGreaterThan(0);
+    tick(5);
+
+    // 追加の tick は発火しない
+    expect(seEvents).toEqual([
+      { event: 'halfway', remaining: 15 },
+      { event: 'warning', remaining: 6 },
+    ]);
+  });
+
+  it('タイマー破棄・アンマウント時に SE 停止（stopAllSe）が呼ばれる', () => {
+    render(0, true, 'idle');
+    expect(stopSeCalls).toBe(0);
+
+    act(() => {
+      root.render(<span />);
+    });
+
+    expect(stopSeCalls).toBe(1);
   });
 });
