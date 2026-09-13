@@ -50,6 +50,9 @@ function topLevelColon(params: string): number {
   for (let i = 0; i < params.length; i += 1) {
     const ch = params.charAt(i);
     if (ch === '{' || ch === '(' || ch === '[' || ch === '<') depth += 1;
+    // `{ onAbort = () => {} }` のアロー。`=>` の `>` を閉じ括弧と数えると深さがずれ、
+    // 区切りのコロンを見失ってコンポーネントごと検査から漏れる
+    else if (ch === '>' && params.charAt(i - 1) === '=') continue;
     else if (ch === '}' || ch === ')' || ch === ']' || ch === '>') depth -= 1;
     else if (ch === ':' && depth === 0) return i;
   }
@@ -98,6 +101,23 @@ const EXPECT_CHECKED = [
   'InViewMount',
   'MilestoneBanner',
 ];
+
+describe('topLevelColon が引数リストの区切りを見つける', () => {
+  // 区切りを見失うとそのコンポーネントが丸ごと検査から漏れるので、形ごとに押さえる
+  const cases = [
+    ['{ a, b }: Readonly<Props>', 'Readonly<Props>'],
+    // インライン型の中のコロン
+    ['{ caption, children }: Readonly<{ caption: string }>', 'Readonly<{ caption: string }>'],
+    // リネーム付き分割代入のコロン
+    ['{ a: b }: Props', 'Props'],
+    // デフォルト値のアロー。`=>` の `>` を閉じ括弧と数えると深さがずれる
+    ['{ onAbort = () => {} }: Props', 'Props'],
+  ];
+
+  it.each(cases)('%s の注釈は %s', (params, annotation) => {
+    expect(params.slice(topLevelColon(params) + 1).trim()).toBe(annotation);
+  });
+});
 
 describe('.design-sync/ の同期契約', () => {
   it('entry.tsx の export はすべて componentSrcMap に登録されている', () => {
