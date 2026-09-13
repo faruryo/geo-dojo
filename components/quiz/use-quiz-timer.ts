@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { playSe, stopAllSe } from '@/lib/quiz/sound-effects';
+import { playSe, stopCountdownSe } from '@/lib/quiz/sound-effects';
 import type { FeedbackState, Question } from './use-quiz-session';
 
 export const TIME_LIMIT_SEC = 30;
@@ -29,7 +29,7 @@ interface UseQuizTimerProps {
   readonly onTickSe?: (event: TimerSeEvent, remaining: number) => void;
   /**
    * タイマー停止・クリーンアップ時のSE停止コールバック。
-   * テスト時のモック注入用。未指定時は stopAllSe が呼ばれる。
+   * テスト時のモック注入用。未指定時は stopCountdownSe が呼ばれる。
    */
   readonly onStopSe?: () => void;
 }
@@ -104,7 +104,7 @@ export function useQuizTimer({
       if (onStopSeRef.current) {
         onStopSeRef.current();
       } else {
-        stopAllSe();
+        stopCountdownSe();
       }
     };
   }, [feedback, qIdx, currentQuestion, modeDFailed, armed]);

@@ -31,6 +31,38 @@ async function loadModule() {
   return import('@/lib/quiz/sound-effects');
 }
 
+function createMockAudioContextClass(options?: {
+  readonly onStop?: () => void;
+  readonly onDisconnect?: () => void;
+}) {
+  return class MockAudioContext {
+    state = 'running';
+    currentTime = 0;
+    destination = {};
+    createOscillator() {
+      return {
+        type: 'sine',
+        frequency: { value: 0 },
+        start: vi.fn(),
+        stop: options?.onStop ?? vi.fn(),
+        connect: vi.fn(),
+        disconnect: options?.onDisconnect ?? vi.fn(),
+      };
+    }
+    createGain() {
+      return {
+        gain: {
+          setValueAtTime: vi.fn(),
+          linearRampToValueAtTime: vi.fn(),
+          exponentialRampToValueAtTime: vi.fn(),
+        },
+        connect: vi.fn(),
+        disconnect: options?.onDisconnect ?? vi.fn(),
+      };
+    }
+  };
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -102,35 +134,12 @@ describe('sound-effects', () => {
   it('stopAllSe を呼ぶとアクティブなオシレーターが停止・切断される', async () => {
     const stopFn = vi.fn();
     const disconnectFn = vi.fn();
-    class MockAudioContext {
-      state = 'running';
-      currentTime = 0;
-      destination = {};
-      createOscillator() {
-        return {
-          type: 'sine',
-          frequency: { value: 0 },
-          start: vi.fn(),
-          stop: stopFn,
-          connect: vi.fn(),
-          disconnect: disconnectFn,
-        };
-      }
-      createGain() {
-        return {
-          gain: {
-            setValueAtTime: vi.fn(),
-            linearRampToValueAtTime: vi.fn(),
-            exponentialRampToValueAtTime: vi.fn(),
-          },
-          connect: vi.fn(),
-          disconnect: disconnectFn,
-        };
-      }
-    }
     vi.stubGlobal('window', {
       localStorage: fakeLocalStorage(),
-      AudioContext: MockAudioContext,
+      AudioContext: createMockAudioContextClass({
+        onStop: stopFn,
+        onDisconnect: disconnectFn,
+      }),
     });
     const { playSe, stopAllSe } = await loadModule();
 
@@ -146,35 +155,9 @@ describe('sound-effects', () => {
 
   it('解答判定SE（correct）再生時に先行するSEが停止される', async () => {
     const stopFn = vi.fn();
-    class MockAudioContext {
-      state = 'running';
-      currentTime = 0;
-      destination = {};
-      createOscillator() {
-        return {
-          type: 'sine',
-          frequency: { value: 0 },
-          start: vi.fn(),
-          stop: stopFn,
-          connect: vi.fn(),
-          disconnect: vi.fn(),
-        };
-      }
-      createGain() {
-        return {
-          gain: {
-            setValueAtTime: vi.fn(),
-            linearRampToValueAtTime: vi.fn(),
-            exponentialRampToValueAtTime: vi.fn(),
-          },
-          connect: vi.fn(),
-          disconnect: vi.fn(),
-        };
-      }
-    }
     vi.stubGlobal('window', {
       localStorage: fakeLocalStorage(),
-      AudioContext: MockAudioContext,
+      AudioContext: createMockAudioContextClass({ onStop: stopFn }),
     });
     const { playSe } = await loadModule();
 
@@ -183,5 +166,21 @@ describe('sound-effects', () => {
 
     playSe('correct');
     expect(stopFn).toHaveBeenCalled();
+  });
+
+  it('stopCountdownSe は正答音（correct）を切断・停止しない', async () => {
+    const stopFn = vi.fn();
+    vi.stubGlobal('window', {
+      localStorage: fakeLocalStorage(),
+      AudioContext: createMockAudioContextClass({ onStop: stopFn }),
+    });
+    const { playSe, stopCountdownSe } = await loadModule();
+
+    playSe('correct');
+    stopFn.mockClear();
+
+    // タイマークリーンアップ等で stopCountdownSe が走っても、correct 音は即時停止されない
+    stopCountdownSe();
+    expect(stopFn).not.toHaveBeenCalledWith();
   });
 });

@@ -72,11 +72,13 @@ const SE_TONES: Record<SeEvent, Tone[]> = {
 };
 
 let audioContext: AudioContext | null = null;
-const activeNodes = new Set<{ osc: OscillatorNode; gain: GainNode }>();
+const COUNTDOWN_EVENTS = new Set<SeEvent>(['tick', 'halfway', 'warning']);
+const activeCountdownNodes = new Set<{ osc: OscillatorNode; gain: GainNode }>();
+const activeAllNodes = new Set<{ osc: OscillatorNode; gain: GainNode }>();
 
-export function stopAllSe(): void {
+export function stopCountdownSe(): void {
   try {
-    for (const node of activeNodes) {
+    for (const node of activeCountdownNodes) {
       try {
         node.osc.stop();
         node.osc.disconnect();
@@ -85,7 +87,25 @@ export function stopAllSe(): void {
         // すでに停止済みの場合は無視
       }
     }
-    activeNodes.clear();
+    activeCountdownNodes.clear();
+  } catch {
+    // 安全に握り潰す
+  }
+}
+
+export function stopAllSe(): void {
+  stopCountdownSe();
+  try {
+    for (const node of activeAllNodes) {
+      try {
+        node.osc.stop();
+        node.osc.disconnect();
+        node.gain.disconnect();
+      } catch {
+        // すでに停止済みの場合は無視
+      }
+    }
+    activeAllNodes.clear();
   } catch {
     // 安全に握り潰す
   }
@@ -96,9 +116,10 @@ export function playSe(event: SeEvent): void {
     if (isSoundMuted()) return;
     if (typeof window === 'undefined' || typeof window.AudioContext !== 'function') return;
 
-    // 解答判定・セッション完了時は、進行中のタイマーSE等の余韻を即座に停止する
-    if (event === 'correct' || event === 'incorrect' || event === 'complete' || event === 'perfect') {
-      stopAllSe();
+    const isCountdown = COUNTDOWN_EVENTS.has(event);
+    if (!isCountdown) {
+      // 解答判定・セッション完了時は、進行中のカウントダウンSEのみ即座に停止する
+      stopCountdownSe();
     }
 
     audioContext ??= new window.AudioContext();
@@ -111,7 +132,10 @@ export function playSe(event: SeEvent): void {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       const node = { osc, gain };
-      activeNodes.add(node);
+      activeAllNodes.add(node);
+      if (isCountdown) {
+        activeCountdownNodes.add(node);
+      }
 
       osc.type = tone.type;
       osc.frequency.value = tone.frequency;
@@ -123,7 +147,8 @@ export function playSe(event: SeEvent): void {
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.onended = () => {
-        activeNodes.delete(node);
+        activeAllNodes.delete(node);
+        activeCountdownNodes.delete(node);
         try {
           osc.disconnect();
           gain.disconnect();
