@@ -96,7 +96,7 @@ app/(app)/
     └── municipality/[mode]/page.tsx    # 変更なし（QuizRunner 側で完結する）
 
 components/quiz/
-├── quiz-runner.tsx                     # 変更: HUD 3段レイアウトへ再構成、MapCountdownPulse 配置
+├── quiz-runner.tsx                     # 変更: HUD 3段レイアウトへ再構成
 ├── quiz-header.tsx                     # 削除: TopHud に統合
 ├── quiz-question-card.tsx              # 変更: 出題中は不使用（他画面での利用がなければ削除）
 ├── use-quiz-timer.ts                   # 変更: `armed` を受け取り、導入完了までカウントを始めない
@@ -108,7 +108,8 @@ components/quiz/
     ├── question-intro.tsx              # 新規: 中央の導入オーバーレイ
     ├── use-question-intro.ts           # 新規: intro→settling→steady の進行と再表示
     ├── feedback-line.tsx               # 新規: 白文字＋色付きアイコン（FR-037）
-    └── map-countdown-pulse.tsx         # 新規: マップ四辺の警告エッジパルス（FR-015）
+    ├── map-countdown-pulse.tsx         # 新規: マップ四辺の警告エッジパルス（FR-015）
+    └── immersive-quiz-view.tsx         # 変更: MapCountdownPulse 配置（Mode D 出題中）
 
 components/map/
 ├── JapanMap.tsx                        # 変更: ズームボタンを右側面・垂直中央へ（FR-033）
@@ -163,10 +164,10 @@ Phase 0 の調査でコードと spec の食い違いが2件、記述より軽�
 ミュート時や弱視・視野狭窄の利用者が残り時間（ピンチ）を直感的に察知できるよう、場所当て（Mode D）のカウントダウンタイマーに同期してマップ四辺をコーラルレッドでパルス明滅させる。
 
 1. **純粋関数による判定分離 (`lib/quiz/countdown-pulse.ts`)**:
-   - `shouldPulseMapCountdown(secondsLeft, feedback)`: `feedback === 'idle'` かつ `1 <= secondsLeft <= 6` の場合のみ true。
-   - `getCountdownPulsePhase(secondsLeft)`: 6秒は `'warning'`、1〜5秒は `'danger'`。
-2. **描画コンポーネント (`components/quiz/hud/map-countdown-pulse.tsx`)**:
-   - 地図コンテナの上に絶対配置（`pointer-events-none` で地図操作への干渉ゼロ）。
+   - `shouldShowMapPulse(secondsLeft, feedback)`: `feedback === 'idle'` かつ `1 <= secondsLeft <= 6` の場合のみ true。
+   - `getMapPulseType(secondsLeft)`: 6秒は `'warning'`、1〜5秒は `'danger'`。
+2. **描画コンポーネント (`components/quiz/hud/map-countdown-pulse.tsx` / `components/quiz/hud/immersive-quiz-view.tsx`)**:
+   - `immersive-quiz-view.tsx` の `Stage` 内で地図コンテナの上に絶対配置（`pointer-events-none` で地図操作への干渉ゼロ）。
    - 地図中央は100%透明を維持し、上下左右の端にのみコーラルレッド（`#f87171`）のグラデーションとシャドウを描画。文字やポリゴンの可読性を一切損なわない。
    - `key={secondsLeft}` を指定することで毎秒の tick で DOM 要素を再マウントし、CSS アニメーションを確実に再トリガー。
    - `prefers-reduced-motion` 有効時はアニメーションを抑止（静止表示または非表示）。
