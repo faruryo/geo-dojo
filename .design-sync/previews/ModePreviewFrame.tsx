@@ -52,7 +52,7 @@ function ChoiceSample() {
 export function Default() {
   return (
     <div style={frame}>
-      <ModePreviewFrame>
+      <ModePreviewFrame caption="都道府県名から市区町村を4択で答える練習。">
         <ChoiceSample />
       </ModePreviewFrame>
     </div>
@@ -79,7 +79,7 @@ export function BesideRealButton() {
       >
         このモードで遊ぶ
       </div>
-      <ModePreviewFrame>
+      <ModePreviewFrame caption="市区町村名から所属県を4択で答える練習。">
         <ChoiceSample />
       </ModePreviewFrame>
     </div>
