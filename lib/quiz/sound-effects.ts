@@ -1,4 +1,11 @@
-export type SeEvent = 'correct' | 'incorrect' | 'complete' | 'perfect';
+export type SeEvent =
+  | 'correct'
+  | 'incorrect'
+  | 'complete'
+  | 'perfect'
+  | 'tick'
+  | 'halfway'
+  | 'warning';
 
 const MUTE_STORAGE_KEY = 'geo-dojo:se-muted';
 
@@ -51,6 +58,16 @@ const SE_TONES: Record<SeEvent, Tone[]> = {
     { frequency: 783.99, startAt: 0.2, duration: 0.1, type: 'triangle', peakGain: 0.95 },
     { frequency: 1046.5, startAt: 0.3, duration: 0.35, type: 'triangle', peakGain: 0.65 },
     { frequency: 783.99, startAt: 0.3, duration: 0.35, type: 'sine', peakGain: 0.3 },
+  ],
+  tick: [
+    { frequency: 880, startAt: 0, duration: 0.04, type: 'sine', peakGain: 0.35 },
+  ],
+  halfway: [
+    { frequency: 587.33, startAt: 0, duration: 0.12, type: 'sine', peakGain: 0.4 },
+  ],
+  warning: [
+    { frequency: 783.99, startAt: 0, duration: 0.06, type: 'sine', peakGain: 0.5 },
+    { frequency: 880, startAt: 0.08, duration: 0.08, type: 'sine', peakGain: 0.5 },
   ],
 };
 

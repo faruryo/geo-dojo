@@ -49,6 +49,9 @@ describe('sound-effects', () => {
     playSe('incorrect');
     playSe('complete');
     playSe('perfect');
+    playSe('tick');
+    playSe('halfway');
+    playSe('warning');
     expect(audioContextSpy).not.toHaveBeenCalled();
   });
 
