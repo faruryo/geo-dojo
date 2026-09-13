@@ -11,6 +11,7 @@ export { InViewMount } from '../components/dashboard/in-view-mount.tsx';
 export { JapanMap } from '../components/map/JapanMap.tsx';
 export { MilestoneBanner } from '../components/dashboard/milestone-banner.tsx';
 export { MiniJapanMap } from '../components/map/MiniJapanMap.tsx';
+export { ModePreviewFrame } from '../components/quiz/mode-preview-frame.tsx';
 export { ModeAView } from '../components/quiz/views/mode-a-view.tsx';
 export { MunicipalityMap } from '../components/map/MunicipalityMap.tsx';
 export { MunicipalityMapView } from '../components/quiz/views/municipality-map-view.tsx';

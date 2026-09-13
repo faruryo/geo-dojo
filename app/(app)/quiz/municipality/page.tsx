@@ -7,7 +7,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, HelpCircle, ChevronDown } from 'lucide-react';
 import { MUNICIPALITY_MODE_CATALOG } from '@/lib/quiz/municipality-mode-catalog';
 import { Button } from '@/components/ui/button';
-import { RecommendHeroCard } from '@/components/recommend/recommend-hero-card';
+import { RecommendSheet } from '@/components/recommend/recommend-sheet';
+import { useRecommendSheet } from '@/components/recommend/use-recommend-sheet';
+import { ModePreviewFrame } from '@/components/quiz/mode-preview-frame';
 import {
   LAST_SELECTED_MODE_KEY,
   parseGameMode,
@@ -131,6 +133,7 @@ export default function MunicipalityModeSelectPage() {
     resolveInitialSelectedMode(modeParam, null),
   );
   const selectedInfo = MODES.find((m) => m.key === selected)!;
+  const { isOpen: isRecommendOpen, setOpen: setRecommendOpen } = useRecommendSheet();
 
   useEffect(() => {
     if (parseGameMode(modeParam)) return;
@@ -163,102 +166,112 @@ export default function MunicipalityModeSelectPage() {
 
   return (
     <div className="flex flex-col gap-4 p-4 max-w-4xl mx-auto">
-      <Link
-        href="/quiz"
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors w-fit"
-      >
-        <ChevronLeft size={14} />
-        クイズ選択に戻る
-      </Link>
+      {/* おすすめは戻るリンクと同じ行に置く。h1 の行に入れると 375px で見出しが折り返す */}
+      <div className="flex items-center justify-between gap-2">
+        <Link
+          href="/quiz"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors w-fit"
+        >
+          <ChevronLeft size={14} />
+          クイズ選択に戻る
+        </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setRecommendOpen(true)}
+          className="shrink-0"
+        >
+          ✨ おすすめ
+        </Button>
+      </div>
+
       <h1 className="text-xl font-semibold">市区町村クイズ・モード選択</h1>
 
-      <RecommendHeroCard />
-
       <div className="grid md:grid-cols-2 gap-4">
-        {/* ── Mode cards ── */}
-        <div className="grid grid-cols-2 gap-2 self-start">
-          {MODES.map((m) => {
-            const isSelected = m.key === selected;
-            const Icon = m.Icon;
-            return (
-              <button
-                key={m.key}
-                onClick={() => handleSelectMode(m.key)}
-                className={`rounded-xl border p-3 text-left transition-colors ${
-                  isSelected
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-primary/50'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon size={16} className={isSelected ? 'text-primary' : 'text-muted-foreground'} />
-                  <span className={`text-xs font-bold ${isSelected ? 'text-primary' : ''}`}>
-                    {m.shortLabel}
-                  </span>
-                </div>
-                <p className={`text-sm font-medium ${isSelected ? 'text-primary' : ''}`}>
-                  {m.longLabel}
-                </p>
-              </button>
-            );
-          })}
+        {/* ── 選択とアクション。説明より前に置く ──
+            間に説明（プレビュー・出題ルール）を挟むと、375px では CTA が
+            ファーストビュー（608px）の外へ落ちる。specs/028-mode-select-ux 参照 */}
+        <div className="flex flex-col gap-3 self-start">
+          <div className="grid grid-cols-2 gap-2">
+            {MODES.map((m) => {
+              const isSelected = m.key === selected;
+              const Icon = m.Icon;
+              return (
+                <button
+                  key={m.key}
+                  onClick={() => handleSelectMode(m.key)}
+                  className={`rounded-xl border p-3 text-left transition-colors ${
+                    isSelected
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon size={16} className={isSelected ? 'text-primary' : 'text-muted-foreground'} />
+                    <span className={`text-xs font-bold ${isSelected ? 'text-primary' : ''}`}>
+                      {m.shortLabel}
+                    </span>
+                  </div>
+                  <p className={`text-sm font-medium ${isSelected ? 'text-primary' : ''}`}>
+                    {m.longLabel}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          <Button onClick={handleProceed} className="w-full">
+            このモードで遊ぶ
+          </Button>
         </div>
 
-        {/* ── Preview panel — fixed min height so the Start button doesn't jump ── */}
-        <div className="flex flex-col gap-3 min-h-[30rem]">
-          <div>
-            <p className="text-sm font-medium">{selectedInfo.longLabel}</p>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {selectedInfo.description}
-            </p>
-          </div>
-          <ModePreview mode={selected} />
+        {/* ── 参考情報。CTA より後ろ ── */}
+        <div className="flex flex-col gap-3">
+          <ModePreviewFrame caption={selectedInfo.description}>
+            <ModePreview mode={selected} />
+          </ModePreviewFrame>
 
-          <div className="mt-2">
-            <details className="group border border-border rounded-xl p-3 bg-muted/10 transition-all [&_summary::-webkit-details-marker]:hidden">
-              <summary className="flex items-center justify-between font-medium text-xs cursor-pointer list-none select-none">
-                <span className="flex items-center gap-1.5 text-muted-foreground group-hover:text-foreground transition-colors">
-                  <HelpCircle size={14} />
-                  出題ルールと除外について（同名市区町村など）
-                </span>
-                <ChevronDown size={14} className="text-muted-foreground transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="mt-2.5 text-[11px] text-muted-foreground leading-relaxed border-t border-border/50 pt-2.5 flex flex-col gap-3">
-                <div>
-                  <p className="font-semibold text-foreground mb-0.5">都道府県名と同一の市区町村（同名除外）</p>
-                  <p>
-                    「青森市（青森県）」や「秋田市（秋田県）」などのように、名前から都道府県が自明な市区町村は、テキスト形式のクイズ（<b>モードA・B・C</b>）では難易度調整のため<b>出題から自動的に除外</b>されます。<br />
-                    地図上の位置当てが本質である<b>モードD（順引き地図）</b>では除外されずに出題されます。
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground mb-0.5">同じ名前の市区町村（政令市の区など）</p>
-                  <p>
-                    「中央区」などの同名市区町村は、テキスト形式の<b>モードA・B・C</b>では<b>1問に集約</b>されます。
-                  </p>
-                  <ul className="list-disc pl-4 mt-1 space-y-1">
-                    <li><b>モードA（逆引き地図）</b>: 「中央区」が出題された場合、地図上で該当するすべての都道府県（東京都、大阪府、福岡県、新潟県など）をすべてタップすると正解になります。</li>
-                    <li><b>モードB・C（4択）</b>: 重複が排除され、1つの代表問題として出題されます。</li>
-                  </ul>
-                  <p className="mt-1">
-                    なお、<b>モードD（順引き地図）</b>では、各区（例：札幌市中央区）が個別に独立して出題されます。
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground mb-0.5">複数県にまたがる同名市</p>
-                  <p>
-                    「府中市（東京都／広島県）」などの同名市も、<b>モードAでは1問に集約</b>され、地図上で該当するすべての都道府県（東京都と広島県）をタップすると正解になります。
-                  </p>
-                </div>
+          <details className="group border border-border rounded-xl p-3 bg-muted/10 transition-all [&_summary::-webkit-details-marker]:hidden">
+            <summary className="flex items-center justify-between font-medium text-xs cursor-pointer list-none select-none">
+              <span className="flex items-center gap-1.5 text-muted-foreground group-hover:text-foreground transition-colors">
+                <HelpCircle size={14} />
+                出題ルールと除外について（同名市区町村など）
+              </span>
+              <ChevronDown size={14} className="text-muted-foreground transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="mt-2.5 text-[11px] text-muted-foreground leading-relaxed border-t border-border/50 pt-2.5 flex flex-col gap-3">
+              <div>
+                <p className="font-semibold text-foreground mb-0.5">都道府県名と同一の市区町村（同名除外）</p>
+                <p>
+                  「青森市（青森県）」や「秋田市（秋田県）」などのように、名前から都道府県が自明な市区町村は、テキスト形式のクイズ（<b>モードA・B・C</b>）では難易度調整のため<b>出題から自動的に除外</b>されます。<br />
+                  地図上の位置当てが本質である<b>モードD（順引き地図）</b>では除外されずに出題されます。
+                </p>
               </div>
-            </details>
-          </div>
+              <div>
+                <p className="font-semibold text-foreground mb-0.5">同じ名前の市区町村（政令市の区など）</p>
+                <p>
+                  「中央区」などの同名市区町村は、テキスト形式の<b>モードA・B・C</b>では<b>1問に集約</b>されます。
+                </p>
+                <ul className="list-disc pl-4 mt-1 space-y-1">
+                  <li><b>モードA（逆引き地図）</b>: 「中央区」が出題された場合、地図上で該当するすべての都道府県（東京都、大阪府、福岡県、新潟県など）をすべてタップすると正解になります。</li>
+                  <li><b>モードB・C（4択）</b>: 重複が排除され、1つの代表問題として出題されます。</li>
+                </ul>
+                <p className="mt-1">
+                  なお、<b>モードD（順引き地図）</b>では、各区（例：札幌市中央区）が個別に独立して出題されます。
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-foreground mb-0.5">複数県にまたがる同名市</p>
+                <p>
+                  「府中市（東京都／広島県）」などの同名市も、<b>モードAでは1問に集約</b>され、地図上で該当するすべての都道府県（東京都と広島県）をタップすると正解になります。
+                </p>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
 
-      <Button onClick={handleProceed} className="w-full mt-2">
-        {selectedInfo.shortLabel}・{selectedInfo.longLabel} で設定に進む
-      </Button>
+      <RecommendSheet open={isRecommendOpen} onOpenChange={setRecommendOpen} />
     </div>
   );
 }
