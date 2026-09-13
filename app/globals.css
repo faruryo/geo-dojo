@@ -116,6 +116,7 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --animate-timer-pulse: timer-pulse 0.4s ease-out;
+  --animate-map-edge-pulse: map-edge-pulse 0.5s ease-in-out;
 
   @keyframes timer-pulse {
     0% {
@@ -123,6 +124,18 @@
     }
     100% {
       transform: scale(1);
+    }
+  }
+
+  @keyframes map-edge-pulse {
+    0% {
+      opacity: 0;
+    }
+    25% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
     }
   }
 }
