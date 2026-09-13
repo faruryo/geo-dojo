@@ -90,17 +90,19 @@
     `/?recommend=open` のリンクで開く経路と、開いている間の戻る操作で閉じる挙動は維持。
     回帰テスト: `__tests__/components/recommend/recommend-sheet-latency.test.tsx`
 
-- [ ] B029 【バグ】スマホ環境で市区町村県当てクイズ（Mode A / 都道府県クイズ）の地図タップが反応しない不具合 → **#90**
-  - 概要: スマホ環境（特に iPhone / iOS Safari 等の WebKit 系ブラウザやタッチ端末環境）において、市区町村クイズの Mode A（県当て・地図）および都道府県クイズ（全国地図）で、地図上の都道府県をタップしても選択（青色ハイライトや件数カウント）されず、回答確定に進めない不具合が発生している。
-  - 想定原因（仮説）:
-    1. **iOS Safari における SVG `<path>` 要素のクリックイベント抑制（最有力）**: `components/map/JapanMap.tsx` の `Geography` スタイルで `default` に `cursor: 'pointer'` が指定されておらず、WebKit の仕様によりタッチ操作からの `click` イベントがルートへバブリングしない（ホバーが存在しないモバイルでは常に `default` 状態）。
-    2. **タッチ操作時の微小な手ブレ（ジッター）によるドラッグ誤認**: パン判定閾値（8px）が厳しすぎ、指の接触面積変化やブレで `didDrag.current = true` と判定されてクリックが無効化される。
-    3. **タイマー（10ms）によるレースコンディション**: `handlePointerUp` の 10ms リセットとモバイルブラウザの合成 `click` 発火遅延のズレ。
-    4. **コンテナの `touch-action: none` との組み合わせによる影響**。
-  - 改善案:
-    - `components/map/JapanMap.tsx` の `Geography` の `default` / `pressed` スタイルに `cursor: 'pointer'` を追加。
-    - タッチ操作時の手ブレ許容閾値（スロップ）の緩和（8px → 14〜16px程度）または短時間タップ判定の導入。
-  - 該当ファイル: `components/map/JapanMap.tsx`, `components/quiz/views/mode-a-view.tsx`, `app/(app)/quiz/prefecture/page.tsx`
+- [x] B029 【バグ】スマホ環境で市区町村県当てクイズ（Mode A / 都道府県クイズ）の地図タップが反応しない不具合 → **#90・対応完了**
+  - 概要: スマホ環境（特に iPhone / iOS Safari 等の WebKit 系ブラウザやタッチ端末環境）において、市区町村クイズの Mode A（県当て・地図）および都道府県クイズ（全国地図）で、地図上の都道府県をタップしても選択（青色ハイライトや件数カウント）されず、回答確定に進めない不具合を解消。
+  - 原因（実測検証による特定）:
+    1. **親のタイマー更新に伴う地図コンポーネント・DOM の再マウント**: 出題中の経過時間更新（50ms間隔等）により、`Geographies` の children インライン描画関数が都度再生成され、React が別コンポーネント型として扱い地図 DOM 要素（`<path>`）を再マウントしていた。これによりタッチの down/up 後に click が発火する前に要素が差し替えられ、click イベントが脱落していた。
+    2. **タッチ端末での互換 mouseenter による sticky hover**: タッチ操作時に都道府県が一瞬薄い色に変化し、タップフィードバックや選択挙動に違和感を生じさせていた。
+    3. **微小な手ブレ（ジッター）によるドラッグ誤判定**: パン閾値が 8px と厳しく、指の接触重心ブレでドラッグと誤認されクリックが抑止されるケースがあった。
+  - 実装・対応（PR #98, #99）:
+    - `useGeographies` フックを用いた描画に改修し、親のタイマー更新時にも地図 DOM 要素・コンポーネント参照が安定して維持されるよう変更（PR #98）。
+    - ドラッグ・ピンチ後の誤回答 click 抑止を次の `pointerdown`（または 300ms 自動解除 / `pointerup`）で確実に制御（PR #98, #99）。
+    - `useCanHover`（`(hover: hover) and (pointer: fine)`）を導入し、タッチ端末での hover 色変化を抑止（PR #99）。
+    - タッチ操作時のパン閾値を 8px → 16px に緩和し、`Geography` に `tabIndex={-1}` を付与して iOS の focus-first タップを回避（PR #99）。
+    - 回帰テスト: `__tests__/components/map/japan-map-identity.test.tsx`, `japan-map-touch-hover.test.tsx`, `japan-map-touch-slop.test.tsx`
+  - 該当ファイル: `components/map/JapanMap.tsx`, `lib/hooks/useCanHover.ts`, `app/globals.css`
 
 - [x] B030 【UI/UX】Mode D（場所当て）の制限時間カウントダウン視認性・警告表現の強化（残り秒数通知音・ゲージ拡大アニメーション） → **#96・実装完了**
   - 概要: 市区町村クイズの Mode D（場所当て地図タップ）における制限時間（30秒）カウントダウンについて、PC大画面などでゲージや秒数が小さく見落としやすい課題を解消するため、残り時間が少なくなった際の警告表現（SE通知音、一時的な拡大パルスアニメーション、PC向けゲージ視認性向上）を導入した。

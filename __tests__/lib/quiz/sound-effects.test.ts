@@ -31,23 +31,35 @@ async function loadModule() {
   return import('@/lib/quiz/sound-effects');
 }
 
+interface MockOscillator {
+  readonly stop: ReturnType<typeof vi.fn>;
+  readonly disconnect: ReturnType<typeof vi.fn>;
+}
+
 function createMockAudioContextClass(options?: {
   readonly onStop?: () => void;
   readonly onDisconnect?: () => void;
+  readonly onOscillatorCreated?: (osc: MockOscillator) => void;
 }) {
   return class MockAudioContext {
     state = 'running';
     currentTime = 0;
     destination = {};
     createOscillator() {
-      return {
+      const osc = {
         type: 'sine',
         frequency: { value: 0 },
         start: vi.fn(),
-        stop: options?.onStop ?? vi.fn(),
+        stop: vi.fn((..._args: unknown[]) => {
+          options?.onStop?.();
+        }),
         connect: vi.fn(),
-        disconnect: options?.onDisconnect ?? vi.fn(),
+        disconnect: vi.fn((..._args: unknown[]) => {
+          options?.onDisconnect?.();
+        }),
       };
+      options?.onOscillatorCreated?.(osc);
+      return osc;
     }
     createGain() {
       return {
@@ -153,34 +165,57 @@ describe('sound-effects', () => {
     expect(disconnectFn).toHaveBeenCalled();
   });
 
-  it('解答判定SE（correct）再生時に先行するSEが停止される', async () => {
-    const stopFn = vi.fn();
+  it('解答判定SE（correct）再生時に先行するカウントダウンSE（warning）が即時停止される', async () => {
+    const oscList: MockOscillator[] = [];
     vi.stubGlobal('window', {
       localStorage: fakeLocalStorage(),
-      AudioContext: createMockAudioContextClass({ onStop: stopFn }),
+      AudioContext: createMockAudioContextClass({
+        onOscillatorCreated: (osc) => oscList.push(osc),
+      }),
     });
     const { playSe } = await loadModule();
 
     playSe('warning');
-    stopFn.mockClear();
+    expect(oscList.length).toBeGreaterThan(0);
+    const warningOscs = [...oscList];
+    oscList.length = 0;
+
+    // warning のオシレーターはいずれもまだ即時停止（引数なし stop()）されていない
+    for (const osc of warningOscs) {
+      expect(osc.stop).not.toHaveBeenCalledWith();
+    }
 
     playSe('correct');
-    expect(stopFn).toHaveBeenCalled();
+    // correct 呼び出しにより、先行する warning の全オシレーターに対して即時 stop() が呼ばれていること
+    for (const osc of warningOscs) {
+      expect(osc.stop).toHaveBeenCalledWith();
+    }
   });
 
   it('stopCountdownSe は正答音（correct）を切断・停止しない', async () => {
-    const stopFn = vi.fn();
+    const oscList: MockOscillator[] = [];
     vi.stubGlobal('window', {
       localStorage: fakeLocalStorage(),
-      AudioContext: createMockAudioContextClass({ onStop: stopFn }),
+      AudioContext: createMockAudioContextClass({
+        onOscillatorCreated: (osc) => oscList.push(osc),
+      }),
     });
     const { playSe, stopCountdownSe } = await loadModule();
 
     playSe('correct');
-    stopFn.mockClear();
+    expect(oscList.length).toBeGreaterThan(0);
+    const correctOscs = [...oscList];
 
-    // タイマークリーンアップ等で stopCountdownSe が走っても、correct 音は即時停止されない
+    for (const osc of correctOscs) {
+      osc.stop.mockClear();
+      osc.disconnect.mockClear();
+    }
+
+    // タイマークリーンアップ等で stopCountdownSe が走っても、correct 音の即時停止・切断は行われない
     stopCountdownSe();
-    expect(stopFn).not.toHaveBeenCalledWith();
+    for (const osc of correctOscs) {
+      expect(osc.stop).not.toHaveBeenCalledWith();
+      expect(osc.disconnect).not.toHaveBeenCalled();
+    }
   });
 });
