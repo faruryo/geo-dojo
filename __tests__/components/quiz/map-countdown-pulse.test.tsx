@@ -58,6 +58,7 @@ describe('MapCountdownPulse マップ端カウントダウンパルス', () => {
     expect(overlay).not.toBeNull();
     expect(overlay?.getAttribute('aria-hidden')).toBe('true');
     expect(overlay?.className).toContain('pointer-events-none');
+    expect(overlay?.className).toContain('opacity-0');
     expect(overlay?.className).toContain('motion-safe:animate-map-edge-pulse');
     expect(overlay?.className).toContain('shadow-[');
   });
@@ -77,5 +78,6 @@ describe('MapCountdownPulse マップ端カウントダウンパルス', () => {
     render(4, 'idle');
     const overlay4 = host.querySelector('[data-testid="map-countdown-pulse"]');
     expect(overlay4?.getAttribute('data-seconds')).toBe('4');
+    expect(overlay4).not.toBe(overlay5);
   });
 });

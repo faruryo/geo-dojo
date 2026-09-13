@@ -96,7 +96,7 @@ app/(app)/
     └── municipality/[mode]/page.tsx    # 変更なし（QuizRunner 側で完結する）
 
 components/quiz/
-├── quiz-runner.tsx                     # 変更: HUD 3段レイアウトへ再構成
+├── quiz-runner.tsx                     # 変更: HUD 3段レイアウトへ再構成、MapCountdownPulse 配置
 ├── quiz-header.tsx                     # 削除: TopHud に統合
 ├── quiz-question-card.tsx              # 変更: 出題中は不使用（他画面での利用がなければ削除）
 ├── use-quiz-timer.ts                   # 変更: `armed` を受け取り、導入完了までカウントを始めない
@@ -107,7 +107,8 @@ components/quiz/
     ├── bottom-hud.tsx                  # 新規: 定常お題／確定／フィードバック／4択
     ├── question-intro.tsx              # 新規: 中央の導入オーバーレイ
     ├── use-question-intro.ts           # 新規: intro→settling→steady の進行と再表示
-    └── feedback-line.tsx               # 新規: 白文字＋色付きアイコン（FR-037）
+    ├── feedback-line.tsx               # 新規: 白文字＋色付きアイコン（FR-037）
+    └── map-countdown-pulse.tsx         # 新規: マップ四辺の警告エッジパルス（FR-015）
 
 components/map/
 ├── JapanMap.tsx                        # 変更: ズームボタンを右側面・垂直中央へ（FR-033）
@@ -116,12 +117,15 @@ components/map/
 lib/
 ├── quiz/immersive-layout.ts            # 新規 pure: セッションがフルスクリーン対象かを判定
 ├── quiz/hud-metrics.ts                 # 新規 pure: 帯の高さと導入タイムラインの決定
+├── quiz/countdown-pulse.ts             # 新規 pure: 残り秒数と状態からパルス発火・フェーズを判定
 └── hooks/usePrefersReducedMotion.ts    # 新規: matchMedia の購読
 
 __tests__/
 ├── lib/quiz/immersive-layout.test.ts   # 新規
 ├── lib/quiz/hud-metrics.test.ts        # 新規
-└── components/quiz/hud-layout.test.tsx # 新規（happy-dom）
+├── lib/quiz/countdown-pulse.test.ts    # 新規
+├── components/quiz/hud-layout.test.tsx # 新規（happy-dom）
+└── components/quiz/map-countdown-pulse.test.tsx # 新規（happy-dom）
 ```
 
 **Structure Decision**: 既存の Next.js 単一プロジェクト構成をそのまま使う。新設は
@@ -153,3 +157,22 @@ Phase 0 の調査でコードと spec の食い違いが2件、記述より軽�
 ### Issue #90: タイマー更新中の地図タップ
 
 `JapanMap` は `Geographies` 1.2.1 の描画関数変更による再マウントを避け、固定の子コンポーネント内で同ライブラリの `useGeographies` と `Geography` を使う。親更新・選択・正誤表示でもSVG pathの同一性を維持する。ドラッグ・ピンチ後の click 抑止は、遅延 click を最大1回破棄し、300ms で自動解除する。click が来ない端末では、続く非ドラッグタップの `pointerup` でも stale 抑止を解除する。遅延 click の誤回答を防ぎつつ、通常タップ・選択色・正誤表示の仕様を維持する。
+
+### カウントダウン警告エッジパルス（FR-015 / PR #104）
+
+ミュート時や弱視・視野狭窄の利用者が残り時間（ピンチ）を直感的に察知できるよう、場所当て（Mode D）のカウントダウンタイマーに同期してマップ四辺をコーラルレッドでパルス明滅させる。
+
+1. **純粋関数による判定分離 (`lib/quiz/countdown-pulse.ts`)**:
+   - `shouldPulseMapCountdown(secondsLeft, feedback)`: `feedback === 'idle'` かつ `1 <= secondsLeft <= 6` の場合のみ true。
+   - `getCountdownPulsePhase(secondsLeft)`: 6秒は `'warning'`、1〜5秒は `'danger'`。
+2. **描画コンポーネント (`components/quiz/hud/map-countdown-pulse.tsx`)**:
+   - 地図コンテナの上に絶対配置（`pointer-events-none` で地図操作への干渉ゼロ）。
+   - 地図中央は100%透明を維持し、上下左右の端にのみコーラルレッド（`#f87171`）のグラデーションとシャドウを描画。文字やポリゴンの可読性を一切損なわない。
+   - `key={secondsLeft}` を指定することで毎秒の tick で DOM 要素を再マウントし、CSS アニメーションを確実に再トリガー。
+   - `prefers-reduced-motion` 有効時はアニメーションを抑止（静止表示または非表示）。
+3. **CSS アニメーション定義 (`app/globals.css`)**:
+   - `@keyframes map-edge-pulse`: 0% で opacity 0、25% で最大値（0.65/0.85）、100% で opacity 0 に減衰。
+   - `--animate-map-edge-pulse`: `map-edge-pulse 0.5s ease-in-out both`。基底クラス `opacity-0` と `both` fill-mode によりアニメーション完了後は完全透明を維持。
+4. **Claude Design 同期**:
+   - `.design-sync/entry.tsx` に登録、`config.json` に型定義と preview を追加。
+

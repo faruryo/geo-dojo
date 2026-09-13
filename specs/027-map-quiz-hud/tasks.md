@@ -354,3 +354,13 @@ Task: "lib/hooks/usePrefersReducedMotion.ts"
 - [ ] Mode A の製品画面全体、および実機 Chrome で確認（ローカル検証ページは実際のJapanMapを使用するが、認証・DB・クイズ親画面は含まない）。
 
 自動操作の初回には1回のpointercancelがあり再試行した。成功した試行ではdown/up/click/選択callbackが各3回。通常タップの確認と、DOM再マウントの回帰テストは別の検証として扱う。
+
+### カウントダウン警告エッジパルス（FR-015 / PR #104）
+
+- [x] T045 [P] `lib/quiz/countdown-pulse.ts` に純粋関数 `shouldPulseMapCountdown(secondsLeft: number, feedback: FeedbackState): boolean` と `getCountdownPulsePhase(secondsLeft: number): 'warning' | 'danger' | null` を実装し、単体テスト `__tests__/lib/quiz/countdown-pulse.test.ts` を作成する（条件反転確認済み）。
+- [x] T046 [P] `app/globals.css` に `@keyframes map-edge-pulse` および `--animate-map-edge-pulse: map-edge-pulse 0.5s ease-in-out both` を定義し、終了後は `opacity-0` で透明を維持する。
+- [x] T047 `components/quiz/hud/map-countdown-pulse.tsx` を作成し、`pointer-events-none`、`key={secondsLeft}` による毎秒再発火、`prefers-reduced-motion` による抑止、4辺のコーラルレッドエッジを描画する。
+- [x] T048 `components/quiz/quiz-runner.tsx` の `Stage` コンテナに `MapCountdownPulse` を配置し、モード D 出題中に `secondsLeft` と `feedback` を連携する。
+- [x] T049 `__tests__/components/quiz/map-countdown-pulse.test.tsx` で DOM 再生成（要素同一性チェック）、非表示・回答後非表示・減速アニメーション設定時の挙動を検証する（条件反転確認済み）。
+- [x] T050 `MapCountdownPulse` を Claude Design 同期（`.design-sync/`）に登録（`entry.tsx`, `config.json`, `previews/MapCountdownPulse.tsx`）し、`__tests__/server/design-sync-contract.test.ts` で契約検証する。
+

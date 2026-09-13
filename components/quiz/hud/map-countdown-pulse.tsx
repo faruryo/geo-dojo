@@ -38,7 +38,7 @@ export function MapCountdownPulse({
       data-seconds={secondsLeft}
       aria-hidden="true"
       className={cn(
-        'pointer-events-none absolute inset-0 z-20 overflow-hidden motion-safe:animate-map-edge-pulse',
+        'pointer-events-none absolute inset-0 z-20 overflow-hidden opacity-0 motion-safe:animate-map-edge-pulse',
         isDanger
           ? 'border-2 border-red-500/40 shadow-[inset_0_0_24px_rgba(255,77,77,0.5),inset_0_0_48px_rgba(255,77,77,0.25)]'
           : 'border border-red-500/30 shadow-[inset_0_0_20px_rgba(255,77,77,0.35),inset_0_0_36px_rgba(255,77,77,0.15)]',
