@@ -9,6 +9,7 @@ export { EmptyState } from '../components/dashboard/empty-state.tsx';
 export { FilterBar } from '../components/dashboard/filter-bar.tsx';
 export { InViewMount } from '../components/dashboard/in-view-mount.tsx';
 export { JapanMap } from '../components/map/JapanMap.tsx';
+export { MapCountdownPulse } from '../components/quiz/hud/map-countdown-pulse.tsx';
 export { MilestoneBanner } from '../components/dashboard/milestone-banner.tsx';
 export { MiniJapanMap } from '../components/map/MiniJapanMap.tsx';
 export { ModePreviewFrame } from '../components/quiz/mode-preview-frame.tsx';

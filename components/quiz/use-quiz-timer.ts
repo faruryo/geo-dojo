@@ -4,10 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import { playSe, stopCountdownSe } from '@/lib/quiz/sound-effects';
 import type { FeedbackState, Question } from './use-quiz-session';
 
+import {
+  COUNTDOWN_DANGER_SEC,
+  COUNTDOWN_WARNING_SEC,
+} from '@/lib/quiz/countdown-pulse';
+
 export const TIME_LIMIT_SEC = 30;
 export const COUNTDOWN_HALFWAY_SEC = 15;
-export const COUNTDOWN_DANGER_SEC = 6;
-export const COUNTDOWN_WARNING_SEC = 5;
+export { COUNTDOWN_DANGER_SEC, COUNTDOWN_WARNING_SEC };
 
 export type TimerSeEvent = 'halfway' | 'warning' | 'tick';
 
