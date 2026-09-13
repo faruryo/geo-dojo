@@ -38,13 +38,31 @@ function balanced(source: string, open: number, o: string, c: string): string | 
   return null;
 }
 
+/**
+ * 引数リストを「分割代入パターン」と「型注釈」に割るコロンの位置。
+ *
+ * 素朴に lastIndexOf すると `Readonly<{ caption: string; children: ReactNode }>` のような
+ * インライン型の中の最後のコロンを拾い、注釈が `ReactNode }>` に切れて検査ごと落ちる。
+ * 逆に indexOf だと `{ a: b }` のリネーム付き分割代入で落ちる。入れ子の外側から探す。
+ */
+function topLevelColon(params: string): number {
+  let depth = 0;
+  for (let i = 0; i < params.length; i += 1) {
+    const ch = params.charAt(i);
+    if (ch === '{' || ch === '(' || ch === '[' || ch === '<') depth += 1;
+    else if (ch === '}' || ch === ')' || ch === ']' || ch === '>') depth -= 1;
+    else if (ch === ':' && depth === 0) return i;
+  }
+  return -1;
+}
+
 /** `function Name(...)` の props 型注釈。取れなければ null */
 function propsAnnotation(source: string, name: string): string | null {
   const at = source.indexOf(`function ${name}(`);
   if (at === -1) return null;
   const params = balanced(source, source.indexOf('(', at), '(', ')');
   if (params === null) return null;
-  const colon = params.lastIndexOf(':');
+  const colon = topLevelColon(params);
   return colon === -1 ? null : params.slice(colon + 1).trim();
 }
 
@@ -72,6 +90,15 @@ function propNames(body: string): string[] {
     .map((m) => m[1]);
 }
 
+/** props をインライン型で書いているもの。ここがこぼれると検査が骨抜きになる */
+const EXPECT_CHECKED = [
+  'ModePreviewFrame',
+  'EmptyState',
+  'FilterBar',
+  'InViewMount',
+  'MilestoneBanner',
+];
+
 describe('.design-sync/ の同期契約', () => {
   it('entry.tsx の export はすべて componentSrcMap に登録されている', () => {
     const exported = [...entry.matchAll(/export \{ (\w+) \} from/g)].map((m) => m[1]);
@@ -86,7 +113,7 @@ describe('.design-sync/ の同期契約', () => {
 
   it('dtsPropsFor がコンポーネントの props 名を取りこぼしていない', () => {
     const missing: string[] = [];
-    let checked = 0;
+    const checked: string[] = [];
 
     for (const [name, src] of Object.entries(config.componentSrcMap)) {
       const source = read(src.replace(/^\.\//, ''));
@@ -97,7 +124,7 @@ describe('.design-sync/ の同期契約', () => {
 
       const names = propNames(body);
       if (names.length === 0) continue;
-      checked += 1;
+      checked.push(name);
 
       const declared = declaredProps.get(name) ?? '';
       for (const prop of names) {
@@ -105,8 +132,10 @@ describe('.design-sync/ の同期契約', () => {
       }
     }
 
-    // パースできない形はスキップするため、検査対象が痩せて骨抜きにならないことを下限で担保する
-    expect(checked).toBeGreaterThanOrEqual(12);
+    // パースできない形はスキップするため、検査対象が痩せて骨抜きにならないことを担保する。
+    // 件数の下限だけだと、インライン型のコンポーネントが全部こぼれても通ってしまう
+    expect(checked).toEqual(expect.arrayContaining(EXPECT_CHECKED));
+    expect(checked.length).toBeGreaterThanOrEqual(17);
     expect(missing).toEqual([]);
   });
 });
