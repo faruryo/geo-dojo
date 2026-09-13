@@ -220,14 +220,6 @@ export default function MunicipalityModeSelectPage() {
             })}
           </div>
 
-          <div>
-            <p className="text-sm font-medium">{selectedInfo.longLabel}</p>
-            {/* モードによる行数差で CTA の位置が動かないよう 2 行ぶんを確保する */}
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed min-h-10">
-              {selectedInfo.description}
-            </p>
-          </div>
-
           <Button onClick={handleProceed} className="w-full">
             このモードで遊ぶ
           </Button>
@@ -235,13 +227,7 @@ export default function MunicipalityModeSelectPage() {
 
         {/* ── 参考情報。CTA より後ろ ── */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">以下は参考</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <ModePreviewFrame>
+          <ModePreviewFrame caption={selectedInfo.description}>
             <ModePreview mode={selected} />
           </ModePreviewFrame>
 

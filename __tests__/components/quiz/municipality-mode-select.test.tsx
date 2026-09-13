@@ -58,9 +58,9 @@ function inertBox(host: HTMLElement): HTMLElement {
   return found;
 }
 
-function previewLabel(host: HTMLElement): HTMLSpanElement {
-  const found = [...host.querySelectorAll('span')].find(
-    (s) => s.textContent === PREVIEW_LABEL,
+function previewLabel(host: HTMLElement): HTMLParagraphElement {
+  const found = [...host.querySelectorAll('p')].find(
+    (el) => el.textContent?.trim() === PREVIEW_LABEL,
   );
   if (!found) throw new Error(`サンプル枠のラベルが見つからない: ${PREVIEW_LABEL}`);
   return found;
@@ -102,6 +102,25 @@ describe('市区町村クイズ・モード選択の導線', () => {
     expect(box.textContent).toContain('この市区町村はどの都道府県？');
     // ラベルは枠の外に置き、読み上げには残す
     expect(box.contains(previewLabel(host))).toBe(false);
+  });
+
+  it('選択中モードの説明はサンプル枠のキャプションに置き、CTA の上で見出しを重複させない', () => {
+    const host = mount();
+    const cta = buttonByText(host, 'このモードで遊ぶ');
+
+    // 既定はモードB。longLabel はカードに出ているので、枠外での再掲は1回だけ
+    const longLabelCount = [...host.querySelectorAll('p')].filter(
+      (el) => el.textContent?.trim() === '県当て（4択）・練習',
+    ).length;
+    expect(longLabelCount).toBe(1);
+
+    const caption = [...host.querySelectorAll('p')].find(
+      (el) => el.textContent?.trim() === '市区町村名から所属県を4択で答える練習。',
+    );
+    expect(caption).toBeDefined();
+    expect(
+      cta.compareDocumentPosition(inertBox(host)) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('選んだモードの設定画面へ遷移する', () => {

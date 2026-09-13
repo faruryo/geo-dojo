@@ -21,17 +21,16 @@
 ├─────────┼─────────┤
 │ モードC  │ モードD  │
 └─────────┴─────────┘
-県当て（地図）
-市区町村名から所属県を日本地図で答える。本番。     ← 高さ固定
-[        このモードで遊ぶ        ]   ← 実測 348–392、fold（608px）内
-─────────── 以下は参考 ───────────
-┌╌ プレイ画面イメージ ╌╌╌╌╌╌╌╌╌╌┐
-│  ModePreview（減光・押せない）   │
-└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+[        このモードで遊ぶ        ]   ← 実測 272–316、fold（608px）内
+
+┌╌ プレイ画面イメージ（操作できません）╌┐
+│  市区町村名から所属県を…（description）│
+│  ModePreview（減光・押せない）        │
+└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
 ▸ 出題ルールと除外について
 ```
 
-`md` 以上は左カラム（カード → モード名・説明 → CTA）／右カラム（プレビュー → 出題ルール）。
+`md` 以上は左カラム（カード → CTA）／右カラム（プレビュー → 出題ルール）。
 
 ---
 
@@ -42,12 +41,12 @@
      戻るリンクの行を `flex items-center justify-between` にし、右端に `Button variant="ghost" size="sm"` で「✨ おすすめ」を置く
      （h1 の行に置くと 375px で「市区町村クイズ・モード選」「択」と2行に折り返す。実機で確認）。
      `useRecommendation` はこの画面から消える（推薦フェッチが1つ減る）。
-   - grid の中身を組み替える。左カラム = モードカード 2×2 → 選択中モード名・説明 → CTA、右カラム = プレビュー → 出題ルール `<details>`。
+   - grid の中身を組み替える。左カラム = モードカード 2×2 → CTA、右カラム = プレビュー → 出題ルール `<details>`。
      現行の grid 外・全幅 CTA（`page.tsx` 末尾の `<Button onClick={handleProceed} className="w-full mt-2">`）を左カラム内へ移す。
    - CTA 文言を `{shortLabel}・{longLabel} で設定に進む` → `このモードで遊ぶ` に変更。
-   - 説明文（`selectedInfo.description`）の領域に固定高（`min-h-[2.5rem]` 相当、2行ぶん）を付け、モード切替で CTA が動かないようにする（FR-004）。
+   - 選択中モードの `longLabel` 見出しは消す（選択中のカードに同じ文字列が出ており重複する）。`description` は `ModePreviewFrame` の `caption` へ渡す（FR-004）。
    - プレビューパネルの `min-h-[30rem]` を削除する。これは「CTA が飛ばないように」入れてあった回避策であり、CTA が上へ移ることで不要になる。
-   - プレビューを新しいラッパーで包み、直前に「以下は参考」の区切りを置く。
+   - プレビューを新しいラッパーで包む。区切り文は置かない（枠の破線とラベルが境界を示すので重複する）。
    - `handleSelectMode` / `handleProceed` / `resolveInitialSelectedMode` の挙動（B018 の前回モード保持）は変更しない。
 
 2. `components/quiz/mode-preview-frame.tsx`（新規・小）
@@ -94,7 +93,7 @@
 - **Step 1**: サンプル枠コンポーネントを追加する。
 - **Step 2**: `page.tsx` の戻るリンク行を組み替え、`RecommendHeroCard` を `useRecommendSheet` + `RecommendSheet` に置き換える。
 - **Step 3**: `page.tsx` の grid を組み替え、CTA を左カラムへ移し、文言を変更、`min-h-[30rem]` を削除、説明文の高さを固定する。
-- **Step 4**: プレビューをサンプル枠で包み、「以下は参考」の区切りを入れる。
+- **Step 4**: プレビューをサンプル枠で包む。
 - **Step 5**: 回帰テストを追加し、赤くなることを確認してから通す。
 - **Step 5.5**: `.design-sync/` を追随させる（`entry.tsx` / `componentSrcMap` / `dtsPropsFor` / `previews/ModePreviewFrame.tsx` / `build-css.mjs`）。
 - **Step 6**: `pnpm type-check` / `pnpm lint` / `pnpm lint:ratchet` / `pnpm test` を通し、375px・ダークモードで実機確認（fold 内に CTA が入ること、`?recommend=open` でシートが開くこと）。

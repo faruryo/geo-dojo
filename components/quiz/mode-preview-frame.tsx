@@ -14,12 +14,18 @@ import { Image as ImageIcon } from 'lucide-react';
  * 固定で付けるうえ `outline: none` なので、キーボードだとフォーカス位置が
  * 見えないタブストップが 47 個並ぶ。ラベルは枠の外に置いて読み上げに残す。
  */
-export function ModePreviewFrame({ children }: Readonly<{ children: ReactNode }>) {
+export function ModePreviewFrame({
+  caption,
+  children,
+}: Readonly<{ caption: string; children: ReactNode }>) {
   return (
     <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/10 p-3">
-      <div className="flex items-center gap-1.5 mb-2">
-        <ImageIcon size={12} className="shrink-0 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">プレイ画面イメージ（操作できません）</span>
+      <div className="mb-2">
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <ImageIcon size={12} className="shrink-0" />
+          プレイ画面イメージ（操作できません）
+        </p>
+        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{caption}</p>
       </div>
       <div inert className="pointer-events-none select-none opacity-85">
         {children}

@@ -78,7 +78,7 @@
   - 設計: [specs/028-mode-select-ux/spec.md](./028-mode-select-ux/spec.md) / [plan.md](./028-mode-select-ux/plan.md)（2026-09-13 実装完了・PR 前）
     - 構造上の原因は「選択（モードカード）とアクション（CTA）の間に説明（プレビュー 360px + 出題ルール）が挟まっている」こと。
       フローティング CTA では原因が残り、かつ `bottom-nav`（`fixed bottom-0`）の上に帯が二段できるため却下。
-      説明ブロックを CTA の下へ降格する DOM 順の入れ替えを採用（実測: CTA 上端 942〜984 → 348。375×667 の fold は 608px）。
+      説明ブロックを CTA の下へ降格する DOM 順の入れ替えを採用（実測: CTA 上端 942〜984 → 272。375×667 の fold は 608px）。
     - おすすめはこの画面では `RecommendHeroCard` をやめ、戻るリンク行の「✨ おすすめ」ボタンから既存シートを開く（高さ増加 0px）。
       ホーム（`dashboard-client.tsx`）の hero card は 005 の設計意図どおり変更しない。
     - サンプル誤認防止は `ModePreviewA`〜`D` の中身を触らず、外側のラッパー1枚（破線枠・ラベル・減光・`inert`）で行う。
