@@ -169,6 +169,7 @@ Phase 0 の調査でコードと spec の食い違いが2件、記述より軽�
 2. **描画コンポーネント (`components/quiz/hud/map-countdown-pulse.tsx` / `components/quiz/hud/immersive-quiz-view.tsx`)**:
    - `immersive-quiz-view.tsx` の `Stage` 内で地図コンテナの上に絶対配置（`pointer-events-none` で地図操作への干渉ゼロ）。
    - 地図中央は100%透明を維持し、上下左右の端にのみコーラルレッド（`#f87171`）のグラデーションとシャドウを描画。文字やポリゴンの可読性を一切損なわない。
+   - FR-032 に従い、Google Maps の左下帰属表示（ロゴ等）領域を `clip-path`（`polygon`）で除外し、エッジグローによる遮蔽を防止。
    - `key={secondsLeft}` を指定することで毎秒の tick で DOM 要素を再マウントし、CSS アニメーションを確実に再トリガー。
    - `prefers-reduced-motion` 有効時はアニメーションを抑止（静止表示または非表示）。
 3. **CSS アニメーション定義 (`app/globals.css`)**:

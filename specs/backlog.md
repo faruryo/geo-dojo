@@ -118,7 +118,7 @@
     - **音によるフェーズ・警告通知（SE）**: 残り15秒（50%・緑➔黄）で穏やかな `halfway` 音、残り6秒（20%・黄➔赤）で注意喚起の `warning` 音、残り5〜1秒で毎秒小気味良い電子音 `tick` を動的生成・再生（`lib/quiz/sound-effects.ts`）。ミュート設定（`isSoundMuted()`）を連動。
     - **視覚的フィードバック・パルスアニメーション**: 残り5秒以下でタイマー外枠に赤色発光（glow）と背景色・境界線を付与し、秒数減少ごとに一瞬ポンと拡大（`scale: 1.2` ➔ `1.0`）する `animate-timer-pulse` アニメーションを付与。秒数文字を太字赤色に強調。
     - **PC画面での視認性向上**: PC/タブレット（`md:` 以上）でゲージ幅を `w-14` ➔ `md:w-24`、高さを `h-1` ➔ `md:h-1.5`、フォントサイズを `text-xs` ➔ `md:text-sm` に拡大。
-    - **マップ端の滑らかなパルス明滅（エッジグロー）**: 音をミュートしている環境や弱視・視野狭窄のユーザーでも残り時間のピンチに直感的に気づけるよう、残り6秒および5〜1秒の警告タイミングでマップ領域（`Stage`）の四辺（端っこ）をコーラルレッドでパルス明滅（`animate-map-edge-pulse`）。中央の地図探索エリアは100%透過を維持しコントラスト比を落とさない。0.5秒の呼吸パルス（`ease-in-out both`）でストロボ点滅の不快感やグレア（まぶしさ）を排除し、`pointer-events-none` で地図操作への干渉ゼロを保証。
+    - **マップ端の滑らかなパルス明滅（エッジグロー）**: 音をミュートしている環境や弱視・視野狭窄のユーザーでも残り時間のピンチに直感的に気づけるよう、残り6秒および5〜1秒の警告タイミングでマップ領域（`Stage`）の四辺（端っこ）をコーラルレッドでパルス明滅（`animate-map-edge-pulse`）。中央の地図探索エリアは100%透過を維持しコントラスト比を落とさない。FR-032 に従い Google Maps の左下帰属表示（ロゴ等）領域を `clip-path` で除外して非遮蔽を保証。0.5秒の呼吸パルス（`ease-in-out both`）でストロボ点滅の不快感やグレア（まぶしさ）を排除し、`pointer-events-none` で地図操作への干渉ゼロを保証。
     - **アクセシビリティ**: `prefers-reduced-motion` 有効時は拡大縮小・エッジパルスを抑止（`motion-safe:`）。スクリーンリーダー向けに警告時のみ `aria-live="assertive"` / `aria-atomic="true"` を適用。
   - 該当ファイル: `components/quiz/hud/top-hud.tsx`, `components/quiz/hud/map-countdown-pulse.tsx`, `components/quiz/use-quiz-timer.ts`, `lib/quiz/countdown-pulse.ts`, `lib/quiz/sound-effects.ts`, `app/globals.css`, `__tests__/components/quiz/quiz-timer.test.tsx`, `__tests__/components/quiz/top-hud-timer.test.tsx`, `__tests__/components/quiz/map-countdown-pulse.test.tsx`, `__tests__/lib/quiz/countdown-pulse.test.ts`
 

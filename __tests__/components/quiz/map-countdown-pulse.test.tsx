@@ -80,4 +80,13 @@ describe('MapCountdownPulse マップ端カウントダウンパルス', () => {
     expect(overlay4?.getAttribute('data-seconds')).toBe('4');
     expect(overlay4).not.toBe(overlay5);
   });
+
+  it('FR-032 に従い、Google Maps の左下帰属表示（ロゴ）領域を除外する clip-path を持つ', () => {
+    render(5, 'idle');
+    const overlay = host.querySelector('[data-testid="map-countdown-pulse"]');
+    expect(overlay).not.toBeNull();
+    const styleAttr = overlay?.getAttribute('style') ?? '';
+    expect(styleAttr).toContain('clip-path');
+    expect(styleAttr).toContain('96px calc(100% - 32px)');
+  });
 });

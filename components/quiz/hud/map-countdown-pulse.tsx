@@ -18,6 +18,7 @@ interface MapCountdownPulseProps {
  * - pointer-events-none で地図操作（タップ・パン・ピンチ）を一切邪魔しない。
  * - 中央領域は完全透過し、市区町村名や境界線のコントラスト比を 100% 維持。
  * - 0.5秒のブレスパルス（なだらかな立ち上がりと減衰）により、不快感・グレアを排除。
+ * - FR-032 に従い、Google Maps の左下帰属表示（ロゴ等）領域を clip-path で除外し非遮蔽を保証。
  * - prefers-reduced-motion ではパルスアニメーションを抑止。
  */
 export function MapCountdownPulse({
@@ -37,6 +38,10 @@ export function MapCountdownPulse({
       data-testid="map-countdown-pulse"
       data-seconds={secondsLeft}
       aria-hidden="true"
+      style={{
+        clipPath:
+          'polygon(0% 0%, 100% 0%, 100% 100%, 96px 100%, 96px calc(100% - 32px), 0% calc(100% - 32px))',
+      }}
       className={cn(
         'pointer-events-none absolute inset-0 z-20 overflow-hidden opacity-0 motion-safe:animate-map-edge-pulse',
         isDanger
