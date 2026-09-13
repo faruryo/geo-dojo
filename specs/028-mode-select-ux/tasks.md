@@ -1,6 +1,6 @@
 # Tasks: 市区町村クイズモード選択画面のUX改善
 
-- [x] T001: `components/quiz/mode-preview-frame.tsx` を新規作成（破線枠・「プレイ画面イメージ」バッジ・`pointer-events-none select-none` + 減光）
+- [x] T001: `components/quiz/mode-preview-frame.tsx` を新規作成（破線枠・「プレイ画面イメージ」バッジ・減光、中身に `inert` + `pointer-events-none select-none`）
 - [x] T002: `app/(app)/quiz/municipality/page.tsx` の戻るリンク行に「✨ おすすめ」ボタンを追加し、`RecommendHeroCard` を `useRecommendSheet` + `RecommendSheet` へ置き換え
 - [x] T003: 同ファイルの grid を組み替え、CTA を左カラムのモード名・説明の直下へ移動。文言を「このモードで遊ぶ」に変更、説明文の高さを固定、`min-h-[30rem]` を削除
 - [x] T004: プレビューを T001 の枠で包み、直前に「以下は参考」の区切りを配置
