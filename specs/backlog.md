@@ -134,6 +134,18 @@
     - **補助ショートカット**: `Esc` キーで誤って選択した都道府県の全解除（リセット）。
   - 該当ファイル: `components/quiz/hud/bottom-hud.tsx`, `components/quiz/hud/immersive-quiz-view.tsx`, `components/quiz/views/mode-a-view.tsx`
 
+- [ ] B032 【バグ】Mode D（場所当て）で政令指定都市の区が出題された際に区の読み仮名が表示されない → **#106**
+  - 概要: Mode D クイズ解答後の正解・不正解HUDフィードバックおよび結果画面（苦手一覧）において、政令指定都市の行政区（例: 「札幌市中央区」）が出題された際、区の名前を含んだ読み仮名（`さっぽろしちゅうおうく`）ではなく親市単位の読み仮名（`さっぽろし`）が表示されてしまう。
+  - 該当ファイル: `components/quiz/hud/immersive-quiz-view.tsx`, `lib/quiz/quiz-results.ts`
+
+- [ ] B033 【バグ】「今日のおすすめクイズ」で理由文と出題内容（地方・モード）が乖離する（localStorageの自動上書き・キャッシュズレ） → **#107**
+  - 概要: 「今日のおすすめクイズ」において、推薦理由（💡 なぜこの内容？）に表示されている内容（例: `中国の☆ 入門（モードA）`）と、実際にシートのサマリーに表示・出題されるクイズ（例: `モードB・逆引き4択`、`地方: 東北`）が食い違い、意図しないクイズが開始されてしまう。
+  - 原因:
+    1. `components/recommend/recommend-override.tsx` がマウント時に `localStorage`（`geodojo-recommend-region-filters`）を無条件に読み出し、未操作時でも親の地域を過去の設定（例: 東北）で上書きしてしまう（011 と 024 の仕様衝突）。
+    2. TanStack Query の stale キャッシュと React の `useState` 初期化レースコンディションにより、前回のモード（例: モードB）が残り、最新の推薦データ（モードA・中国）の理由文とサマリーがキメラ化する。
+  - 該当ファイル: `components/recommend/recommend-override.tsx`, `components/recommend/recommend-content.tsx`, `lib/hooks/useRecommendation.ts`
+
+
 
 - [x] B014 (022) 市区町村クイズの未制覇（未クリア）優先出題と進捗可視化 → **022-uncompleted-priority-quiz (#63, #64) で実装完了**
   - 関東・中部など母数の大きい地域・難易度における100%制覇の難易度（クーポンコレクター問題）を解消。
