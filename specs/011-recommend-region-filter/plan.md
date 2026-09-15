@@ -23,7 +23,7 @@
 ## 技術的文脈
 
 **言語/バージョン**: TypeScript (strict)、Next.js 15.2.6+（App Router / React 19）  
-**主要な依存関係**: React (useState, useMemo), Tailwind CSS, lucide-react, LocalStorage  
+**主要な依存関係**: React (useState, useMemo), Tailwind CSS, lucide-react  
 **ストレージ**: URL クエリパラメータ（開始時の `region`）。地域フィルタの LocalStorage 永続化は #107 で廃止。  
 **テスト**: Vitest (`pnpm test`)。フィルタロジック、制覇率進行ロック、および `isModeAvailable` のテストを拡張します。  
 **対象プラットフォーム**: PWA（モバイルファースト 375px 基準、ダークモード `#111111`）  
