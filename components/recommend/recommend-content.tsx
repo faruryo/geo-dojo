@@ -7,8 +7,14 @@ import { useRecommendation } from '@/lib/hooks/useRecommendation';
 import { getBrowserUserId } from '@/lib/auth/browser-user';
 import { writeRecommendationHistory } from '@/lib/quiz/recommendation/history-cache';
 import { DIFFICULTY_LABEL, isModeAvailable, type Region } from '@/lib/quiz/municipality-data';
+import {
+  activeOverridesForSession,
+  recommendSessionKey,
+  resolveRecommendStartParams,
+  type StoredRecommendOverrides,
+} from '@/lib/quiz/recommendation/overrides';
 import { RecommendRationale } from './recommend-rationale';
-import { RecommendOverride, type Overrides } from './recommend-override';
+import { RecommendOverride } from './recommend-override';
 
 const MODE_LABEL: Record<string, string> = {
   A: 'モードA・逆引き地図', B: 'モードB・逆引き4択',
@@ -28,7 +34,7 @@ interface Props {
 export function RecommendContent({ onClose }: Props) {
   const router = useRouter();
   const { data, isLoading, isError, refetch } = useRecommendation();
-  const [overrides, setOverrides] = useState<Overrides | null>(null);
+  const [storedOverrides, setStoredOverrides] = useState<StoredRecommendOverrides | null>(null);
 
   if (isLoading) {
     return (
@@ -51,10 +57,15 @@ export function RecommendContent({ onClose }: Props) {
     );
   }
 
-  const effectiveMode = overrides?.mode ?? data.mode;
-  const effectiveCount = overrides?.count ?? data.count;
-  const effectiveRegions = overrides ? overrides.targetRegions : data.regions;
-  const effectiveDifficulties = overrides ? overrides.difficulties : data.difficulties;
+  const sessionKey = recommendSessionKey(data);
+  // 推薦が変わったら古い上書きは捨て、理由文と開始パラメータを同じ選定に揃える（#107）。
+  const overrides = activeOverridesForSession(storedOverrides, sessionKey);
+  const {
+    mode: effectiveMode,
+    count: effectiveCount,
+    regions: effectiveRegions,
+    difficulties: effectiveDifficulties,
+  } = resolveRecommendStartParams(data, overrides);
 
   const hasPoolShortage = data.notes.length > 0;
   const modeAvailable = isModeAvailable(effectiveMode, effectiveRegions as Region[]);
@@ -115,13 +126,14 @@ export function RecommendContent({ onClose }: Props) {
 
       {/* Override form */}
       <RecommendOverride
+        key={sessionKey}
         initial={{
           mode: data.mode,
           count: data.count,
           regions: data.regions,
           difficulties: data.difficulties,
         }}
-        onChange={setOverrides}
+        onChange={(value) => setStoredOverrides({ sessionKey, value })}
       />
 
       {/* CTAs — sticky bottom */}

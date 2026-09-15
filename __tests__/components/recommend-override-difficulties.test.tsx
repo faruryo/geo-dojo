@@ -85,8 +85,8 @@ describe('RecommendOverride and RecommendContent Difficulty Override', () => {
       );
     });
 
-    expect(onChange).toHaveBeenCalled();
-    expect((lastOverrides as Overrides | null)?.difficulties).toEqual(['easy']);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(lastOverrides).toBeNull();
 
     // Expand settings
     const toggleButton = container?.querySelector('button');
