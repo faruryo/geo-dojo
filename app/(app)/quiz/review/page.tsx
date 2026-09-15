@@ -11,6 +11,7 @@ import { useDueReviewSummary } from '@/lib/hooks/useDueReviewSummary';
 import { queryKeys } from '@/lib/query-keys';
 import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
 import { QuizResultCard } from '@/components/quiz/quiz-result-card';
+import { toWeakResultItem } from '@/lib/quiz/quiz-results';
 import { getDueReviewItems } from './actions';
 import { buildReviewQuestions } from '@/lib/quiz/review-questions';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
@@ -127,10 +128,7 @@ export default function ReviewPage() {
         ? `続けて復習する（残り${dueCount}件）`
         : '続けて復習する';
 
-    const wrongItems = wrong.map((r) => ({
-      name: r.name,
-      detail: r.kana ? `${r.kana} / ${r.prefecture}` : r.prefecture,
-    }));
+    const wrongItems = wrong.map(toWeakResultItem);
 
     const actions = (
       <>
