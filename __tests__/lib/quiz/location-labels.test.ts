@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { locationLabel } from '@/lib/quiz/location-labels';
+import { locationLabel, locationKana } from '@/lib/quiz/location-labels';
 
 describe('locationLabel', () => {
   it('distinguishes Sapporo designated-city wards', () => {
@@ -24,3 +24,28 @@ describe('locationLabel', () => {
     expect(locationLabel('22131', '浜松市')).toBe('浜松市');
   });
 });
+
+describe('locationKana', () => {
+  it('returns ward kana for Sapporo designated-city wards', () => {
+    expect(locationKana('01101', 'さっぽろし')).toBe('さっぽろしちゅうおうく');
+    expect(locationKana('01102', 'さっぽろし')).toBe('さっぽろしきたく');
+  });
+
+  it('returns ward kana for Osaka designated-city wards', () => {
+    expect(locationKana('27127', 'おおさかし')).toBe('おおさかしきたく');
+    expect(locationKana('27128', 'おおさかし')).toBe('おおさかしちゅうおうく');
+  });
+
+  it('returns ward kana for Hamamatsu designated-city wards', () => {
+    expect(locationKana('22138', 'はままつし')).toBe('はままつしちゅうおうく');
+    expect(locationKana('22139', 'はままつし')).toBe('はままつしはまなく');
+    expect(locationKana('22140', 'はままつし')).toBe('はままつしてんりゅうく');
+  });
+
+  it('falls back to provided kana for unmapped codes', () => {
+    expect(locationKana('13101', 'ちよだく')).toBe('ちよだく');
+    expect(locationKana('01233', 'だてし')).toBe('だてし');
+    expect(locationKana('99999')).toBeUndefined();
+  });
+});
+

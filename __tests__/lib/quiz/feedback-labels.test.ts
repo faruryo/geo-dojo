@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatModeAFeedback } from '@/lib/quiz/feedback-labels';
+import { formatModeAFeedback, formatSingleFeedback } from '@/lib/quiz/feedback-labels';
 import type { Municipality } from '@/lib/quiz/municipality-data';
 
 function municipality(
@@ -65,3 +65,36 @@ describe('formatModeAFeedback', () => {
     expect(formatModeAFeedback('不明町', [])).toBe('不明町');
   });
 });
+
+describe('formatSingleFeedback', () => {
+  it('Mode D: 政令指定都市の区は区名と区の読み仮名を表示する', () => {
+    const muni = municipality('01101', '札幌市', '北海道', 'さっぽろし');
+    expect(formatSingleFeedback(muni, 'D')).toBe('札幌市中央区（さっぽろしちゅうおうく）');
+  });
+
+  it('Mode D: 政令指定都市以外の一般自治体は名称と読み仮名を表示する', () => {
+    const muni = municipality('01343', '鹿部町', '北海道', 'しかべちょう');
+    expect(formatSingleFeedback(muni, 'D')).toBe('鹿部町（しかべちょう）');
+  });
+
+  it('Mode D: 読み仮名がない場合は名称のみを表示する', () => {
+    const muni = municipality('01343', '鹿部町', '北海道');
+    expect(formatSingleFeedback(muni, 'D')).toBe('鹿部町');
+  });
+
+  it('Mode D: 地図ロード失敗でMode Cにフォールバックした場合（effectiveMode=C）は親市名と親市読み仮名を表示する', () => {
+    const muni = municipality('01101', '札幌市', '北海道', 'さっぽろし');
+    expect(formatSingleFeedback(muni, 'D', 'C')).toBe('札幌市（さっぽろし）');
+  });
+
+  it('Mode B: 自治体名（読み仮名）と正解都道府県を表示する', () => {
+    const muni = municipality('01101', '札幌市', '北海道', 'さっぽろし');
+    expect(formatSingleFeedback(muni, 'B')).toBe('札幌市（さっぽろし） （正解: 北海道）');
+  });
+
+  it('Mode C: 自治体名（読み仮名）を表示する', () => {
+    const muni = municipality('01101', '札幌市', '北海道', 'さっぽろし');
+    expect(formatSingleFeedback(muni, 'C')).toBe('札幌市（さっぽろし）');
+  });
+});
+

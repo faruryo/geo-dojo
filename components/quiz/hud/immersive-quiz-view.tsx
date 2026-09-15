@@ -1,6 +1,6 @@
 'use client';
 
-import { formatModeAFeedback, withKana } from '@/lib/quiz/feedback-labels';
+import { formatModeAFeedback, formatSingleFeedback } from '@/lib/quiz/feedback-labels';
 import { locationLabel } from '@/lib/quiz/location-labels';
 import type { Municipality } from '@/lib/quiz/municipality-data';
 import type {
@@ -86,15 +86,7 @@ function singleTitle(question: SingleQuestion, effectiveMode: SingleMode): strin
 }
 
 function singleDetail(question: SingleQuestion, effectiveMode: SingleMode): string {
-  const { municipality, mode } = question;
-  if (mode === 'B') {
-    return `${withKana(municipality.name, municipality.kana)} （正解: ${municipality.prefecture}）`;
-  }
-  const displayName =
-    effectiveMode === 'D'
-      ? locationLabel(municipality.code, municipality.name)
-      : municipality.name;
-  return withKana(displayName, municipality.kana);
+  return formatSingleFeedback(question.municipality, question.mode, effectiveMode);
 }
 
 function singleContent(

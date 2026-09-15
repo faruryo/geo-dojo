@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { representativeDifficulty, type Municipality } from '@/lib/quiz/municipality-data';
-import { withKana } from '@/lib/quiz/feedback-labels';
+import { formatSingleFeedback } from '@/lib/quiz/feedback-labels';
 import { sessionUsesImmersiveLayout } from '@/lib/quiz/immersive-layout';
 import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
 import { useImmersiveLayout } from '@/app/(app)/app-shell';
@@ -50,10 +50,7 @@ function ChoiceOnlyQuizView({
   const { municipality, choices, mode } = currentQuestion;
   const promptText =
     mode === 'B' ? 'この市区町村はどの都道府県？' : `${municipality.prefecture}の市区町村はどれ？`;
-  const feedbackDetail =
-    mode === 'B'
-      ? `${withKana(municipality.name, municipality.kana)} （正解: ${municipality.prefecture}）`
-      : withKana(municipality.name, municipality.kana);
+  const feedbackDetail = formatSingleFeedback(municipality, mode);
 
   return (
     <div className="flex flex-col h-full gap-2 p-3 max-w-4xl mx-auto">

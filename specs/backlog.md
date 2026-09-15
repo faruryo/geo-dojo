@@ -134,9 +134,9 @@
     - **補助ショートカット**: `Esc` キーで誤って選択した都道府県の全解除（リセット）。
   - 該当ファイル: `components/quiz/hud/bottom-hud.tsx`, `components/quiz/hud/immersive-quiz-view.tsx`, `components/quiz/views/mode-a-view.tsx`
 
-- [ ] B032 【バグ】Mode D（場所当て）で政令指定都市の区が出題された際に区の読み仮名が表示されない → **#106**
+- [x] B032 【バグ】Mode D（場所当て）で政令指定都市の区が出題された際に区の読み仮名が表示されない → **#106**
   - 概要: Mode D クイズ解答後の正解・不正解HUDフィードバックおよび結果画面（苦手一覧）において、政令指定都市の行政区（例: 「札幌市中央区」）が出題された際、区の名前を含んだ読み仮名（`さっぽろしちゅうおうく`）ではなく親市単位の読み仮名（`さっぽろし`）が表示されてしまう。
-  - 該当ファイル: `components/quiz/hud/immersive-quiz-view.tsx`, `lib/quiz/quiz-results.ts`
+  - 該当ファイル: `components/quiz/hud/immersive-quiz-view.tsx`, `lib/quiz/quiz-results.ts`, `lib/quiz/feedback-labels.ts`
 
 - [x] B033 【バグ】「今日のおすすめクイズ」で理由文と出題内容（地方・モード）が乖離する（localStorageの自動上書き・キャッシュズレ） → **#107**
   - 概要: 「今日のおすすめクイズ」において、推薦理由（💡 なぜこの内容？）に表示されている内容（例: `中国の☆ 入門（モードA）`）と、実際にシートのサマリーに表示・出題されるクイズ（例: `モードB・逆引き4択`、`地方: 東北`）が食い違い、意図しないクイズが開始されてしまう。

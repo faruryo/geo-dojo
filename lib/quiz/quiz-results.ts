@@ -1,3 +1,4 @@
+import { locationLabel, locationKana } from './location-labels';
 import type { GameMode, Municipality } from './municipality-data';
 
 /** 1回の回答ハンドラが保存する単位。Mode A の複数県同名市は県ごとに分かれる。 */
@@ -22,13 +23,21 @@ export interface QuestionResult {
  * DB 保存は県ごと（{@link dedupeInstancesByPrefecture}）に複数件行う。保存件数で
  * 結果を数えると「19問なのに21完了」のように二重カウントされるため、表示は必ず
  * 1問1件へ正規化する。entries は同一問への回答なので isCorrect は全件同じ。
+ *
+ * Mode D（場所当て）では政令指定都市の行政区が出題されるため、表示名・読み仮名に
+ * locationLabel / locationKana を適用して区単位の表記に正規化する。
  */
 export function toQuestionResult(entries: readonly AnswerEntry[]): QuestionResult {
   const head = entries[0];
+  const isModeD = head.mode === 'D';
   return {
-    name: head.municipality.name,
+    name: isModeD
+      ? locationLabel(head.municipality.code, head.municipality.name)
+      : head.municipality.name,
     prefecture: head.municipality.prefecture,
     correct: head.isCorrect,
-    kana: head.municipality.kana,
+    kana: isModeD
+      ? locationKana(head.municipality.code, head.municipality.kana)
+      : head.municipality.kana,
   };
 }
