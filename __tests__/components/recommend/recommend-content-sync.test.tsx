@@ -45,20 +45,19 @@ const KANTO_B: SheetRecommendation = {
   notes: [],
 };
 
-const { recommendation } = vi.hoisted(() => ({
-  recommendation: {
-    current: {
-      mode: 'A' as SheetRecommendation['mode'],
-      count: 10 as SheetRecommendation['count'],
-      regions: ['中国'] as string[],
-      difficulties: ['easy'] as SheetRecommendation['difficulties'],
-      codes: ['33101'],
-      rationaleCategory: 'new-exploration',
-      rationaleText: '中国の☆ 入門（モードA）',
-      notes: [] as string[],
-    },
-  },
-}));
+const { recommendation } = vi.hoisted(() => {
+  const current: SheetRecommendation = {
+    mode: 'A',
+    count: 10,
+    regions: ['中国'],
+    difficulties: ['easy'],
+    codes: ['33101'],
+    rationaleCategory: 'new-exploration',
+    rationaleText: '中国の☆ 入門（モードA）',
+    notes: [],
+  };
+  return { recommendation: { current } };
+});
 
 vi.mock('@/lib/hooks/useRecommendation', () => ({
   useRecommendation: () => ({
