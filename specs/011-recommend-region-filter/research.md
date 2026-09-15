@@ -11,8 +11,8 @@
    - 調整ダイアログで絞り込んだ地域設定を、遷移先のクイズプレイ画面（`/quiz/municipality/[mode]?region=...`）にどう引き継ぐか。
 3. **データフィルタリングロジックの修正**
    - クライアントサイドでの出題構築ロジック（`buildQuestions`）を都道府県レベルのフィルタに対応させる。
-4. **LocalStorage を用いた永続化**
-   - ユーザーが選択した絞り込み条件を LocalStorage に保存し、次回起動時にも復元する。
+4. **LocalStorage を用いた永続化（#107 で廃止）**
+   - 当初は絞り込み条件を LocalStorage に保存し次回起動時に復元する案だった。Feature 024 の自律選定と衝突するため、マウント時復元は行わない（Decision 4）。
 
 ---
 
@@ -57,7 +57,10 @@
 - **理由**:
   - 既存の推薦 Server Action（`getRecommendation`）は全体の学習統計から問題リスト（`codes`）を推薦するため、そこからクライアントの `buildQuestions` で地域フィルタを最終適用して出題数を制限するのが、既存APIを変更せずに実現する最も安全かつ低リスクなアプローチである。
 
-### Decision 4: LocalStorage による設定の永続化
+### Decision 4: LocalStorage による設定の永続化（※廃止）
+
+> [!WARNING]
+> **※仕様変更による廃止 (#107):** Feature 024 の自律選定と衝突するため、地域フィルタの LocalStorage 保存・マウント時復元は行わない。未操作の初期表示と開始パラメータは推薦エンジンの選定を使う。以下は初期検討時の内容である。
 
 - **決定内容**:
   - キー名 `geodojo-recommend-region-filters` を使用して、選択された地方および都道府県リストを LocalStorage に保存する。

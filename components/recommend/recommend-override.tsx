@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { GameMode, Difficulty } from '@/lib/quiz/recommendation/types';
+import type { GameMode, Difficulty, Recommendation } from '@/lib/quiz/recommendation/types';
 import { REGION_VALUES } from '@/lib/quiz/recommendation/types';
-import type { Recommendation } from '@/lib/quiz/recommendation/types';
+import type { RecommendOverrides } from '@/lib/quiz/recommendation/overrides';
 
 const MODES: GameMode[] = ['A', 'B', 'C', 'D'];
 const MODE_LABELS: Record<GameMode, string> = {
@@ -17,65 +17,21 @@ const DIFFICULTY_OPTIONS: readonly { readonly difficulty: Difficulty; readonly l
   { difficulty: 'hard', label: '☆☆☆ 上級' },
   { difficulty: 'expert', label: '☆☆☆☆ 達人' },
 ];
-const LOCAL_STORAGE_KEY = 'geodojo-recommend-region-filters';
-const VALID_REGIONS: ReadonlySet<string> = new Set(REGION_VALUES);
 
-function isSavedRegionFilter(value: unknown): value is { targetRegions: unknown[] } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'targetRegions' in value &&
-    Array.isArray(value.targetRegions)
-  );
-}
-
-export type Overrides = {
-  mode: GameMode;
-  count: 10 | 20 | 30;
-  targetRegions: string[];
-  difficulties: Difficulty[];
-};
+export type Overrides = RecommendOverrides;
 
 interface Props {
-  initial: Pick<Recommendation, 'mode' | 'count' | 'regions' | 'difficulties'>;
-  onChange: (overrides: Overrides) => void;
+  readonly initial: Pick<Recommendation, 'mode' | 'count' | 'regions' | 'difficulties'>;
+  readonly onChange: (overrides: Overrides) => void;
 }
 
 export function RecommendOverride({ initial, onChange }: Props) {
+  // 初期値は推薦エンジンの選定のみ。localStorage の過去フィルタでは上書きしない（#107）。
   const [expanded, setExpanded] = useState(false);
   const [mode, setMode] = useState<GameMode>(initial.mode);
   const [count, setCount] = useState<10 | 20 | 30>(initial.count);
-  const [targetRegions, setTargetRegions] = useState<string[]>([]);
-  const [difficulties, setDifficulties] = useState<Difficulty[]>(initial.difficulties);
-
-  // Load initial filters from LocalStorage on mount
-  useEffect(() => {
-    let loadedRegions: string[] | null = null;
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        const parsed: unknown = JSON.parse(saved);
-        if (isSavedRegionFilter(parsed)) {
-          loadedRegions = parsed.targetRegions.filter(
-            (region): region is string =>
-              typeof region === 'string' && VALID_REGIONS.has(region),
-          );
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load region filters from localStorage', e);
-    }
-
-    const finalRegions = loadedRegions ?? [...initial.regions];
-
-    setTargetRegions(finalRegions);
-    onChange({
-      mode,
-      count,
-      targetRegions: finalRegions,
-      difficulties: initial.difficulties,
-    });
-  }, []);
+  const [targetRegions, setTargetRegions] = useState<string[]>([...initial.regions]);
+  const [difficulties, setDifficulties] = useState<Difficulty[]>([...initial.difficulties]);
 
   function update(next: Partial<Overrides>) {
     const nextMode = next.mode ?? mode;
@@ -94,17 +50,6 @@ export function RecommendOverride({ initial, onChange }: Props) {
       targetRegions: nextRegions,
       difficulties: nextDifficulties,
     });
-
-    try {
-      localStorage.setItem(
-        LOCAL_STORAGE_KEY,
-        JSON.stringify({
-          targetRegions: nextRegions,
-        })
-      );
-    } catch (e) {
-      console.error('Failed to save region filters to localStorage', e);
-    }
   }
 
   function handleDifficultyToggle(diff: Difficulty) {

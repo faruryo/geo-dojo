@@ -9,9 +9,11 @@
 今日のおすすめクイズを開始する前の調整ダイアログ（`RecommendOverride`）において、特定の地方を選択（複数トグルによるポジティブ選択）して出題プールを絞り込めるようにします。  
 また、おすすめ推薦における難易度の自動ステップアップについて、正答率だけでなく制覇率（coverage）も考慮するように改善します。
 
+**改訂 (2026-09-15 / #107)**: マウント時の LocalStorage 復元は 024 の自律選定と衝突するため廃止。FR-005 は明示操作時のみ開始パラメータへ適用する。
+
 ### 技術的アプローチ:
 - `RecommendOverride` 内の地域選択 UI を「除外」から「対象トグル（ポジティブ選択）」へ変更し、選択された地方のみを出題対象とします。
-- 選択状態は LocalStorage (`geodojo-recommend-region-filters`) に永続化します。
+- 未操作の初期表示は推薦エンジンの選定を使い、LocalStorage (`geodojo-recommend-region-filters`) では上書きしない。
 - 遷移時に URL クエリパラメータ `region` に地方パラメータを載せ、`/quiz/municipality/[mode]` で初期設定へパース・復元します。
 - モードA（逆引き地図）またはモードB（逆引き4択）において、選択された地方に含まれる都道府県の合計が2つ未満（「北海道」のみ選択時）の場合、クイズ開始を無効化するガードロジック（`isModeAvailable` の拡張、および開始ボタンの Disabled 化と自動開始ガード）を実装します。
 - 推薦エンジンの `evaluateProgression`（`lib/quiz/recommendation/axes/progression.ts`）に `cellCoverages` を渡し、現在の最高難易度（`maxDifficulty`）のセルの平均制覇率が 90% 未満の場合は難易度のステップアップ（`nextDifficulty` の適用）をロックし、既存難易度の未制覇問題の消化を優先させます。
@@ -21,8 +23,8 @@
 ## 技術的文脈
 
 **言語/バージョン**: TypeScript (strict)、Next.js 15.2.6+（App Router / React 19）  
-**主要な依存関係**: React (useState, useMemo), Tailwind CSS, lucide-react, LocalStorage  
-**ストレージ**: LocalStorage（設定のキャッシュ保存）  
+**主要な依存関係**: React (useState, useMemo), Tailwind CSS, lucide-react  
+**ストレージ**: URL クエリパラメータ（開始時の `region`）。地域フィルタの LocalStorage 永続化は #107 で廃止。  
 **テスト**: Vitest (`pnpm test`)。フィルタロジック、制覇率進行ロック、および `isModeAvailable` のテストを拡張します。  
 **対象プラットフォーム**: PWA（モバイルファースト 375px 基準、ダークモード `#111111`）  
 **プロジェクトタイプ**: Web アプリケーション  
@@ -66,7 +68,7 @@ app/(app)/quiz/municipality/[mode]/
 └── page.tsx                    # [変更] URL から region をパースし Settings / buildQuestions に反映。自動開始ガードの適用。
 
 components/recommend/
-├── recommend-override.tsx      # [変更] 地方トグルのポジティブ選択 UI および LocalStorage 保存（都道府県アコーディオンの廃止）
+├── recommend-override.tsx      # [変更] 地方トグルのポジティブ選択 UI（#107 で LocalStorage 復元は廃止）
 └── recommend-content.tsx       # [変更] URL 遷移時のパラメータに region を含める。無効な設定時の開始ボタン無効化。
 
 lib/quiz/

@@ -69,13 +69,16 @@ Next.js 単一プロジェクト（App Router）。ロジックは `lib/quiz/`�
 
 ## Phase 5: User Story 3 - 設定の永続化と通常クイズ設定への連動 (Priority: P3)
 
-**Goal**: 調整ダイアログで選択した地方および都道府県を LocalStorage に保存し、ダイアログを再起動した際に自動的に復元する。
+**Goal（当初）**: 調整ダイアログで選択した地方および都道府県を LocalStorage に保存し、ダイアログを再起動した際に自動的に復元する。
 
-**Independent Test**: ダイアログで「東北」の「宮城県」を選択してクイズを開始し、結果画面から戻って再度ダイアログを開いた際、選択状態が保持されていることを確認する。
+**#107 改訂**: Feature 024 の自律選定と衝突するため、マウント時の LocalStorage 復元は廃止した。T010 の実装は完了済みだが、現行仕様（spec.md FR-005）では未操作時に過去フィルタを復元してはならない。
+
+**Independent Test**: ダイアログで「東北」を選んで開始したあと、次にシートを開いた初期状態が推薦エンジンの地方であること。
 
 ### Implementation for User Story 3
 
 - [x] T010 [US3] `components/recommend/recommend-override.tsx` 内で、選択された `targetRegions`（※都道府県は廃止）を LocalStorage（キー: `geodojo-recommend-region-filters`）に JSON 形式で永続化保存し、マウント時にその初期状態を復元するロジックを実装する。
+- [x] T010b [#107] マウント時の LocalStorage 読み書きを削除し、未操作時は推薦エンジンの選定を開始パラメータとする。
 
 ---
 
@@ -99,7 +102,7 @@ Next.js 単一プロジェクト（App Router）。ロジックは `lib/quiz/`�
 
 - [x] T014 `pnpm lint` を実行し、型チェックと ESLint をパスさせる。
 - [x] T015 `pnpm test` を実行し、既存テストおよび新規作成したテストをすべてパスさせる。
-- [x] T016 `quickstart.md` の手動確認手順を実行し、すべての機能の組み合わせと LocalStorage 連動が正常であることを最終確認する。
+- [x] T016 `quickstart.md` の手動確認手順を実行し、すべての機能の組み合わせが正常であることを最終確認する。LocalStorage 連動の確認は #107 で対象外（手順4は未操作時に推薦エンジンを優先することの確認へ改訂）。
 
 ---
 

@@ -138,12 +138,13 @@
   - 概要: Mode D クイズ解答後の正解・不正解HUDフィードバックおよび結果画面（苦手一覧）において、政令指定都市の行政区（例: 「札幌市中央区」）が出題された際、区の名前を含んだ読み仮名（`さっぽろしちゅうおうく`）ではなく親市単位の読み仮名（`さっぽろし`）が表示されてしまう。
   - 該当ファイル: `components/quiz/hud/immersive-quiz-view.tsx`, `lib/quiz/quiz-results.ts`
 
-- [ ] B033 【バグ】「今日のおすすめクイズ」で理由文と出題内容（地方・モード）が乖離する（localStorageの自動上書き・キャッシュズレ） → **#107**
+- [x] B033 【バグ】「今日のおすすめクイズ」で理由文と出題内容（地方・モード）が乖離する（localStorageの自動上書き・キャッシュズレ） → **#107**
   - 概要: 「今日のおすすめクイズ」において、推薦理由（💡 なぜこの内容？）に表示されている内容（例: `中国の☆ 入門（モードA）`）と、実際にシートのサマリーに表示・出題されるクイズ（例: `モードB・逆引き4択`、`地方: 東北`）が食い違い、意図しないクイズが開始されてしまう。
   - 原因:
     1. `components/recommend/recommend-override.tsx` がマウント時に `localStorage`（`geodojo-recommend-region-filters`）を無条件に読み出し、未操作時でも親の地域を過去の設定（例: 東北）で上書きしてしまう（011 と 024 の仕様衝突）。
     2. TanStack Query の stale キャッシュと React の `useState` 初期化レースコンディションにより、前回のモード（例: モードB）が残り、最新の推薦データ（モードA・中国）の理由文とサマリーがキメラ化する。
-  - 該当ファイル: `components/recommend/recommend-override.tsx`, `components/recommend/recommend-content.tsx`, `lib/hooks/useRecommendation.ts`
+  - 該当ファイル: `components/recommend/recommend-override.tsx`, `components/recommend/recommend-content.tsx`, `lib/quiz/recommendation/overrides.ts`
+  - 修正: マウント時の localStorage 復元を廃止し、未操作時は推薦エンジンの最新選定を使う。推薦セッションキーが変わったらオーバーライドを捨てる。
 
 
 
@@ -258,7 +259,7 @@
   - **本番デプロイ時の注意**: マイグレーションが追加する `kana` カラムは nullable で、値は `scripts/import-municipality-kana.ts` を実行するまで全件 NULL のまま（migrate.yml には組み込まれていない）。本番反映時はマイグレーション適用後に `scripts/import-municipality-kana.ts` を本番DBに対して手動実行する必要がある（さもないと機能が「存在するが読み仮名が一切出ない」状態になる）。
 
 - [x] B016 今日のおすすめクイズにおける地域選択（絞り込み）機能の改善 → **実装済み確認**
-  - `components/recommend/recommend-override.tsx` で地方単位のポジティブ選択トグルUI（`targetRegions`）が実装済み。`localStorage`（`geodojo-recommend-region-filters`）に永続化
+  - `components/recommend/recommend-override.tsx` で地方単位のポジティブ選択トグルUI（`targetRegions`）が実装済み。明示操作時のみ開始パラメータへ適用（#107 でマウント時 localStorage 復元は廃止）
   - 都道府県単位の絞り込みは未対応（地方単位のみ）だが、当初の主眼だった「ポジティブ選択」は満たしている
 
 - [x] B019 【UX改善】「今日のおすすめクイズ」完了画面での復習予定（明日の件数）表示と即時ループPlay導線 → **019-recommend-complete-loop で実装完了**
