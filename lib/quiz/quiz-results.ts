@@ -41,3 +41,20 @@ export function toQuestionResult(entries: readonly AnswerEntry[]): QuestionResul
       : head.municipality.kana,
   };
 }
+
+export interface WeakResultItem {
+  readonly name: string;
+  readonly detail: string;
+}
+
+/**
+ * 結果画面の苦手市区町村一覧（QuizResultCard.weakItems）向けに
+ * 1問の結果を「名称」と「読み仮名 / 都道府県」へ変換する。
+ */
+export function toWeakResultItem(result: QuestionResult): WeakResultItem {
+  return {
+    name: result.name,
+    detail: result.kana ? `${result.kana} / ${result.prefecture}` : result.prefecture,
+  };
+}
+

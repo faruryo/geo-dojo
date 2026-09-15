@@ -3,7 +3,7 @@ import {
   dedupeInstancesByPrefecture,
   type Municipality,
 } from '@/lib/quiz/municipality-data';
-import { toQuestionResult, type AnswerEntry } from '@/lib/quiz/quiz-results';
+import { toQuestionResult, toWeakResultItem, type AnswerEntry } from '@/lib/quiz/quiz-results';
 
 function muni(code: string, name: string, prefecture: string, kana?: string): Municipality {
   return { code, name, prefecture, region: '', kana };
@@ -106,4 +106,46 @@ describe('toQuestionResult (二重カウント回帰防止)', () => {
     });
   });
 });
+
+describe('toWeakResultItem', () => {
+  it('読み仮名がある場合は "読み仮名 / 都道府県" を detail に設定する', () => {
+    const item = toWeakResultItem({
+      name: '札幌市中央区',
+      prefecture: '北海道',
+      correct: false,
+      kana: 'さっぽろしちゅうおうく',
+    });
+    expect(item).toEqual({
+      name: '札幌市中央区',
+      detail: 'さっぽろしちゅうおうく / 北海道',
+    });
+  });
+
+  it('読み仮名がない場合は都道府県のみを detail に設定する', () => {
+    const item = toWeakResultItem({
+      name: '鹿部町',
+      prefecture: '北海道',
+      correct: false,
+    });
+    expect(item).toEqual({
+      name: '鹿部町',
+      detail: '北海道',
+    });
+  });
+
+  it('Mode D の政令市区誤答結果から苦手一覧アイテムへ正しく変換される', () => {
+    const entry: AnswerEntry = {
+      municipality: muni('01101', '札幌市', '北海道', 'さっぽろし'),
+      isCorrect: false,
+      mode: 'D',
+    };
+    const questionResult = toQuestionResult([entry]);
+    const weakItem = toWeakResultItem(questionResult);
+    expect(weakItem).toEqual({
+      name: '札幌市中央区',
+      detail: 'さっぽろしちゅうおうく / 北海道',
+    });
+  });
+});
+
 
