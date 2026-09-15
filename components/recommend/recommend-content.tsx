@@ -8,7 +8,7 @@ import { getBrowserUserId } from '@/lib/auth/browser-user';
 import { writeRecommendationHistory } from '@/lib/quiz/recommendation/history-cache';
 import { DIFFICULTY_LABEL, isModeAvailable, type Region } from '@/lib/quiz/municipality-data';
 import {
-  activeOverridesForSession,
+  reconcileStoredOverrides,
   recommendSessionKey,
   resolveRecommendStartParams,
   type StoredRecommendOverrides,
@@ -59,7 +59,11 @@ export function RecommendContent({ onClose }: Props) {
 
   const sessionKey = recommendSessionKey(data);
   // 推薦が変わったら古い上書きは捨て、理由文と開始パラメータを同じ選定に揃える（#107）。
-  const overrides = activeOverridesForSession(storedOverrides, sessionKey);
+  const storedForSession = reconcileStoredOverrides(storedOverrides, sessionKey);
+  if (storedForSession !== storedOverrides) {
+    setStoredOverrides(storedForSession);
+  }
+  const overrides = storedForSession?.value ?? null;
   const {
     mode: effectiveMode,
     count: effectiveCount,

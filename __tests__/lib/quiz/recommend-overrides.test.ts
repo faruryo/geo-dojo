@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeOverridesForSession,
+  reconcileStoredOverrides,
   recommendSessionKey,
   resolveRecommendStartParams,
   type RecommendOverrides,
@@ -81,5 +82,7 @@ describe('recommendSessionKey / activeOverridesForSession', () => {
     expect(
       activeOverridesForSession(stored, stored.sessionKey),
     ).toEqual(tohokuB);
+    expect(reconcileStoredOverrides(stored, recommendSessionKey(chinaA))).toBeNull();
+    expect(reconcileStoredOverrides(stored, stored.sessionKey)).toBe(stored);
   });
 });

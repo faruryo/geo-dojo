@@ -23,12 +23,19 @@ export function recommendSessionKey(source: RecommendSource): string {
   ].join('|');
 }
 
+export function reconcileStoredOverrides(
+  stored: StoredRecommendOverrides | null,
+  sessionKey: string,
+): StoredRecommendOverrides | null {
+  if (stored === null || stored.sessionKey !== sessionKey) return null;
+  return stored;
+}
+
 export function activeOverridesForSession(
   stored: StoredRecommendOverrides | null,
   sessionKey: string,
 ): RecommendOverrides | null {
-  if (stored === null || stored.sessionKey !== sessionKey) return null;
-  return stored.value;
+  return reconcileStoredOverrides(stored, sessionKey)?.value ?? null;
 }
 
 export type RecommendStartParams = {

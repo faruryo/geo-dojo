@@ -205,6 +205,61 @@ describe('おすすめシートの理由文と出題内容の同期 (#107)', () 
     expect(navUrl).toContain('region=東北');
   });
 
+  it('明示操作のあと推薦が変わって元に戻っても、古い上書きは復活しない', async () => {
+    render(<RecommendContent onClose={vi.fn()} />);
+
+    await act(async () => {
+      buttonByText('内容を変える')?.click();
+    });
+    await act(async () => {
+      buttonByText('モードB')?.click();
+    });
+    await act(async () => {
+      buttonByText('全国')?.click();
+    });
+    await act(async () => {
+      buttonByText('東北')?.click();
+    });
+
+    recommendation.current = {
+      mode: 'B',
+      count: 10,
+      regions: ['関東'],
+      difficulties: ['easy'],
+      codes: ['13101'],
+      rationaleCategory: 'weakness-focused',
+      rationaleText: '関東の☆ 入門（モードB）',
+      notes: [],
+    };
+    render(<RecommendContent onClose={vi.fn()} />);
+    expect(text()).toContain('地方: 関東');
+    expect(text()).not.toContain('地方: 東北');
+
+    recommendation.current = {
+      mode: 'A',
+      count: 10,
+      regions: ['中国'],
+      difficulties: ['easy'],
+      codes: ['33101'],
+      rationaleCategory: 'new-exploration',
+      rationaleText: '中国の☆ 入門（モードA）',
+      notes: [],
+    };
+    render(<RecommendContent onClose={vi.fn()} />);
+
+    expect(text()).toContain('モードA・逆引き地図');
+    expect(text()).toContain('地方: 中国');
+    expect(text()).not.toContain('モードB・逆引き4択');
+    expect(text()).not.toContain('地方: 東北');
+
+    await startQuiz();
+
+    const navUrl = startedUrl();
+    expect(navUrl).toContain('/quiz/municipality/a');
+    expect(navUrl).toContain('region=中国');
+    expect(navUrl).not.toContain('東北');
+  });
+
   it('RecommendOverride はマウントだけでは localStorage の地方を親へ流さない', async () => {
     localStorage.setItem(
       'geodojo-recommend-region-filters',
