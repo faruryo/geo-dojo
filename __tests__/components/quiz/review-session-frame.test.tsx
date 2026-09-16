@@ -80,6 +80,7 @@ function sessionFor(
     wrongCodes: [],
     timeLeft: 30,
     handlePrefectureTap: () => {},
+    handleClearPrefectures: () => {},
     handleModeASubmit: () => {},
     handleChoice: () => {},
     handleDTap: () => {},

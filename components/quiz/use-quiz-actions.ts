@@ -37,7 +37,7 @@ export function useModeAAction(
   recordAndAdvance: (entries: QuizSessionEntry[], delayMs: number) => Promise<void>,
 ) {
   return useCallback(async () => {
-    if (!currentQuestion || currentQuestion.kind !== 'A') return;
+    if (!currentQuestion || currentQuestion.kind !== 'A' || state.feedback !== 'idle') return;
     const elapsedMs = Math.max(0, Date.now() - state.startTimeRef.current);
     const correct = isModeACorrect(state.selectedPrefectures, currentQuestion.correctPrefectures);
     state.setFeedback(correct ? 'correct' : 'incorrect');

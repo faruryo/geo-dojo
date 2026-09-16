@@ -134,4 +134,47 @@ describe('Municipality Quiz Session Synchronization & Abort Logic', () => {
     // Assert: onComplete must NOT have been called because abort cleared the advance timer
     expect(onComplete).not.toHaveBeenCalled();
   });
+
+  it('clears selected prefectures when handleClearPrefectures() is called during idle feedback', async () => {
+    const onComplete = vi.fn();
+    const sessionHolder: { current: ReturnType<typeof useQuizSession> | null } = { current: null };
+
+    const modeAQuestions: Question[] = [
+      {
+        kind: 'A',
+        name: '府中市',
+        instances: [mockMunicipality],
+        correctPrefectures: new Set(['東京都', '広島県']),
+      },
+    ];
+
+    await act(async () => {
+      root?.render(
+        <TestRunner
+          questions={modeAQuestions}
+          allMunicipalities={[mockMunicipality]}
+          onComplete={onComplete}
+          onReady={(session) => {
+            sessionHolder.current = session;
+          }}
+        />
+      );
+    });
+
+    expect(sessionHolder.current).not.toBeNull();
+
+    act(() => {
+      sessionHolder.current?.handlePrefectureTap('東京都');
+      sessionHolder.current?.handlePrefectureTap('広島県');
+    });
+
+    expect(sessionHolder.current?.selectedPrefectures.size).toBe(2);
+    expect(sessionHolder.current?.selectedPrefectures.has('東京都')).toBe(true);
+
+    act(() => {
+      sessionHolder.current?.handleClearPrefectures();
+    });
+
+    expect(sessionHolder.current?.selectedPrefectures.size).toBe(0);
+  });
 });

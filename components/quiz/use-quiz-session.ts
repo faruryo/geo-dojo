@@ -55,6 +55,11 @@ export function useQuizSession({
     });
   }, [feedback, setSelectedPrefectures]);
 
+  const handleClearPrefectures = useCallback(() => {
+    if (feedback !== 'idle') return;
+    setSelectedPrefectures(new Set());
+  }, [feedback, setSelectedPrefectures]);
+
   const handleModeDFallback = useCallback(() => setModeDFailed(true), [setModeDFailed]);
   const handleTimeoutCallback = useCallback(() => { void handleTimeout(); }, [handleTimeout]);
 
@@ -79,6 +84,7 @@ export function useQuizSession({
     timeLeft,
     intro,
     handlePrefectureTap,
+    handleClearPrefectures,
     handleModeDFallback,
   };
 }
