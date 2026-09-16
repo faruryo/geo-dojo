@@ -105,6 +105,71 @@ describe('toQuestionResult (二重カウント回帰防止)', () => {
       kana: 'さっぽろし',
     });
   });
+
+  it('Mode A: 同名・同読の複数県は読み仮名と複数県名を正しく保持する', () => {
+    const entries = modeAEntries(
+      [
+        muni('01233', '伊達市', '北海道', 'だてし'),
+        muni('07213', '伊達市', '福島県', 'だてし'),
+      ],
+      true,
+    );
+    const r = toQuestionResult(entries);
+    expect(r).toEqual({
+      name: '伊達市',
+      prefecture: '北海道・福島県',
+      correct: true,
+      kana: 'だてし',
+    });
+  });
+
+  it('Mode A: 同名・異読の複数県は単一kanaに潰さず県ごとの読みを保持する', () => {
+    const entries = modeAEntries(
+      [
+        muni('01331', '松前町', '北海道', 'まつまえちょう'),
+        muni('38401', '松前町', '愛媛県', 'まさきちょう'),
+      ],
+      false,
+    );
+    const r = toQuestionResult(entries);
+    expect(r).toEqual({
+      name: '松前町',
+      prefecture: '北海道: まつまえちょう / 愛媛県: まさきちょう',
+      correct: false,
+    });
+  });
+
+  it('Mode A: 一部の読みが未登録の場合は既知の読みのみ県と対応付ける', () => {
+    const entries = modeAEntries(
+      [
+        muni('13206', '府中市', '東京都', 'ふちゅうし'),
+        muni('34208', '府中市', '広島県'),
+      ],
+      false,
+    );
+    const r = toQuestionResult(entries);
+    expect(r).toEqual({
+      name: '府中市',
+      prefecture: '東京都: ふちゅうし / 広島県',
+      correct: false,
+    });
+  });
+
+  it('Mode A: 全県の読みが未登録の場合は県名のみを結合する', () => {
+    const entries = modeAEntries(
+      [
+        muni('04324', '川崎町', '宮城県'),
+        muni('40322', '川崎町', '福岡県'),
+      ],
+      true,
+    );
+    const r = toQuestionResult(entries);
+    expect(r).toEqual({
+      name: '川崎町',
+      prefecture: '宮城県・福岡県',
+      correct: true,
+    });
+  });
 });
 
 describe('toWeakResultItem', () => {
@@ -146,6 +211,36 @@ describe('toWeakResultItem', () => {
       detail: 'さっぽろしちゅうおうく / 北海道',
     });
   });
+
+  it('Mode A の同名・異読複数県の誤答結果から愛媛県側の読みを欠落させず苦手一覧アイテムへ変換される', () => {
+    const entries = modeAEntries(
+      [
+        muni('01331', '松前町', '北海道', 'まつまえちょう'),
+        muni('38401', '松前町', '愛媛県', 'まさきちょう'),
+      ],
+      false,
+    );
+    const questionResult = toQuestionResult(entries);
+    const weakItem = toWeakResultItem(questionResult);
+    expect(weakItem).toEqual({
+      name: '松前町',
+      detail: '北海道: まつまえちょう / 愛媛県: まさきちょう',
+    });
+  });
+
+  it('Mode A の同名・同読複数県の誤答結果から苦手一覧アイテムへ変換される', () => {
+    const entries = modeAEntries(
+      [
+        muni('01233', '伊達市', '北海道', 'だてし'),
+        muni('07213', '伊達市', '福島県', 'だてし'),
+      ],
+      false,
+    );
+    const questionResult = toQuestionResult(entries);
+    const weakItem = toWeakResultItem(questionResult);
+    expect(weakItem).toEqual({
+      name: '伊達市',
+      detail: 'だてし / 北海道・福島県',
+    });
+  });
 });
-
-
