@@ -2,9 +2,29 @@ import {
   dedupeInstancesByPrefecture,
   type Municipality,
 } from '@/lib/quiz/municipality-data';
+import { locationLabel, locationKana } from '@/lib/quiz/location-labels';
 
 export function withKana(name: string, kana: string | undefined): string {
   return kana ? `${name}（${kana}）` : name;
+}
+
+export function formatSingleFeedback(
+  municipality: Municipality,
+  mode: 'B' | 'C' | 'D',
+  effectiveMode: 'B' | 'C' | 'D' = mode,
+): string {
+  if (mode === 'B') {
+    return `${withKana(municipality.name, municipality.kana)} （正解: ${municipality.prefecture}）`;
+  }
+  const displayName =
+    effectiveMode === 'D'
+      ? locationLabel(municipality.code, municipality.name)
+      : municipality.name;
+  const displayKana =
+    effectiveMode === 'D'
+      ? locationKana(municipality.code, municipality.kana)
+      : municipality.kana;
+  return withKana(displayName, displayKana);
 }
 
 export function formatModeAFeedback(

@@ -60,9 +60,8 @@ describe('quiz-session-core', () => {
       expect(updated).toHaveLength(2);
       expect(updated[1]).toEqual({
         name: '府中市',
-        prefecture: '東京都',
+        prefecture: '東京都・広島県',
         correct: true,
-        kana: undefined,
       });
 
       // DB保存はバッチ1回で2件のデータが渡されること

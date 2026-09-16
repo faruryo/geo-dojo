@@ -25,6 +25,7 @@ import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
 import { SessionCountSelector } from '@/components/quiz/session-count-selector';
 import { QuizResultCard } from '@/components/quiz/quiz-result-card';
+import { toWeakResultItem } from '@/lib/quiz/quiz-results';
 import { QuizPoolProgress } from '@/components/quiz/quiz-pool-progress';
 import { ScopeSelector } from '@/components/quiz/scope-selector';
 import { MunicipalityPickerDialog } from '@/components/quiz/municipality-picker-dialog';
@@ -649,9 +650,7 @@ export default function MunicipalityQuizPage() {
 
   if (phase === 'result') {
     const correct = results.filter((r) => r.correct).length;
-    const wrongItems = results
-      .filter((r) => !r.correct)
-      .map((r) => ({ name: r.name, detail: r.prefecture }));
+    const wrongItems = results.filter((r) => !r.correct).map(toWeakResultItem);
 
     const actions = (
       <>

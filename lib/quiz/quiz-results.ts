@@ -1,4 +1,9 @@
-import type { GameMode, Municipality } from './municipality-data';
+import { locationLabel, locationKana } from './location-labels';
+import {
+  dedupeInstancesByPrefecture,
+  type GameMode,
+  type Municipality,
+} from './municipality-data';
 
 /** 1回の回答ハンドラが保存する単位。Mode A の複数県同名市は県ごとに分かれる。 */
 export interface AnswerEntry {
@@ -22,13 +27,81 @@ export interface QuestionResult {
  * DB 保存は県ごと（{@link dedupeInstancesByPrefecture}）に複数件行う。保存件数で
  * 結果を数えると「19問なのに21完了」のように二重カウントされるため、表示は必ず
  * 1問1件へ正規化する。entries は同一問への回答なので isCorrect は全件同じ。
+ *
+ * - Mode A: 複数県の場合は県名を「・」で結合し、読み仮名が県ごとに異なる場合は
+ *   単一の読みを付けず「県: 読み」形式で prefecture に保持する。
+ * - Mode D（場所当て）では政令指定都市の行政区が出題されるため、表示名・読み仮名に
+ *   locationLabel / locationKana を適用して区単位の表記に正規化する。
  */
 export function toQuestionResult(entries: readonly AnswerEntry[]): QuestionResult {
   const head = entries[0];
+  const mode = head.mode;
+
+  if (mode === 'A') {
+    const representatives = dedupeInstancesByPrefecture(entries.map((e) => e.municipality));
+    const prefectures = representatives.map((m) => m.prefecture);
+    const knownKana = representatives
+      .map((m) => m.kana)
+      .filter((k): k is string => !!k);
+
+    if (knownKana.length === 0) {
+      return {
+        name: head.municipality.name,
+        prefecture: prefectures.join('・'),
+        correct: head.isCorrect,
+      };
+    }
+
+    const firstKana = knownKana[0];
+    const allPrefecturesHaveSameKana =
+      knownKana.length === representatives.length &&
+      representatives.every((m) => m.kana === firstKana);
+
+    if (allPrefecturesHaveSameKana) {
+      return {
+        name: head.municipality.name,
+        prefecture: prefectures.join('・'),
+        correct: head.isCorrect,
+        kana: firstKana,
+      };
+    }
+
+    const prefecturesWithKana = representatives.map((m) =>
+      m.kana ? `${m.prefecture}: ${m.kana}` : m.prefecture,
+    );
+    return {
+      name: head.municipality.name,
+      prefecture: prefecturesWithKana.join(' / '),
+      correct: head.isCorrect,
+    };
+  }
+
+  const isModeD = mode === 'D';
   return {
-    name: head.municipality.name,
+    name: isModeD
+      ? locationLabel(head.municipality.code, head.municipality.name)
+      : head.municipality.name,
     prefecture: head.municipality.prefecture,
     correct: head.isCorrect,
-    kana: head.municipality.kana,
+    kana: isModeD
+      ? locationKana(head.municipality.code, head.municipality.kana)
+      : head.municipality.kana,
   };
 }
+
+export interface WeakResultItem {
+  readonly name: string;
+  readonly detail: string;
+}
+
+/**
+ * 結果画面の苦手市区町村一覧（QuizResultCard.weakItems）向けに
+ * 1問の結果を「名称」と「読み仮名 / 都道府県」へ変換する。
+ */
+export function toWeakResultItem(result: QuestionResult): WeakResultItem {
+  return {
+    name: result.name,
+    detail: result.kana ? `${result.kana} / ${result.prefecture}` : result.prefecture,
+  };
+}
+
