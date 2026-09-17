@@ -58,7 +58,12 @@ export function useModeAShortcuts({
       if (event.defaultPrevented) return;
 
       const target = event.target as HTMLElement | null;
-      if (isEditableTarget(target) || isModalOpen() || isNonSubmitButton(target)) {
+      if (isEditableTarget(target) || isModalOpen()) {
+        return;
+      }
+
+      const isConfirmKey = event.key === ' ' || event.code === 'Space' || event.key === 'Enter';
+      if (isConfirmKey && isNonSubmitButton(target)) {
         return;
       }
 

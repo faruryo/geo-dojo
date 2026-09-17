@@ -183,6 +183,17 @@ describe('useModeAShortcuts: フォーカスおよびモーダル表示時のガ
     expect(enterEvent.defaultPrevented).toBe(false);
   });
 
+  it('確定ボタン以外のボタンにフォーカスがあるときでも Escape で onClear が呼ばれる', () => {
+    const { onClear } = render({ canSubmit: true, feedback: 'idle' });
+    const otherBtn = host.querySelector<HTMLButtonElement>('[data-testid="other-button"]');
+    if (!otherBtn) throw new Error('other button not found');
+
+    const escapeEvent = fireKey('Escape', 'Escape', otherBtn);
+
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(escapeEvent.defaultPrevented).toBe(true);
+  });
+
   it('確定ボタン（data-submit-button="true"）にフォーカスがあるときは Enter / Space で onSubmit が呼ばれる', () => {
     const { onSubmit } = render({ canSubmit: true, feedback: 'idle' });
     const submitBtn = host.querySelector<HTMLButtonElement>('[data-testid="submit-button"]');
