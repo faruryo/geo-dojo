@@ -122,7 +122,7 @@
     - **アクセシビリティ**: `prefers-reduced-motion` 有効時は拡大縮小・エッジパルスを抑止（`motion-safe:`）。スクリーンリーダー向けに警告時のみ `aria-live="assertive"` / `aria-atomic="true"` を適用。
   - 該当ファイル: `components/quiz/hud/top-hud.tsx`, `components/quiz/hud/map-countdown-pulse.tsx`, `components/quiz/use-quiz-timer.ts`, `lib/quiz/countdown-pulse.ts`, `lib/quiz/sound-effects.ts`, `app/globals.css`, `__tests__/components/quiz/quiz-timer.test.tsx`, `__tests__/components/quiz/top-hud-timer.test.tsx`, `__tests__/components/quiz/map-countdown-pulse.test.tsx`, `__tests__/lib/quiz/countdown-pulse.test.ts`
 
-- [ ] B031 【UI/UX】Mode A（県当て）PC環境での解答ボタン操作性改善（GeoGuessr風Spaceキー即時確定・ボタンの地図直下センタリング） → **#97**
+- [x] B031 【UI/UX】Mode A（県当て）PC環境での解答ボタン操作性改善（GeoGuessr風Spaceキー即時確定・ボタンの地図直下センタリング） → **#97・実装完了**
   - 概要: 市区町村クイズの Mode A（県当て・地図タップ）において、PCなどの大画面環境で地図上の都道府県を選択した後の「解答する」ボタンが画面最右下に離れており、マウス移動の負荷・操作テンポの低下が生じている。GeoGuessr の「ピンを置いたら Space キーで Guess（即確定）」の操作体験を参考に、キーボードショートカット対応（Space / Enter）とPC向けボトムバーのセンタリング（地図直下への集約）を実施する。
   - 現状の課題:
     1. **PC大画面での地図と回答ボタンの長距離分離（フィッツの法則の破綻）**: PCの横長画面では、日本地図が画面中央（X=900〜1000px付近）に描画されるのに対し、下部バー（`BottomHud`）は画面全幅に広がるため、「解答する」ボタンが画面最右下端（X=1850px付近）に追いやられている。1問ごとに地図中央をクリックした後、右下端まで約 1,000px 以上のマウス移動が必要になり、連続プレイ時のテンポと手首への負担が大きい。
@@ -132,7 +132,7 @@
     - **ボタン表示の案内（PC時）**: デスクトップ環境では、ボタンラベルを `解答する [Space]` または `␣ Space` バッジ付きで表示し、キーボードで即座に解答できることを明示。
     - **PC画面におけるボトムバーのセンタリング**: `BottomHud` のコンテンツ領域について、PC画面（`md:` 以上）では画面中央に最大幅（例: `max-w-xl` 〜 `max-w-2xl`）を設定して中央寄せ。ボタンが画面右端ではなく「地図の真下」に集約されるため、マウスだけで操作する場合も移動距離が 1/3 以下に激減する。
     - **補助ショートカット**: `Esc` キーで誤って選択した都道府県の全解除（リセット）。
-  - 該当ファイル: `components/quiz/hud/bottom-hud.tsx`, `components/quiz/hud/immersive-quiz-view.tsx`, `components/quiz/views/mode-a-view.tsx`
+  - 該当ファイル: `components/quiz/hud/bottom-hud.tsx`, `components/quiz/hud/immersive-quiz-view.tsx`, `components/quiz/hud/use-mode-a-shortcuts.ts`, `components/quiz/use-quiz-actions.ts`, `components/quiz/use-quiz-session.ts`, `__tests__/components/quiz/use-mode-a-shortcuts.test.tsx`, `__tests__/components/quiz/bottom-hud-shortcut.test.tsx`, `__tests__/components/quiz/municipality-quiz-session-sync.test.tsx`
 
 - [x] B032 【バグ】Mode D（場所当て）で政令指定都市の区が出題された際に区の読み仮名が表示されない → **#106**
   - 概要: Mode D クイズ解答後の正解・不正解HUDフィードバックおよび結果画面（苦手一覧）において、政令指定都市の行政区（例: 「札幌市中央区」）が出題された際、区の名前を含んだ読み仮名（`さっぽろしちゅうおうく`）ではなく親市単位の読み仮名（`さっぽろし`）が表示されてしまう。

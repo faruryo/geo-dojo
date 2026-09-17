@@ -26,6 +26,7 @@ interface BottomHudProps {
     readonly label: string;
     readonly disabled: boolean;
     readonly onSubmit: () => void;
+    readonly shortcutHint?: string;
   };
   /** 県当てで選択中の都道府県の件数。個別の取り消しは地図の再タップで行う。 */
   readonly selectedCount?: number;
@@ -98,7 +99,7 @@ function PromptBody({
 function ChoiceRegion({ choices }: Readonly<Pick<BottomHudProps, 'choices'>>) {
   if (!choices) return null;
   return (
-    <div className="px-3 pb-2">
+    <div className="mx-auto max-w-2xl px-3 pb-2">
       <ChoiceView
         choices={choices.items}
         selectedChoice={choices.selected}
@@ -187,7 +188,7 @@ export function BottomHud({
     >
       <ChoiceRegion choices={choices} />
       <div
-        className="flex items-center justify-center gap-2 px-2"
+        className="mx-auto flex max-w-2xl items-center justify-center gap-2 px-2"
         // 高さは内容の長短でも導入表示でも変えない。伸縮すると地図コンテナの高さが
         // 変わり、拡大率と位置がずれるうえ、不正解後の自動フォーカスも安定しない。
         style={{ height }}
@@ -213,9 +214,15 @@ export function BottomHud({
           <Button
             onClick={submit.onSubmit}
             disabled={submit.disabled}
+            data-submit-button="true"
             className="h-11 shrink-0 px-4 text-xs"
           >
-            {submit.label}
+            <span>{submit.label}</span>
+            {submit.shortcutHint && !submit.disabled && (
+              <kbd className="ml-1.5 hidden rounded border border-white/20 bg-white/10 px-1.5 py-0.5 font-mono text-[10px] leading-none text-white/80 md:inline-flex">
+                {submit.shortcutHint}
+              </kbd>
+            )}
           </Button>
         )}
       </div>

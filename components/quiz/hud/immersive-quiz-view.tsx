@@ -17,6 +17,7 @@ import { BottomHud, type BottomHudContent } from './bottom-hud';
 import { MapCountdownPulse } from './map-countdown-pulse';
 import { QuestionIntro } from './question-intro';
 import { TopHud, type HudTimer } from './top-hud';
+import { useModeAShortcuts } from './use-mode-a-shortcuts';
 import {
   introEmphasis,
   introRestoreMs,
@@ -43,6 +44,7 @@ type QuizSessionValue = {
   readonly wrongCodes: readonly string[];
   readonly timeLeft: number;
   readonly handlePrefectureTap: (name: string) => void;
+  readonly handleClearPrefectures: () => void;
   readonly handleModeASubmit: () => void;
   readonly handleChoice: (choice: string, mode: 'B' | 'C') => void;
   readonly handleDTap: (code: string, name: string) => void;
@@ -160,10 +162,26 @@ function ModeAStageAndHud({
   questionCount: number;
   onAbort: () => void;
 }>) {
-  const { qIdx, feedback, selectedPrefectures, handlePrefectureTap, handleModeASubmit, intro } = session;
+  const {
+    qIdx,
+    feedback,
+    selectedPrefectures,
+    handlePrefectureTap,
+    handleClearPrefectures,
+    handleModeASubmit,
+    intro,
+  } = session;
   const remaining = question.correctPrefectures.size - selectedPrefectures.size;
   const canSubmit = remaining === 0 && feedback === 'idle';
   const content = modeAContent(question, feedback);
+
+  useModeAShortcuts({
+    enabled: true,
+    canSubmit,
+    feedback,
+    onSubmit: handleModeASubmit,
+    onClear: handleClearPrefectures,
+  });
 
   return (
     <>
@@ -189,6 +207,7 @@ function ModeAStageAndHud({
           label: submitLabel(remaining, canSubmit, feedback),
           disabled: !canSubmit,
           onSubmit: handleModeASubmit,
+          shortcutHint: 'Space',
         }}
       />
     </>
