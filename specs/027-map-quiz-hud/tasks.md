@@ -16,6 +16,9 @@ SM-2 の定着間隔に静かに波及するため、既存の `__tests__/lib/qu
 **Organization**: ユーザーストーリーごとにフェーズを切っている。US1 まで終われば
 「地図が画面いっぱいになる」という Issue #82 の主目的は動く状態になる（MVP）。
 
+> [!NOTE] Spec 029 による後続改定 (2026-09-19)
+> T004 / T006 / T013 等で実装された `BOTTOM_BAND_FEEDBACK_PX`（56px）および `BottomHudContent` の `feedback` バリアントは、後続機能 `specs/029-rich-answer-feedback` にて廃止（帯の idle 高さ完全固定化・フローティングカード移行）される予定です。改修タスクは 029 の `tasks.md` 側で管理されます。
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: 並行実行可（別ファイル・未完了タスクへの依存なし）
