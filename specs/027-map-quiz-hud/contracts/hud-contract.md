@@ -92,6 +92,10 @@ interface TopHudProps {
 
 ## C4: `BottomHud`
 
+> [!NOTE] Spec 029 改定 (2026-09-19)
+> 後続の `specs/029-rich-answer-feedback` において、HUD 経路の解答フィードバックは TopHud 直下のフローティングカードへ集約され、`BottomHud` はフィードバック中もお題表示（`kind: 'prompt'`）のまま据え置かれる。
+> これにより、HUD 経路では `kind: 'feedback'` バリアントを使用しなくなり、帯の高さもフィードバック時に伸長（56px化）せず idle 高さ（通常 44px / Mode A 52px）のまま完全固定となる（`BOTTOM_BAND_FEEDBACK_PX` は廃止、地図コンテナのリサイズは 0px）。カード経路（4択単独セッション）では引き続き `FeedbackLine` を使用する。
+
 ```ts
 type BottomHudContent =
   | { readonly kind: 'prompt'; readonly title: string; readonly subTitle?: string }
