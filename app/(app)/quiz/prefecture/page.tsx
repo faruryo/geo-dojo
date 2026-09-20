@@ -5,9 +5,12 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Timer, Trophy, Sparkles } from 'lucide-react';
-import { completionSeEvent, playSe } from '@/lib/quiz/sound-effects';
+import { completionSeEvent, playCorrectSe, playSe } from '@/lib/quiz/sound-effects';
 import { TopHud } from '@/components/quiz/hud/top-hud';
-import { BottomHud, type BottomHudContent } from '@/components/quiz/hud/bottom-hud';
+import { BottomHud } from '@/components/quiz/hud/bottom-hud';
+import { FloatingFeedbackCard } from '@/components/quiz/hud/floating-feedback-card';
+import { ConfettiOverlay } from '@/components/quiz/effects/confetti-overlay';
+import { useFeedbackKeyboardSkip } from '@/components/quiz/hud/use-feedback-keyboard-skip';
 import { useImmersiveLayout } from '@/app/(app)/app-shell';
 import { QuestionIntro } from '@/components/quiz/hud/question-intro';
 import {
@@ -23,10 +26,12 @@ import { QuizResultCard } from '@/components/quiz/quiz-result-card';
 import { usePopstateGuard } from '@/lib/hooks/usePopstateGuard';
 import {
   PREFECTURE_KANA,
+  PREFECTURE_TO_REGION,
   REGIONS,
   type Region,
   getRegionsPrefectures,
 } from '@/lib/quiz/municipality-data';
+import type { FeedbackItem } from '@/lib/quiz/municipality-population';
 import {
   buildPrefectureQuestions,
   formatClearTime,
@@ -42,9 +47,14 @@ const JapanMap = dynamic(
 );
 
 const PREFECTURE_KANA_MAP = new Map<string, string>(Object.entries(PREFECTURE_KANA));
+const PREFECTURE_REGION_MAP = new Map<string, string>(Object.entries(PREFECTURE_TO_REGION));
 
 function getPrefectureKana(prefecture: string): string | undefined {
   return PREFECTURE_KANA_MAP.get(prefecture);
+}
+
+function getPrefectureRegion(prefecture: string): string | undefined {
+  return PREFECTURE_REGION_MAP.get(prefecture);
 }
 
 type Phase = 'setup' | 'playing' | 'result';
@@ -118,7 +128,7 @@ function getFeedbackDelay(type: PrefectureQuizType, isCorrect: boolean): number 
   if (type === 'timeAttack') {
     return isCorrect ? 500 : 900;
   }
-  return 1200;
+  return 2000;
 }
 
 function updateWeaknessScore(target: string, isCorrect: boolean) {
@@ -163,6 +173,7 @@ export default function PrefectureQuizPage() {
   const [feedback, setFeedback] = useState<QuestionFeedback>('none');
   const [selected, setSelected] = useState<string | null>(null);
   const [results, setResults] = useState<QuizResult[]>([]);
+  const [streak, setStreak] = useState(0);
 
   // タイム計測用
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -174,6 +185,9 @@ export default function PrefectureQuizPage() {
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTransitioningRef = useRef(false);
+  const guardUntilRef = useRef<number>(0);
+  const latestResultsRef = useRef<QuizResult[]>([]);
+  const recordedFinalTimeMsRef = useRef<number | null>(null);
 
   const clearPendingTransition = useCallback(() => {
     if (transitionTimeoutRef.current) {
@@ -196,10 +210,14 @@ export default function PrefectureQuizPage() {
     setQuestions(qs);
     setCurrentIndex(0);
     setResults([]);
+    setStreak(0);
     setFeedback('none');
     setSelected(null);
     setElapsedMs(0);
     setIsBestUpdated(false);
+    guardUntilRef.current = 0;
+    latestResultsRef.current = [];
+    recordedFinalTimeMsRef.current = null;
 
     const bestKey = getBestTimeKey(settings);
     setPreviousBestMs(getStoredBestTime(bestKey));
@@ -244,9 +262,51 @@ export default function PrefectureQuizPage() {
     };
   }, [phase, clearPendingTransition]);
 
+  const advanceQuestion = useCallback(
+    (nextResults: QuizResult[], finalTimeMs: number | null) => {
+      clearPendingTransition();
+      guardUntilRef.current = Date.now() + 250;
+
+      const isFinalQuestion = currentIndex + 1 >= questions.length;
+      if (isFinalQuestion && finalTimeMs !== null) {
+        playSe(completionSeEvent(nextResults));
+
+        if (settings.type === 'timeAttack') {
+          const bestKey = getBestTimeKey(settings);
+          const currentBest = getStoredBestTime(bestKey);
+          if (isNewBestTime(finalTimeMs, currentBest)) {
+            saveBestTime(bestKey, finalTimeMs);
+            setIsBestUpdated(true);
+          }
+        }
+
+        setPhase('result');
+      } else {
+        setCurrentIndex((prev) => prev + 1);
+        setSelected(null);
+        setFeedback('none');
+      }
+    },
+    [clearPendingTransition, currentIndex, questions.length, settings],
+  );
+
+  const handleSkip = useCallback(() => {
+    if (feedback === 'none' || !isTransitioningRef.current) return;
+    advanceQuestion(latestResultsRef.current, recordedFinalTimeMsRef.current);
+  }, [feedback, advanceQuestion]);
+
+  useFeedbackKeyboardSkip(phase === 'playing' && feedback !== 'none', handleSkip);
+
   const handleTap = useCallback(
     (name: string) => {
-      if (phase !== 'playing' || feedback !== 'none' || isTransitioningRef.current) return;
+      if (
+        phase !== 'playing' ||
+        feedback !== 'none' ||
+        isTransitioningRef.current ||
+        Date.now() < guardUntilRef.current
+      ) {
+        return;
+      }
       const tapTime = performance.now();
       isTransitioningRef.current = true;
 
@@ -267,36 +327,53 @@ export default function PrefectureQuizPage() {
       const updatedResults = [...results, { prefecture: target, correct: isCorrect }];
       setSelected(name);
       setFeedback(isCorrect ? 'correct' : 'wrong');
-      playSe(isCorrect ? 'correct' : 'incorrect');
+
+      const nextStreak = isCorrect ? streak + 1 : 0;
+      setStreak(nextStreak);
+      if (isCorrect) {
+        playCorrectSe({ streak: nextStreak });
+      } else {
+        playSe('incorrect');
+      }
+
       setResults(updatedResults);
       updateWeaknessScore(target, isCorrect);
+
+      latestResultsRef.current = updatedResults;
+      recordedFinalTimeMsRef.current = recordedFinalTimeMs;
 
       const delayMs = getFeedbackDelay(settings.type, isCorrect);
 
       transitionTimeoutRef.current = setTimeout(() => {
-        transitionTimeoutRef.current = null;
-        if (isFinalQuestion && recordedFinalTimeMs !== null) {
-          playSe(completionSeEvent(updatedResults));
-
-          if (settings.type === 'timeAttack') {
-            const bestKey = getBestTimeKey(settings);
-            const currentBest = getStoredBestTime(bestKey);
-            if (isNewBestTime(recordedFinalTimeMs, currentBest)) {
-              saveBestTime(bestKey, recordedFinalTimeMs);
-              setIsBestUpdated(true);
-            }
-          }
-
-          setPhase('result');
-        } else {
-          setCurrentIndex((prev) => prev + 1);
-          setSelected(null);
-          setFeedback('none');
-          isTransitioningRef.current = false;
-        }
+        advanceQuestion(updatedResults, recordedFinalTimeMs);
       }, delayMs);
     },
-    [phase, feedback, target, results, currentIndex, questions.length, settings],
+    [
+      phase,
+      feedback,
+      currentIndex,
+      questions.length,
+      target,
+      results,
+      streak,
+      settings,
+      advanceQuestion,
+    ],
+  );
+
+  const kana = getPrefectureKana(target);
+  const region = getPrefectureRegion(target);
+  const feedbackItems: readonly FeedbackItem[] = useMemo(
+    () => [
+      {
+        prefecture: region && region !== target ? `${region}地方` : target,
+        name: target,
+        kana,
+        population: null,
+        formattedPopulation: null,
+      },
+    ],
+    [target, kana, region],
   );
 
   const backLink = (
@@ -488,20 +565,10 @@ export default function PrefectureQuizPage() {
 
   // ─── Playing Phase ────────────────────────────────────────────────
 
-  const kana = getPrefectureKana(target);
-  const bottomContent: BottomHudContent =
-    feedback === 'none'
-      ? { kind: 'prompt', title: target }
-      : {
-          kind: 'feedback',
-          correct: feedback === 'correct',
-          detail: kana ? `${target}（${kana}）` : target,
-        };
 
-  const isPrompt = bottomContent.kind === 'prompt';
-  const showIntro = showsIntroOverlay(intro, isPrompt);
-  const emphasis = introEmphasis(intro, isPrompt);
-  const restoreMs = introRestoreMs(intro, isPrompt);
+  const showIntro = showsIntroOverlay(intro, true);
+  const emphasis = introEmphasis(intro, true);
+  const restoreMs = introRestoreMs(intro, true);
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-[#111111]">
@@ -518,7 +585,21 @@ export default function PrefectureQuizPage() {
           onPrefectureClick={handleTap}
           highlightCorrect={feedback !== 'none' ? target : undefined}
           highlightWrong={feedback === 'wrong' && selected ? selected : undefined}
+          isIncorrect={feedback === 'wrong'}
         />
+
+        {feedback === 'correct' && streak === 5 && (
+          <ConfettiOverlay streak={streak} />
+        )}
+
+        {feedback !== 'none' && (
+          <FloatingFeedbackCard
+            isCorrect={feedback === 'correct'}
+            streak={streak}
+            items={feedbackItems}
+            onSkip={handleSkip}
+          />
+        )}
       </div>
 
       {showIntro && (
@@ -530,9 +611,10 @@ export default function PrefectureQuizPage() {
       )}
 
       <BottomHud
-        content={bottomContent}
+        content={{ kind: 'prompt', title: target }}
         mode="BCD"
         onRequestIntro={intro.requestIntro}
+        onSkip={feedback !== 'none' ? handleSkip : undefined}
         emphasis={emphasis}
         restoreMs={restoreMs}
       />

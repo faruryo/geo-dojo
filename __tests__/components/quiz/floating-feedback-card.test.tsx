@@ -170,4 +170,45 @@ describe('FloatingFeedbackCard (FR-003, FR-006a, FR-006e)', () => {
     expect(text).toContain('約4.4万人');
     expect(text).not.toContain('4連続');
   });
+
+  it('renders correctly for prefecture quiz items with region', () => {
+    render({
+      isCorrect: true,
+      streak: 2,
+      items: [
+        {
+          name: '神奈川県',
+          kana: 'かながわけん',
+          prefecture: '関東地方',
+          population: null,
+          formattedPopulation: null,
+        },
+      ],
+    });
+
+    expect(host.textContent).toContain('神奈川県');
+    expect(host.textContent).toContain('かながわけん');
+    expect(host.textContent).toContain('（関東地方）');
+    expect(host.textContent).not.toContain('undefined');
+  });
+
+  it('does not render redundant prefecture text when prefecture === name (e.g. 北海道)', () => {
+    render({
+      isCorrect: true,
+      streak: 1,
+      items: [
+        {
+          name: '北海道',
+          kana: 'ほっかいどう',
+          prefecture: '北海道',
+          population: null,
+          formattedPopulation: null,
+        },
+      ],
+    });
+
+    expect(host.textContent).toContain('北海道');
+    expect(host.textContent).toContain('ほっかいどう');
+    expect(host.textContent).not.toContain('（北海道）');
+  });
 });

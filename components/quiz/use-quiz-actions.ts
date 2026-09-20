@@ -17,6 +17,7 @@ import { isModeDTapCorrect } from '@/lib/quiz/mode-d-judge';
 import { toQuestionResult } from '@/lib/quiz/quiz-results';
 import { calculateStreak } from '@/lib/quiz/streak';
 import { appendRecommendQuestion, readActiveRecommendUserId } from '@/lib/quiz/recommendation/history-cache';
+import { useFeedbackKeyboardSkip } from './hud/use-feedback-keyboard-skip';
 import type { Question } from './use-quiz-session';
 import type { useQuizState } from './use-quiz-state';
 import { TIME_LIMIT_SEC } from './use-quiz-timer';
@@ -156,32 +157,6 @@ async function appendDisplayQuestion(entries: QuizSessionEntry[]): Promise<void>
   });
 }
 
-function useFeedbackKeyboardSkip(feedback: string, onSkip: () => void) {
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented || feedback === 'idle' || event.repeat) return;
-
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
-      if (event.key === ' ' || event.code === 'Space' || event.key === 'Enter') {
-        event.preventDefault();
-        onSkip();
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [feedback, onSkip]);
-}
 
 function useInFlightSaves() {
   const inFlightSavesRef = useRef<Set<Promise<unknown>>>(new Set());
@@ -286,7 +261,7 @@ export function useQuizActions({
     guardUntilRef,
   );
 
-  useFeedbackKeyboardSkip(state.feedback, handleSkip);
+  useFeedbackKeyboardSkip(state.feedback !== 'idle', handleSkip);
 
   const handleModeASubmit = useModeAAction(
     currentQuestion,

@@ -23,16 +23,18 @@ function SingleItemBody({
   difficultyLabel,
 }: Readonly<{ item: FeedbackItem; difficultyLabel: string }>) {
   return (
-    <div className="flex items-baseline justify-between gap-2 text-xs pt-0.5">
-      <div className="flex items-baseline gap-1.5 min-w-0 truncate">
-        <span className="font-bold text-sm text-white truncate">{item.name}</span>
+    <div className="flex items-baseline justify-between gap-2 md:gap-4 text-xs md:text-sm pt-0.5 md:pt-1">
+      <div className="flex items-baseline gap-1.5 md:gap-2.5 min-w-0 truncate">
+        <span className="font-bold text-sm md:text-xl text-white truncate">{item.name}</span>
         {item.kana && (
-          <span className="text-[11px] text-white/70 shrink-0">{item.kana}</span>
+          <span className="text-[11px] md:text-sm text-white/70 shrink-0">{item.kana}</span>
         )}
-        <span className="text-[10px] text-white/50 shrink-0">（{item.prefecture}）</span>
+        {item.prefecture && item.prefecture !== item.name && (
+          <span className="text-[10px] md:text-xs text-white/50 shrink-0">（{item.prefecture}）</span>
+        )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-white/80">
+      <div className="flex shrink-0 items-center gap-1.5 md:gap-2 text-[11px] md:text-sm text-white/80">
         {difficultyLabel && (
           <span className="text-amber-400/90 font-medium">
             {difficultyLabel}
@@ -51,19 +53,19 @@ function SingleItemBody({
 
 function MultiItemsBody({ items }: Readonly<{ items: readonly FeedbackItem[] }>) {
   return (
-    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px] border-t border-white/10 pt-1">
+    <div className="grid grid-cols-2 gap-x-2 md:gap-x-4 gap-y-0.5 md:gap-y-1.5 text-[11px] md:text-xs border-t border-white/10 pt-1 md:pt-2">
       {items.slice(0, 4).map((item) => (
         <div key={item.prefecture} className="flex justify-between items-baseline gap-1 truncate">
           <span className="text-white/90 truncate">
             {item.prefecture}
             {item.kana && (
-              <span className="text-[10px] text-white/60 ml-0.5">
+              <span className="text-[10px] md:text-xs text-white/60 ml-0.5">
                 ({item.kana.replace(/(ちょう|まち|し|く|そん|むら)$/, '')})
               </span>
             )}
           </span>
           {item.formattedPopulation && (
-            <span className="text-white/70 text-[10px] shrink-0 font-mono">
+            <span className="text-white/70 text-[10px] md:text-xs shrink-0 font-mono">
               {item.formattedPopulation}
             </span>
           )}
@@ -71,6 +73,20 @@ function MultiItemsBody({ items }: Readonly<{ items: readonly FeedbackItem[] }>)
       ))}
     </div>
   );
+}
+
+function formatPrefectureText(
+  firstItem: FeedbackItem,
+  isMulti: boolean,
+  items: readonly FeedbackItem[],
+): string {
+  if (isMulti && items.length > 1) {
+    return `（${items.map((i) => i.prefecture).join('、')}）`;
+  }
+  if (firstItem.prefecture && firstItem.prefecture !== firstItem.name) {
+    return `（${firstItem.prefecture}）`;
+  }
+  return '';
 }
 
 function buildSrText(
@@ -84,9 +100,7 @@ function buildSrText(
   const diffText = difficultyLabel ? `難易度: ${difficultyLabel}、` : '';
   const popText = firstItem.formattedPopulation ? `人口: ${firstItem.formattedPopulation}` : '';
   const kanaText = firstItem.kana ? `${firstItem.kana}、` : '';
-  const prefText = isMulti && items.length > 1
-    ? `（${items.map((i) => i.prefecture).join('、')}）`
-    : `（${firstItem.prefecture}）`;
+  const prefText = formatPrefectureText(firstItem, isMulti, items);
 
   if (isCorrect) {
     return `正解！ ${firstItem.name}${prefText}、${kanaText}${diffText}${popText}`;
@@ -107,27 +121,27 @@ function FeedbackHeader({
 }>) {
   const stage = resolvePraiseStage(isCorrect ? streak : 0);
   return (
-    <div className="flex items-center justify-between text-xs leading-none">
-      <div className="flex items-center gap-1.5">
+    <div className="flex items-center justify-between text-xs md:text-sm leading-none">
+      <div className="flex items-center gap-1.5 md:gap-2.5">
         {isCorrect ? (
           <>
-            <span className="font-bold text-emerald-400">🎉 正解！</span>
-            <span className="font-semibold text-white/90 motion-safe:animate-in motion-safe:zoom-in-95">
+            <span className="font-bold text-emerald-400 md:text-base">🎉 正解！</span>
+            <span className="font-semibold text-white/90 motion-safe:animate-in motion-safe:zoom-in-95 md:text-sm">
               {stage.label}
             </span>
             {stage.showStreakBadge && (
-              <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-emerald-300 font-medium">
+              <span className="rounded bg-white/10 px-1.5 py-0.5 md:px-2 md:py-0.5 text-[10px] md:text-xs font-mono text-emerald-300 font-medium">
                 {streak}連続
               </span>
             )}
           </>
         ) : (
-          <span className="font-bold text-rose-400">✗ 不正解</span>
+          <span className="font-bold text-rose-400 md:text-base">✗ 不正解</span>
         )}
       </div>
 
       {isMulti && difficultyLabel && (
-        <span className="text-[10px] text-amber-400/90 font-medium shrink-0">
+        <span className="text-[10px] md:text-xs text-amber-400/90 font-medium shrink-0">
           {difficultyLabel}
         </span>
       )}
@@ -153,12 +167,12 @@ export function FloatingFeedbackCard({
   return (
     <div
       onClick={onSkip}
-      className="pointer-events-auto absolute top-2 left-1/2 -translate-x-1/2 z-20 flex w-[calc(100%-32px)] max-w-[340px] flex-col gap-1 rounded-xl border border-white/10 bg-[#111111] p-2.5 text-[#fafafa] shadow-lg cursor-pointer max-h-[112px] select-none"
+      className="pointer-events-auto absolute top-2 md:top-4 left-1/2 -translate-x-1/2 z-20 flex w-[calc(100%-32px)] max-w-[340px] md:max-w-[480px] flex-col gap-1 md:gap-2 rounded-xl md:rounded-2xl border border-white/10 bg-[#111111] p-2.5 md:p-4 text-[#fafafa] shadow-lg md:shadow-2xl cursor-pointer max-h-[112px] md:max-h-[160px] select-none"
     >
       <span role="status" aria-live="polite" className="sr-only">
         {srText}
       </span>
-      <div aria-hidden="true" className="flex flex-col gap-1">
+      <div aria-hidden="true" className="flex flex-col gap-1 md:gap-2">
         <FeedbackHeader
           isCorrect={isCorrect}
           streak={streak}
