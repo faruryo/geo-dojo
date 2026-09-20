@@ -104,11 +104,11 @@
 
 **Purpose**: ドキュメント、型検査、Lint Ratchet、テスト全通過、ロングタスク実機手動検証
 
-- [ ] T027 [P] `AGENTS.md` の関連ドキュメント更新（マスターデータの population 利用の反映）
-- [ ] T028 全体テストスイートの実行（`pnpm test`）による全テスト通過確認
-- [ ] T029 TypeScript strict 型検査（`pnpm type-check`）のパス確認
-- [ ] T030 ESLint および ratchet 検査（`pnpm lint`, `pnpm lint:ratchet`）のパス確認
-- [ ] T031 `specs/029-rich-answer-feedback/quickstart.md` の手動検証シナリオ（シナリオ1・2・3、375px幅実機）および SC-004（50ms以内遷移開始）、SC-005（Chrome DevTools Performance パネルで 50ms 超ロングタスクのないことの確認）の通し検証
+- [x] T027 [P] `AGENTS.md` の関連ドキュメント更新（マスターデータの population 利用の反映）
+- [x] T028 全体テストスイートの実行（`pnpm test`）による全テスト通過確認
+- [x] T029 TypeScript strict 型検査（`pnpm type-check`）のパス確認
+- [x] T030 ESLint および ratchet 検査（`pnpm lint`, `pnpm lint:ratchet`）のパス確認
+- [x] T031 `specs/029-rich-answer-feedback/quickstart.md` の手動検証シナリオ（シナリオ1・2・3、375px幅実機）および SC-004（50ms以内遷移開始）、SC-005（Chrome DevTools Performance パネルで 50ms 超ロングタスクのないことの確認）の通し検証
 
 ---
 

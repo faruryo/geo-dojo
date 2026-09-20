@@ -163,6 +163,24 @@ function BandBody({
   );
 }
 
+function SubmitAction({ submit }: Readonly<{ submit: NonNullable<BottomHudProps['submit']> }>) {
+  return (
+    <Button
+      onClick={submit.onSubmit}
+      disabled={submit.disabled}
+      data-submit-button="true"
+      className="h-11 shrink-0 px-4 text-xs"
+    >
+      <span>{submit.label}</span>
+      {submit.shortcutHint && !submit.disabled && (
+        <kbd className="ml-1.5 hidden rounded border border-white/20 bg-white/10 px-1.5 py-0.5 font-mono text-[10px] leading-none text-white/80 md:inline-flex">
+          {submit.shortcutHint}
+        </kbd>
+      )}
+    </Button>
+  );
+}
+
 export function BottomHud({
   content,
   mode,
@@ -177,8 +195,6 @@ export function BottomHud({
   const height = bottomBandHeightPx(mode, feedbackStateOf(content));
   const reshowable = !onSkip && content.kind === 'prompt' && onRequestIntro !== undefined;
 
-  // 帯のどこを触ってもお題が戻る、またはフィードバック中はスキップする。
-  // 操作対象（有効な選択肢・確定）の上だけは、それぞれの動作に譲る。
   function handleBackgroundTap(event: React.MouseEvent<HTMLElement>) {
     if ((event.target as HTMLElement).closest('button:not([disabled])')) return;
     if (onSkip) {
@@ -191,9 +207,6 @@ export function BottomHud({
   }
 
   return (
-    // 背景は完全な不透明にする。半透明やすりガラスだと下地の地図の明度を拾い、
-    // 明るい Google Maps タイルの上でコントラストを数値で保証できない。
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- キーボードと読み上げの経路は中のお題ボタンが持つ。ここは同じ操作を指で広く受けるためだけの補助で、tabIndex を足すと同じ操作に二重の停止点ができる
     <footer
       className="shrink-0 bg-[#111111] pb-[env(safe-area-inset-bottom)]"
       onClick={handleBackgroundTap}
@@ -201,13 +214,8 @@ export function BottomHud({
       <ChoiceRegion choices={choices} />
       <div
         className="mx-auto flex max-w-2xl items-center justify-center gap-2 px-2"
-        // 高さは内容の長短でも導入表示でも変えない。伸縮すると地図コンテナの高さが
-        // 変わり、拡大率と位置がずれるうえ、不正解後の自動フォーカスも安定しない。
         style={{ height }}
       >
-        {/* aria-label は付けない。付けると子要素のお題がアクセシブル名から外れ、
-            中央の導入表示は aria-hidden なので読み上げでお題を取得できなくなる。
-            操作の説明は sr-only のテキストで添える。 */}
         <BandBody
           content={content}
           reshowable={reshowable}
@@ -229,21 +237,7 @@ export function BottomHud({
           </span>
         )}
 
-        {submit && (
-          <Button
-            onClick={submit.onSubmit}
-            disabled={submit.disabled}
-            data-submit-button="true"
-            className="h-11 shrink-0 px-4 text-xs"
-          >
-            <span>{submit.label}</span>
-            {submit.shortcutHint && !submit.disabled && (
-              <kbd className="ml-1.5 hidden rounded border border-white/20 bg-white/10 px-1.5 py-0.5 font-mono text-[10px] leading-none text-white/80 md:inline-flex">
-                {submit.shortcutHint}
-              </kbd>
-            )}
-          </Button>
-        )}
+        {submit && <SubmitAction submit={submit} />}
       </div>
     </footer>
   );

@@ -139,6 +139,46 @@ function FallbackNotice() {
   );
 }
 
+function ModeAStageArea({
+  question,
+  session,
+}: Readonly<{ question: ModeAQuestion; session: QuizSessionValue }>) {
+  const {
+    qIdx,
+    feedback,
+    selectedPrefectures,
+    handlePrefectureTap,
+    streak,
+    designatedCityMap,
+    handleSkip,
+  } = session;
+  return (
+    <Stage>
+      <ModeAView
+        qIdx={qIdx}
+        correctPrefectures={question.correctPrefectures}
+        selectedPrefectures={selectedPrefectures}
+        feedback={feedback}
+        onPrefectureTap={handlePrefectureTap}
+      />
+      {feedback === 'correct' && streak === 5 && <ConfettiOverlay streak={streak} />}
+      {feedback !== 'idle' && (
+        <FloatingFeedbackCard
+          isCorrect={feedback === 'correct'}
+          streak={streak}
+          difficulty={representativeDifficulty(question.instances)}
+          items={resolveFeedbackItems({
+            mode: 'A',
+            instances: question.instances,
+            designatedCityMap,
+          })}
+          onSkip={handleSkip}
+        />
+      )}
+    </Stage>
+  );
+}
+
 function ModeAStageAndHud({
   question,
   session,
@@ -154,7 +194,6 @@ function ModeAStageAndHud({
     qIdx,
     feedback,
     selectedPrefectures,
-    handlePrefectureTap,
     handleClearPrefectures,
     handleModeASubmit,
     intro,
@@ -174,31 +213,7 @@ function ModeAStageAndHud({
   return (
     <>
       <TopHud currentIndex={qIdx} totalQuestions={questionCount} onAbort={onAbort} />
-      <Stage>
-        <ModeAView
-          qIdx={qIdx}
-          correctPrefectures={question.correctPrefectures}
-          selectedPrefectures={selectedPrefectures}
-          feedback={feedback}
-          onPrefectureTap={handlePrefectureTap}
-        />
-        {feedback === 'correct' && session.streak === 5 && (
-          <ConfettiOverlay streak={session.streak} />
-        )}
-        {feedback !== 'idle' && (
-          <FloatingFeedbackCard
-            isCorrect={feedback === 'correct'}
-            streak={session.streak}
-            difficulty={representativeDifficulty(question.instances)}
-            items={resolveFeedbackItems({
-              mode: 'A',
-              instances: question.instances,
-              designatedCityMap: session.designatedCityMap,
-            })}
-            onSkip={session.handleSkip}
-          />
-        )}
-      </Stage>
+      <ModeAStageArea question={question} session={session} />
       <IntroOverlay intro={intro} content={content} />
       <BottomHud
         content={content}
@@ -240,6 +255,40 @@ function SingleStage({
   );
 }
 
+function SingleStageArea({
+  question,
+  session,
+  isMap,
+  effectiveMode,
+}: Readonly<{
+  question: SingleQuestion;
+  session: QuizSessionValue;
+  isMap: boolean;
+  effectiveMode: SingleMode;
+}>) {
+  const { feedback, timeLeft, streak, designatedCityMap, handleSkip } = session;
+  return (
+    <Stage>
+      <SingleStage question={question} session={session} isMap={isMap} />
+      {isMap && <MapCountdownPulse secondsLeft={timeLeft} feedback={feedback} />}
+      {feedback === 'correct' && streak === 5 && <ConfettiOverlay streak={streak} />}
+      {feedback !== 'idle' && (
+        <FloatingFeedbackCard
+          isCorrect={feedback === 'correct'}
+          streak={streak}
+          difficulty={question.municipality.difficulty}
+          items={resolveFeedbackItems({
+            mode: effectiveMode,
+            municipality: question.municipality,
+            designatedCityMap,
+          })}
+          onSkip={handleSkip}
+        />
+      )}
+    </Stage>
+  );
+}
+
 function SingleStageAndHud({
   question,
   session,
@@ -267,32 +316,12 @@ function SingleStageAndHud({
         onAbort={onAbort}
         timer={timer}
       />
-      <Stage>
-        <SingleStage
-          question={question}
-          session={session}
-          isMap={isMap}
-        />
-        {isMap && (
-          <MapCountdownPulse secondsLeft={timeLeft} feedback={feedback} />
-        )}
-        {feedback === 'correct' && session.streak === 5 && (
-          <ConfettiOverlay streak={session.streak} />
-        )}
-        {feedback !== 'idle' && (
-          <FloatingFeedbackCard
-            isCorrect={feedback === 'correct'}
-            streak={session.streak}
-            difficulty={question.municipality.difficulty}
-            items={resolveFeedbackItems({
-              mode: effectiveMode,
-              municipality: question.municipality,
-              designatedCityMap: session.designatedCityMap,
-            })}
-            onSkip={session.handleSkip}
-          />
-        )}
-      </Stage>
+      <SingleStageArea
+        question={question}
+        session={session}
+        isMap={isMap}
+        effectiveMode={effectiveMode}
+      />
       <IntroOverlay intro={intro} content={content} />
       <BottomHud
         content={content}

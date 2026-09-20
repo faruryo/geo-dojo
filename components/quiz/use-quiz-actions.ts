@@ -155,16 +155,59 @@ async function appendDisplayQuestion(entries: QuizSessionEntry[]): Promise<void>
   });
 }
 
-export function useQuizActions({
-  currentQuestion,
-  allMunicipalities: _allMunicipalities,
-  state,
-}: Readonly<UseQuizActionsProps>) {
+function useFeedbackKeyboardSkip(feedback: string, onSkip: () => void) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || feedback === 'idle' || event.repeat) return;
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (event.key === ' ' || event.code === 'Space' || event.key === 'Enter') {
+        event.preventDefault();
+        onSkip();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [feedback, onSkip]);
+}
+
+function useInFlightSaves() {
   const inFlightSavesRef = useRef<Set<Promise<unknown>>>(new Set());
+
+  const trackSave = useCallback((promise: Promise<unknown>) => {
+    inFlightSavesRef.current.add(promise);
+    void promise.finally(() => {
+      inFlightSavesRef.current.delete(promise);
+    });
+  }, []);
+
+  const awaitPendingSaves = useCallback(async () => {
+    if (inFlightSavesRef.current.size > 0) {
+      await Promise.allSettled(Array.from(inFlightSavesRef.current));
+    }
+  }, []);
+
+  const hasInFlight = useCallback(() => inFlightSavesRef.current.size > 0, []);
+
+  return { trackSave, awaitPendingSaves, hasInFlight };
+}
+
+function useAdvanceCoordinator(state: QuizState, guardUntilRef: React.RefObject<number>) {
+  const { trackSave, awaitPendingSaves, hasInFlight } = useInFlightSaves();
   const advanceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isAbortedRef = useRef<boolean>(false);
   const skipRequestedRef = useRef<boolean>(false);
-  const guardUntilRef = useRef<number>(0);
   const latestResultsRef = useRef<QuizResultEntry[]>(state.results);
 
   useEffect(() => {
@@ -182,25 +225,17 @@ export function useQuizActions({
       guardUntilRef.current = Date.now() + TAP_GUARD_MS;
       state.advanceQuestion(resultsToAdvance);
     },
-    [state],
+    [state, guardUntilRef],
   );
 
   const handleSkip = useCallback(() => {
     if (state.feedback === 'idle') return;
-    if (inFlightSavesRef.current.size > 0) {
-      // 保存処理が進行中の場合、保留 (FR-004b)
+    if (hasInFlight()) {
       skipRequestedRef.current = true;
       return;
     }
-    // 保存が既に完了している場合、即時遷移 (FR-004a, SC-004)
     triggerAdvance(latestResultsRef.current);
-  }, [state.feedback, triggerAdvance]);
-
-  const awaitPendingSaves = useCallback(async () => {
-    if (inFlightSavesRef.current.size > 0) {
-      await Promise.allSettled(Array.from(inFlightSavesRef.current));
-    }
-  }, []);
+  }, [state.feedback, hasInFlight, triggerAdvance]);
 
   const abort = useCallback(async () => {
     isAbortedRef.current = true;
@@ -215,10 +250,7 @@ export function useQuizActions({
     async (entries: QuizSessionEntry[]) => {
       skipRequestedRef.current = false;
       const savePromise = executeQuizAdvance(entries, state.results, saveMunicipalityQuizResults);
-      inFlightSavesRef.current.add(savePromise);
-      void savePromise.finally(() => {
-        inFlightSavesRef.current.delete(savePromise);
-      });
+      trackSave(savePromise);
 
       const { results: updated, persisted } = await savePromise;
       if (persisted) await appendDisplayQuestion(entries);
@@ -228,48 +260,32 @@ export function useQuizActions({
       state.setResults(updated);
 
       if (skipRequestedRef.current) {
-        // 保存中にスキップ要求があった場合、保存完了と同時に遅延ゼロで即遷移 (FR-004b)
         triggerAdvance(updated);
         return;
       }
 
-      // スキップがなければ一律 2.0秒 (2,000ms) の待機時間を経て自動遷移 (FR-004e)
       advanceTimerRef.current = setTimeout(() => {
         triggerAdvance(updated);
       }, FEEDBACK_ADVANCE_DELAY_MS);
     },
-    [state, triggerAdvance],
+    [state, trackSave, triggerAdvance],
   );
 
-  // キーボード (Space / Enter) によるフィードバック中スキップ (FR-004a, FR-004c)
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented) return;
-      if (state.feedback === 'idle') return;
-      if (event.repeat) return; // FR-004c: キーリピート抑止
+  return { handleSkip, recordAndAdvance, awaitPendingSaves, abort };
+}
 
-      const target = event.target as HTMLElement | null;
-      if (target) {
-        const tagName = target.tagName;
-        if (
-          tagName === 'INPUT' ||
-          tagName === 'TEXTAREA' ||
-          tagName === 'SELECT' ||
-          target.isContentEditable
-        ) {
-          return;
-        }
-      }
+export function useQuizActions({
+  currentQuestion,
+  allMunicipalities: _allMunicipalities,
+  state,
+}: Readonly<UseQuizActionsProps>) {
+  const guardUntilRef = useRef<number>(0);
+  const { handleSkip, recordAndAdvance, awaitPendingSaves, abort } = useAdvanceCoordinator(
+    state,
+    guardUntilRef,
+  );
 
-      if (event.key === ' ' || event.code === 'Space' || event.key === 'Enter') {
-        event.preventDefault();
-        handleSkip();
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.feedback, handleSkip]);
+  useFeedbackKeyboardSkip(state.feedback, handleSkip);
 
   const handleModeASubmit = useModeAAction(
     currentQuestion,

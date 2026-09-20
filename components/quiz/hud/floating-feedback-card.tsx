@@ -18,6 +18,136 @@ export interface FloatingFeedbackCardProps {
   readonly onSkip?: () => void;
 }
 
+function formatDifficultyLabel(difficulty?: Difficulty): string {
+  if (!difficulty) return '';
+  switch (difficulty) {
+    case 'easy':
+      return DIFFICULTY_LABEL.easy;
+    case 'medium':
+      return DIFFICULTY_LABEL.medium;
+    case 'hard':
+      return DIFFICULTY_LABEL.hard;
+    case 'expert':
+      return DIFFICULTY_LABEL.expert;
+    default:
+      return '';
+  }
+}
+
+function SingleItemBody({
+  item,
+  difficultyLabel,
+}: Readonly<{ item: FeedbackItem; difficultyLabel: string }>) {
+  return (
+    <div className="flex items-baseline justify-between gap-2 text-xs pt-0.5">
+      <div className="flex items-baseline gap-1.5 min-w-0 truncate">
+        <span className="font-bold text-sm text-white truncate">{item.name}</span>
+        {item.kana && (
+          <span className="text-[11px] text-white/70 shrink-0">{item.kana}</span>
+        )}
+        <span className="text-[10px] text-white/50 shrink-0">（{item.prefecture}）</span>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-white/80">
+        {difficultyLabel && (
+          <span className="text-amber-400/90 font-medium">
+            {difficultyLabel}
+          </span>
+        )}
+        {difficultyLabel && item.formattedPopulation && (
+          <span className="text-white/30">|</span>
+        )}
+        {item.formattedPopulation && (
+          <span>{item.formattedPopulation}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MultiItemsBody({ items }: Readonly<{ items: readonly FeedbackItem[] }>) {
+  return (
+    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px] border-t border-white/10 pt-1">
+      {items.slice(0, 4).map((item) => (
+        <div key={item.prefecture} className="flex justify-between items-baseline gap-1 truncate">
+          <span className="text-white/90 truncate">
+            {item.prefecture}
+            {item.kana && (
+              <span className="text-[10px] text-white/60 ml-0.5">
+                ({item.kana.replace(/[市区町村]$/, '')})
+              </span>
+            )}
+          </span>
+          {item.formattedPopulation && (
+            <span className="text-white/70 text-[10px] shrink-0 font-mono">
+              {item.formattedPopulation}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function buildSrText(
+  firstItem: FeedbackItem | undefined,
+  isCorrect: boolean,
+  isMulti: boolean,
+  difficultyLabel: string,
+): string {
+  if (!firstItem) return '';
+  const diffText = difficultyLabel ? `難易度: ${difficultyLabel}、` : '';
+  const popText = firstItem.formattedPopulation ? `人口: ${firstItem.formattedPopulation}` : '';
+  const kanaText = firstItem.kana ? `${firstItem.kana}、` : '';
+  const prefText = isMulti ? '' : `（${firstItem.prefecture}）`;
+
+  if (isCorrect) {
+    return `正解！ ${firstItem.name}${prefText}、${kanaText}${diffText}${popText}`;
+  }
+  return `不正解。正解は${firstItem.name}${prefText}、${kanaText}${diffText}${popText}`;
+}
+
+function FeedbackHeader({
+  isCorrect,
+  streak,
+  isMulti,
+  difficultyLabel,
+}: Readonly<{
+  isCorrect: boolean;
+  streak: number;
+  isMulti: boolean;
+  difficultyLabel: string;
+}>) {
+  const stage = resolvePraiseStage(isCorrect ? streak : 0);
+  return (
+    <div className="flex items-center justify-between text-xs leading-none">
+      <div className="flex items-center gap-1.5">
+        {isCorrect ? (
+          <>
+            <span className="font-bold text-emerald-400">🎉 正解！</span>
+            <span className="font-semibold text-white/90 motion-safe:animate-in motion-safe:zoom-in-95">
+              {stage.label}
+            </span>
+            {stage.showStreakBadge && (
+              <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-emerald-300 font-medium">
+                {streak}連続
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="font-bold text-rose-400">✗ 不正解</span>
+        )}
+      </div>
+
+      {isMulti && difficultyLabel && (
+        <span className="text-[10px] text-amber-400/90 font-medium shrink-0">
+          {difficultyLabel}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function FloatingFeedbackCard({
   isCorrect,
   streak,
@@ -25,23 +155,13 @@ export function FloatingFeedbackCard({
   items,
   onSkip,
 }: Readonly<FloatingFeedbackCardProps>) {
-  const stage = resolvePraiseStage(isCorrect ? streak : 0);
   const isMulti = items.length > 1;
   const firstItem = items[0];
-
-  // FR-006e: スクリーンリーダー用読み上げ文言（2.0s 内に読み終えるため連続数は除外）
-  const srText = React.useMemo(() => {
-    if (!firstItem) return '';
-    const diffText = difficulty ? `難易度: ${DIFFICULTY_LABEL[difficulty]}、` : '';
-    const popText = firstItem.formattedPopulation ? `人口: ${firstItem.formattedPopulation}` : '';
-    const kanaText = firstItem.kana ? `${firstItem.kana}、` : '';
-    const prefText = isMulti ? '' : `（${firstItem.prefecture}）`;
-
-    if (isCorrect) {
-      return `正解！ ${firstItem.name}${prefText}、${kanaText}${diffText}${popText}`;
-    }
-    return `不正解。正解は${firstItem.name}${prefText}、${kanaText}${diffText}${popText}`;
-  }, [firstItem, isCorrect, difficulty, isMulti]);
+  const difficultyLabel = formatDifficultyLabel(difficulty);
+  const srText = React.useMemo(
+    () => buildSrText(firstItem, isCorrect, isMulti, difficultyLabel),
+    [firstItem, isCorrect, difficultyLabel, isMulti],
+  );
 
   return (
     <div
@@ -50,86 +170,18 @@ export function FloatingFeedbackCard({
       onClick={onSkip}
       className="pointer-events-auto absolute top-2 left-1/2 -translate-x-1/2 z-20 flex w-[calc(100%-32px)] max-w-[340px] flex-col gap-1 rounded-xl border border-white/10 bg-[#111111] p-2.5 text-[#fafafa] shadow-lg cursor-pointer max-h-[112px] select-none"
     >
-      {/* 支援技術向け非表示テキスト */}
       <span className="sr-only">{srText}</span>
-
-      {/* 1行目: 正否バッジ + 称賛/不正解ラベル + 連続正解チップ */}
-      <div className="flex items-center justify-between text-xs leading-none">
-        <div className="flex items-center gap-1.5">
-          {isCorrect ? (
-            <>
-              <span className="font-bold text-emerald-400">🎉 正解！</span>
-              <span className="font-semibold text-white/90 motion-safe:animate-in motion-safe:zoom-in-95">
-                {stage.label}
-              </span>
-              {stage.showStreakBadge && (
-                <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-emerald-300 font-medium">
-                  {streak}連続
-                </span>
-              )}
-            </>
-          ) : (
-            <span className="font-bold text-rose-400">✗ 不正解</span>
-          )}
-        </div>
-
-        {/* 多県表示の場合は1行目右端に代表難易度を表示 */}
-        {isMulti && difficulty && (
-          <span className="text-[10px] text-amber-400/90 font-medium shrink-0">
-            {DIFFICULTY_LABEL[difficulty]}
-          </span>
-        )}
-      </div>
-
-      {/* 2行目以降: 単一自治体表示 */}
+      <FeedbackHeader
+        isCorrect={isCorrect}
+        streak={streak}
+        isMulti={isMulti}
+        difficultyLabel={difficultyLabel}
+      />
       {!isMulti && firstItem && (
-        <div className="flex items-baseline justify-between gap-2 text-xs pt-0.5">
-          <div className="flex items-baseline gap-1.5 min-w-0 truncate">
-            <span className="font-bold text-sm text-white truncate">{firstItem.name}</span>
-            {firstItem.kana && (
-              <span className="text-[11px] text-white/70 shrink-0">{firstItem.kana}</span>
-            )}
-            <span className="text-[10px] text-white/50 shrink-0">（{firstItem.prefecture}）</span>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-white/80">
-            {difficulty && (
-              <span className="text-amber-400/90 font-medium">
-                {DIFFICULTY_LABEL[difficulty]}
-              </span>
-            )}
-            {difficulty && firstItem.formattedPopulation && (
-              <span className="text-white/30">|</span>
-            )}
-            {firstItem.formattedPopulation && (
-              <span>{firstItem.formattedPopulation}</span>
-            )}
-          </div>
-        </div>
+        <SingleItemBody item={firstItem} difficultyLabel={difficultyLabel} />
       )}
-
-      {/* 2行目以降: 同名多県表示（例: 池田町 4県） */}
-      {isMulti && (
-        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px] border-t border-white/10 pt-1">
-          {items.slice(0, 4).map((item) => (
-            <div key={item.prefecture} className="flex justify-between items-baseline gap-1 truncate">
-              <span className="text-white/90 truncate">
-                {item.prefecture}
-                {item.kana && (
-                  <span className="text-[10px] text-white/60 ml-0.5">
-                    ({item.kana.replace(/[市区町村]$/, '')})
-                  </span>
-                )}
-              </span>
-              {item.formattedPopulation && (
-                <span className="text-white/70 text-[10px] shrink-0 font-mono">
-                  {item.formattedPopulation}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {isMulti && <MultiItemsBody items={items} />}
     </div>
   );
 }
+

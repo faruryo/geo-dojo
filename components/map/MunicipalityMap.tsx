@@ -157,7 +157,12 @@ export function MunicipalityMap({
       const isWrong = code ? wrongSet.has(code) : false;
       const isCorrectSuccess = isCorrect && !isIncorrect;
       const fillColor = isCorrect ? '#22c55e' : isWrong ? '#ef4444' : '#3b82f6';
-      const fillOpacity = isCorrectSuccess ? 0.7 : isCorrect || isWrong ? 0.55 : 0.15;
+      let fillOpacity = 0.15;
+      if (isCorrectSuccess) {
+        fillOpacity = 0.7;
+      } else if (isCorrect || isWrong) {
+        fillOpacity = 0.55;
+      }
       return {
         fillColor,
         fillOpacity,

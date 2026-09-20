@@ -4,7 +4,7 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { useQuizActions } from '@/components/quiz/use-quiz-actions';
 import type { Question, SingleQuestion } from '@/components/quiz/use-quiz-session';
-import type { useQuizState } from '@/components/quiz/use-quiz-state';
+import { useQuizState } from '@/components/quiz/use-quiz-state';
 import type { Municipality } from '@/lib/quiz/municipality-data';
 
 (globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -77,44 +77,15 @@ function TestComponent({
   currentQuestion: Question | null;
   onAdvance?: () => void;
 }) {
-  const [feedback, setFeedback] = React.useState<'idle' | 'correct' | 'incorrect'>('idle');
-  const [results, setResults] = React.useState<any[]>([]);
-  const [selectedPrefectures, setSelectedPrefectures] = React.useState<Set<string>>(new Set());
-  const [selectedChoice, setSelectedChoice] = React.useState<string | null>(null);
-  const [correctCodes, setCorrectCodes] = React.useState<string[]>([]);
-  const [wrongCodes, setWrongCodes] = React.useState<string[]>([]);
-  const [modeDFailed, setModeDFailed] = React.useState(false);
-  const [qIdx, setQIdx] = React.useState(0);
-  const startTimeRef = React.useRef<number>(Date.now());
+  const state = useQuizState(10, () => {});
+  const prevQIdxRef = React.useRef(state.qIdx);
 
-  const advanceQuestion = React.useCallback(
-    (updated: any[]) => {
-      setFeedback('idle');
-      setQIdx((prev) => prev + 1);
+  React.useEffect(() => {
+    if (state.qIdx !== prevQIdxRef.current) {
+      prevQIdxRef.current = state.qIdx;
       onAdvance?.();
-    },
-    [onAdvance],
-  );
-
-  const state = {
-    qIdx,
-    feedback,
-    setFeedback,
-    results,
-    setResults,
-    modeDFailed,
-    setModeDFailed,
-    selectedPrefectures,
-    setSelectedPrefectures,
-    selectedChoice,
-    setSelectedChoice,
-    correctCodes,
-    setCorrectCodes,
-    wrongCodes,
-    setWrongCodes,
-    startTimeRef,
-    advanceQuestion,
-  } as unknown as ReturnType<typeof useQuizState>;
+    }
+  }, [state.qIdx, onAdvance]);
 
   const actions = useQuizActions({
     currentQuestion,

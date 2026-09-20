@@ -13,8 +13,9 @@ export interface PraiseStage {
  */
 export function calculateStreak(results: readonly { correct: boolean }[]): number {
   let count = 0;
-  for (let i = results.length - 1; i >= 0; i--) {
-    if (results[i].correct) {
+  const reversed = [...results].reverse();
+  for (const item of reversed) {
+    if (item.correct) {
       count++;
     } else {
       break;
@@ -33,79 +34,22 @@ export function calculateStreak(results: readonly { correct: boolean }[]): numbe
  * - 6連続以降: 「完璧！」(+6半音、通常和音維持、紙吹雪は非表示)
  */
 export function resolvePraiseStage(streak: number): PraiseStage {
-  if (streak <= 0) {
-    return {
-      streak: 0,
-      label: '不正解',
-      showStreakBadge: false,
-      pitchShiftSemitones: 0,
-      isFanfare: false,
-      showConfetti: false,
-    };
+  switch (streak) {
+    case 1:
+      return { streak, label: '正解！', showStreakBadge: false, pitchShiftSemitones: 0, isFanfare: false, showConfetti: false };
+    case 2:
+      return { streak, label: 'いいね！', showStreakBadge: true, pitchShiftSemitones: 2, isFanfare: false, showConfetti: false };
+    case 3:
+      return { streak, label: 'お見事！', showStreakBadge: true, pitchShiftSemitones: 4, isFanfare: false, showConfetti: false };
+    case 4:
+      return { streak, label: 'すごい！', showStreakBadge: true, pitchShiftSemitones: 6, isFanfare: false, showConfetti: false };
+    case 5:
+      return { streak, label: '完璧！', showStreakBadge: true, pitchShiftSemitones: 6, isFanfare: true, showConfetti: true };
+    default:
+      if (streak > 5) {
+        return { streak, label: '完璧！', showStreakBadge: true, pitchShiftSemitones: 6, isFanfare: false, showConfetti: false };
+      }
+      return { streak: 0, label: '不正解', showStreakBadge: false, pitchShiftSemitones: 0, isFanfare: false, showConfetti: false };
   }
-
-  if (streak === 1) {
-    return {
-      streak: 1,
-      label: '正解！',
-      showStreakBadge: false,
-      pitchShiftSemitones: 0,
-      isFanfare: false,
-      showConfetti: false,
-    };
-  }
-
-  if (streak === 2) {
-    return {
-      streak: 2,
-      label: 'いいね！',
-      showStreakBadge: true,
-      pitchShiftSemitones: 2,
-      isFanfare: false,
-      showConfetti: false,
-    };
-  }
-
-  if (streak === 3) {
-    return {
-      streak: 3,
-      label: 'お見事！',
-      showStreakBadge: true,
-      pitchShiftSemitones: 4,
-      isFanfare: false,
-      showConfetti: false,
-    };
-  }
-
-  if (streak === 4) {
-    return {
-      streak: 4,
-      label: 'すごい！',
-      showStreakBadge: true,
-      pitchShiftSemitones: 6,
-      isFanfare: false,
-      showConfetti: false,
-    };
-  }
-
-  if (streak === 5) {
-    return {
-      streak: 5,
-      label: '完璧！',
-      showStreakBadge: true,
-      pitchShiftSemitones: 6,
-      isFanfare: true,
-      showConfetti: true, // FR-006b: 5連続達成時のみ
-    };
-  }
-
-  // 6連続以降
-  return {
-    streak,
-    label: '完璧！',
-    showStreakBadge: true,
-    pitchShiftSemitones: 6,
-    isFanfare: false,
-    showConfetti: false, // 6連続以降は非表示
-  };
 }
+

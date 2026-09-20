@@ -23,6 +23,17 @@ export function formatPopulation(pop: number | null | undefined): string | null 
   return `約${Math.round(pop).toLocaleString('ja-JP')}人`;
 }
 
+function sumDistrictPopulations(list: readonly Municipality[]): number | null {
+  let total = 0;
+  for (const m of list) {
+    if (m.population == null || m.population <= 0) {
+      return null;
+    }
+    total += m.population;
+  }
+  return total;
+}
+
 /**
  * FR-002a: 同一県内に複数区を持つ政令指定都市の人口を合算する。
  * 所属区のいずれか1つでも population が欠損（null/undefined/0）している場合は、
@@ -48,16 +59,7 @@ export function buildDesignatedCityPopulationMap(
 
   for (const [key, list] of groups.entries()) {
     if (list.length >= 2) {
-      let total = 0;
-      let hasMissing = false;
-      for (const m of list) {
-        if (m.population == null || m.population <= 0) {
-          hasMissing = true;
-          break;
-        }
-        total += m.population;
-      }
-      result.set(key, hasMissing ? null : total);
+      result.set(key, sumDistrictPopulations(list));
     }
   }
 
