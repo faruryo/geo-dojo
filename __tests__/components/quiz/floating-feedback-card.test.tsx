@@ -211,4 +211,17 @@ describe('FloatingFeedbackCard (FR-003, FR-006a, FR-006e)', () => {
     expect(host.textContent).toContain('ほっかいどう');
     expect(host.textContent).not.toContain('（北海道）');
   });
+
+  it('applies custom className when specified (e.g. top-1/2 -translate-y-1/2 for Mode B/C popup overlay)', () => {
+    render({
+      isCorrect: true,
+      streak: 1,
+      items: [singleItem],
+      className: 'top-1/2 -translate-y-1/2',
+    });
+
+    const card = host.firstElementChild as HTMLElement;
+    expect(card.className).toContain('top-1/2');
+    expect(card.className).toContain('-translate-y-1/2');
+  });
 });

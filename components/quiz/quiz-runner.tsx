@@ -19,6 +19,7 @@ import { QuizQuestionCard } from './quiz-question-card';
 import { ChoiceView } from './views/choice-view';
 import { ConfettiOverlay } from './effects/confetti-overlay';
 import { ImmersiveQuizView } from './hud/immersive-quiz-view';
+import { FloatingFeedbackCard } from './hud/floating-feedback-card';
 
 export type { Question, ModeAQuestion, SingleQuestion };
 
@@ -30,6 +31,51 @@ export interface QuizRunnerProps {
 }
 
 type QuizSession = ReturnType<typeof useQuizSession>;
+
+function QuestionCardWithFeedback({
+  question,
+  feedback,
+  streak,
+  designatedCityMap,
+  onSkip,
+}: Readonly<{
+  question: SingleQuestion;
+  feedback: QuizSession['feedback'];
+  streak: number;
+  designatedCityMap: Map<string, number | null>;
+  onSkip?: () => void;
+}>) {
+  const { municipality, mode } = question;
+  const promptText =
+    mode === 'B' ? 'この市区町村はどの都道府県？' : `${municipality.prefecture}の市区町村はどれ？`;
+  const feedbackDetail = formatSingleFeedback(municipality, mode);
+  const feedbackItems = resolveFeedbackItems({ mode, municipality, designatedCityMap });
+  const populationText = feedbackItems[0]?.formattedPopulation ?? null;
+
+  return (
+    <div className="relative">
+      <QuizQuestionCard
+        promptText={promptText}
+        title={mode === 'B' ? municipality.name : municipality.prefecture}
+        difficulty={representativeDifficulty([municipality])}
+        feedback="idle"
+        feedbackDetail={feedbackDetail}
+        streak={streak}
+        populationText={populationText}
+      />
+      {feedback !== 'idle' && (
+        <FloatingFeedbackCard
+          className="top-1/2 -translate-y-1/2"
+          isCorrect={feedback === 'correct'}
+          streak={streak}
+          difficulty={municipality.difficulty}
+          items={feedbackItems}
+          onSkip={onSkip}
+        />
+      )}
+    </div>
+  );
+}
 
 /**
  * 4択だけで構成されるセッションの出題画面。
@@ -55,16 +101,11 @@ function ChoiceOnlyQuizView({
     handleChoice,
     streak,
     designatedCityMap,
+    handleSkip,
   } = session;
   if (!currentQuestion || currentQuestion.kind !== 'BCD') return null;
 
   const { municipality, choices, mode } = currentQuestion;
-  const promptText =
-    mode === 'B' ? 'この市区町村はどの都道府県？' : `${municipality.prefecture}の市区町村はどれ？`;
-  const feedbackDetail = formatSingleFeedback(municipality, mode);
-
-  const feedbackItems = resolveFeedbackItems({ mode, municipality, designatedCityMap });
-  const populationText = feedbackItems[0]?.formattedPopulation ?? null;
 
   return (
     <div className="relative flex flex-col h-full gap-2 p-3 max-w-4xl mx-auto">
@@ -78,14 +119,12 @@ function ChoiceOnlyQuizView({
         onAbort={onAbort}
       />
 
-      <QuizQuestionCard
-        promptText={promptText}
-        title={mode === 'B' ? municipality.name : municipality.prefecture}
-        difficulty={representativeDifficulty([municipality])}
+      <QuestionCardWithFeedback
+        question={currentQuestion}
         feedback={feedback}
-        feedbackDetail={feedbackDetail}
         streak={streak}
-        populationText={populationText}
+        designatedCityMap={designatedCityMap}
+        onSkip={handleSkip}
       />
 
       <ChoiceView

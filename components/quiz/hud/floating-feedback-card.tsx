@@ -16,6 +16,8 @@ export interface FloatingFeedbackCardProps {
   readonly items: readonly FeedbackItem[];
   /** カード本体タップ時のスキップハンドラ (FR-004a) */
   readonly onSkip?: () => void;
+  /** 追加クラス名（位置指定のオーバーライド用） */
+  readonly className?: string;
 }
 
 function SingleItemBody({
@@ -155,6 +157,7 @@ export function FloatingFeedbackCard({
   difficulty,
   items,
   onSkip,
+  className,
 }: Readonly<FloatingFeedbackCardProps>) {
   const isMulti = items.length > 1;
   const firstItem = items[0];
@@ -164,10 +167,12 @@ export function FloatingFeedbackCard({
     [firstItem, isCorrect, difficultyLabel, isMulti, items],
   );
 
+  const positionClasses = className ?? 'top-2 md:top-4';
+
   return (
     <div
       onClick={onSkip}
-      className="pointer-events-auto absolute top-2 md:top-4 left-1/2 -translate-x-1/2 z-20 flex w-[calc(100%-32px)] max-w-[340px] md:max-w-[480px] flex-col gap-1 md:gap-2 rounded-xl md:rounded-2xl border border-white/10 bg-[#111111] p-2.5 md:p-4 text-[#fafafa] shadow-lg md:shadow-2xl cursor-pointer max-h-[112px] md:max-h-[160px] select-none"
+      className={`pointer-events-auto absolute left-1/2 -translate-x-1/2 z-20 flex w-[calc(100%-32px)] max-w-[340px] md:max-w-[480px] flex-col gap-1 md:gap-2 rounded-xl md:rounded-2xl border border-white/10 bg-[#111111] p-2.5 md:p-4 text-[#fafafa] shadow-lg md:shadow-2xl cursor-pointer max-h-[112px] md:max-h-[160px] select-none motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 duration-150 ${positionClasses}`}
     >
       <span role="status" aria-live="polite" className="sr-only">
         {srText}
