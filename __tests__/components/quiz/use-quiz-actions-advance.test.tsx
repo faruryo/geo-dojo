@@ -78,14 +78,7 @@ let handle: TestHarnessHandle;
 let host: HTMLDivElement;
 let root: Root;
 
-function TestComponent({
-  currentQuestion,
-  onAdvance,
-}: {
-  currentQuestion: Question | null;
-  onAdvance?: () => void;
-}) {
-  const state = useQuizState(10, () => {});
+function useAdvanceListener(state: ReturnType<typeof useQuizState>, onAdvance?: () => void) {
   const prevQIdxRef = React.useRef(state.qIdx);
 
   React.useEffect(() => {
@@ -94,6 +87,17 @@ function TestComponent({
       onAdvance?.();
     }
   }, [state.qIdx, onAdvance]);
+}
+
+function TestComponent({
+  currentQuestion,
+  onAdvance,
+}: {
+  currentQuestion: Question | null;
+  onAdvance?: () => void;
+}) {
+  const state = useQuizState(10, () => {});
+  useAdvanceListener(state, onAdvance);
 
   const actions = useQuizActions({
     currentQuestion,
@@ -111,14 +115,7 @@ function TestComponentWithModeA({
   onAdvance?: () => void;
 }) {
   const state = useQuizState(10, () => {});
-  const prevQIdxRef = React.useRef(state.qIdx);
-
-  React.useEffect(() => {
-    if (state.qIdx !== prevQIdxRef.current) {
-      prevQIdxRef.current = state.qIdx;
-      onAdvance?.();
-    }
-  }, [state.qIdx, onAdvance]);
+  useAdvanceListener(state, onAdvance);
 
   const actions = useQuizActions({
     currentQuestion: mockQuestionA,
@@ -154,20 +151,22 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+async function setupAnsweredQuestion(onAdvance = vi.fn()) {
+  act(() => {
+    root.render(<TestComponent currentQuestion={mockQuestionB} onAdvance={onAdvance} />);
+  });
+
+  await act(async () => {
+    await handle.actions.handleChoice('北海道', 'B');
+  });
+
+  expect(onAdvance).not.toHaveBeenCalled();
+  return { onAdvance };
+}
+
 describe('useQuizActions: 進行制御・スキップ・誤タップガード (US2)', () => {
   it('自動遷移が一律 2.0秒 (2000ms) に統一されている (FR-004e)', async () => {
-    const onAdvance = vi.fn();
-    act(() => {
-      root.render(<TestComponent currentQuestion={mockQuestionB} onAdvance={onAdvance} />);
-    });
-
-    // 解答アクションを実行 (Mode B)
-    await act(async () => {
-      await handle.actions.handleChoice('北海道', 'B');
-    });
-
-    // 解答直後は保存が完了してフィードバック中だが、まだ遷移していない
-    expect(onAdvance).not.toHaveBeenCalled();
+    const { onAdvance } = await setupAnsweredQuestion();
 
     // 1999ms 経過時点でもまだ遷移しない
     act(() => {
@@ -216,16 +215,7 @@ describe('useQuizActions: 進行制御・スキップ・誤タップガード (U
   });
 
   it('保存完了後の待機時間中にスキップ要求で即座に次問へ遷移する (FR-004a, SC-004)', async () => {
-    const onAdvance = vi.fn();
-    act(() => {
-      root.render(<TestComponent currentQuestion={mockQuestionB} onAdvance={onAdvance} />);
-    });
-
-    await act(async () => {
-      await handle.actions.handleChoice('北海道', 'B');
-    });
-
-    expect(onAdvance).not.toHaveBeenCalled();
+    const { onAdvance } = await setupAnsweredQuestion();
 
     // 待機中にスキップ要求を呼ぶ
     act(() => {
@@ -237,14 +227,7 @@ describe('useQuizActions: 進行制御・スキップ・誤タップガード (U
   });
 
   it('次問切り替え直後 250ms 間はすべての回答入力を無視する誤タップガード (FR-004d)', async () => {
-    const onAdvance = vi.fn();
-    act(() => {
-      root.render(<TestComponent currentQuestion={mockQuestionB} onAdvance={onAdvance} />);
-    });
-
-    await act(async () => {
-      await handle.actions.handleChoice('北海道', 'B');
-    });
+    const { onAdvance } = await setupAnsweredQuestion();
 
     // 2000ms 経過で次問へ遷移
     act(() => {
@@ -276,16 +259,7 @@ describe('useQuizActions: 進行制御・スキップ・誤タップガード (U
   });
 
   it('キーボード Space/Enter でスキップでき、event.repeat は無視される (FR-004a, FR-004c)', async () => {
-    const onAdvance = vi.fn();
-    act(() => {
-      root.render(<TestComponent currentQuestion={mockQuestionB} onAdvance={onAdvance} />);
-    });
-
-    await act(async () => {
-      await handle.actions.handleChoice('北海道', 'B');
-    });
-
-    expect(onAdvance).not.toHaveBeenCalled();
+    const { onAdvance } = await setupAnsweredQuestion();
 
     // event.repeat === true のキーイベントは無視される
     act(() => {
