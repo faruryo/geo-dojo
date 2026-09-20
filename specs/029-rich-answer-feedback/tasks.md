@@ -100,15 +100,27 @@
 
 ---
 
-## Phase 6: Polish & Cross-Cutting Concerns
+## Phase 6: Prefecture Quiz & PC Responsive Layout (P3 Extension)
+
+**Purpose**: 都道府県クイズへのフィードバック演出展開、地図フレーミング連動、PC画面レイアウト最適化、およびレビュー指摘事項の反映
+
+- [x] T027 都道府県クイズ（`app/(app)/quiz/prefecture/page.tsx`）へのリッチフィードバック適用（和音SE、5連続紙吹雪、通常2.0s・タイムアタック500ms/900ms進行制御）
+- [x] T028 PC / デスクトップ表示（`md:`）向けフローティングカード最適化（`md:max-w-[480px]`, `md:max-h-[160px]`, 文字サイズ拡大）
+- [x] T029 都道府県クイズで誤答後の次問遷移時に地図拡大フレーミングがリセットされないバグの修正（`JapanMap` への `qIdx={currentIndex}` 提供、FR-007c 整合）および回帰テスト作成（`__tests__/components/quiz/prefecture-quiz-feedback.test.tsx`）
+- [x] T030 同名多県（池田町等）のよみがな接尾辞保持（北海道「いけだちょう」、長野県「いけだまち」等のフルかな維持・FR-002c遵守）およびスクリーンリーダー案内対応・テスト拡充
+- [x] T031 `QuizQuestionCard` の不要な計算・デッドコード整理（お題表示単一責務の徹底、`quiz-runner.tsx` からの `formatSingleFeedback` 呼び出し削除）
+
+---
+
+## Phase 7: Polish & Cross-Cutting Concerns
 
 **Purpose**: ドキュメント、型検査、Lint Ratchet、テスト全通過、ロングタスク実機手動検証
 
-- [x] T027 [P] `AGENTS.md` の関連ドキュメント更新（マスターデータの population 利用の反映）
-- [x] T028 全体テストスイートの実行（`pnpm test`）による全テスト通過確認
-- [x] T029 TypeScript strict 型検査（`pnpm type-check`）のパス確認
-- [x] T030 ESLint および ratchet 検査（`pnpm lint`, `pnpm lint:ratchet`）のパス確認
-- [x] T031 `specs/029-rich-answer-feedback/quickstart.md` の手動検証シナリオ（シナリオ1・2・3、375px幅実機）および SC-004（50ms以内遷移開始）、SC-005（Chrome DevTools Performance パネルで 50ms 超ロングタスクのないことの確認）の通し検証
+- [x] T032 [P] `AGENTS.md` の関連ドキュメント更新（マスターデータの population 利用の反映）
+- [x] T033 全体テストスイートの実行（`pnpm test`）による全テスト通過確認
+- [x] T034 TypeScript strict 型検査（`pnpm type-check`）のパス確認
+- [x] T035 ESLint および ratchet 検査（`pnpm lint`, `pnpm lint:ratchet`）のパス確認
+- [x] T036 `specs/029-rich-answer-feedback/quickstart.md` の手動検証シナリオ（シナリオ1・2・3、375px幅実機）および SC-004（50ms以内遷移開始）、SC-005（Chrome DevTools Performance パネルで 50ms 超ロングタスクのないことの確認）の通し検証
 
 ---
 
@@ -122,7 +134,8 @@ flowchart TD
     P2 --> P3[Phase 3: US1 補足情報・HUD 0px]
     P3 --> P4[Phase 4: US2 進行制御・スキップ]
     P4 --> P5[Phase 5: US3 演出・和音・紙吹雪]
-    P5 --> P6[Phase 6: Polish & Cross-Cutting]
+    P5 --> P6[Phase 6: 都道府県クイズ & PC対応]
+    P6 --> P7[Phase 7: Polish & Cross-Cutting]
 ```
 
 - **Phase 1 (Setup)**: 依存関係なし、即時着手可能。
@@ -130,7 +143,8 @@ flowchart TD
 - **Phase 3 (US1: P1 🎯 MVP)**: Phase 2 完了後に着手。帯 0px 固定とお題据え置きを同時適用し、既存データで完結する安全な表示基盤を確立。
 - **Phase 4 (US2: P2)**: Phase 3 完了後に着手。US1 のカード表示にスキップ・進行制御を結合。
 - **Phase 5 (US3: P3)**: Phase 4 完了後に着手。進行制御の上で和音 SE・紙吹雪演出を統合。
-- **Phase 6 (Polish)**: Phase 5 完了後に着手。品質ゲート・回帰検証。
+- **Phase 6 (Prefecture & PC)**: Phase 5 完了後に着手。都道府県クイズ展開、PC最適化、レビュー指摘（フレーミングリセット、よみがな保持、デッドコード整理）を反映。
+- **Phase 7 (Polish)**: Phase 6 完了後に着手。品質ゲート・回帰検証。
 
 ### Parallel Opportunities
 

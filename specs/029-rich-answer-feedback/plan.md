@@ -8,9 +8,9 @@
 
 ## Summary
 
-クイズ解答後フィードバックにおいて、正解の達成感を高める音・視覚演出と、地理学習を深める補足情報（難易度・人口・よみがな）を両立して提供する。
-実機 375px プロトタイプ検証に基づき、下部帯（`BottomHud`）はお題据え置き（出題中 idle 高さ 44px / Mode A 52px 完全固定・解答瞬間の地図コンテナリサイズ 0px）とし、答えと補足情報は `TopHud` 直下の不透明フローティングカード（最大幅 340px、最大高 112px）に集約する。
-反復学習のテンポを崩さないため、スキップ操作（帯タップ・カードタップ・Spaceキー）と次問切り替え直後 250ms の誤タップガードを導入し、連続正解（Streak）に応じた段階的ピッチ上昇和音 SE、および 5連続正解達成時のみ発火する CSS 紙吹雪演出を提供する。
+クイズ解答後フィードバックにおいて、正解の達成感を高める音・視覚演出と、地理学習を深める補足情報（難易度・人口・よみがな）を両立して提供する。市区町村クイズ（A〜D、復習）に加え、都道府県クイズ（通常モード・タイムアタックモード）にも統一適用する。
+実機 375px プロトタイプ検証に基づき、下部帯（`BottomHud`）はお題据え置き（出題中 idle 高さ 44px / Mode A 52px 完全固定・解答瞬間の地図コンテナリサイズ 0px）とし、答えと補足情報は `TopHud` 直下の不透明フローティングカード（モバイル: 最大幅 340px、最大高 112px / PC版 `md:`: 最大幅 480px、最大高 160px）に集約する。
+反復学習のテンポを崩さないため、スキップ操作（帯タップ・カードタップ・Spaceキー）と次問切り替え直後 250ms の誤タップガードを導入し、連続正解（Streak）に応じた段階的ピッチ上昇和音 SE、および 5連続正解達成時のみ発火する CSS 紙吹雪演出を提供する。都道府県クイズでは問題進行（`qIdx` 変化）に応じた地図拡大フレーミングの確実なリセットを保証する。
 
 実装はリスク昇順の順序を厳守し、**US1（補足情報表示・HUD 0px 不変条件）→ US2（進行制御・スキップ・誤タップガード）→ US3（演出・和音 SE・紙吹雪・a11y）** の 3 フェーズで推進する。
 
@@ -22,7 +22,7 @@
 **Primary Dependencies**: Next.js 15.2.6 (App Router / React 19), Tailwind CSS v4, Lucide React, Web Audio API (native, oscillator synthesis)  
 **Storage**: Supabase (PostgreSQL) + Drizzle ORM（本機能での新規スキーマ変更なし。既存の `municipality_master.population` 列を使用）  
 **Testing**: Vitest (`pnpm test`), TypeScript check (`pnpm type-check`), ESLint (`pnpm lint`, `pnpm lint:ratchet`)  
-**Target Platform**: Mobile Web / PWA (375px mobile-first, Safari / Chrome)  
+**Target Platform**: Mobile Web / PWA (375px mobile-first, Safari / Chrome) & Desktop (`md:` 768px+)  
 **Project Type**: Next.js Web Application / PWA  
 **Performance Goals**: 375px 実機において 50ms 超のロングタスク（フレーム落ち）ゼロ。スキップ入力から 50ms 以内の次問遷移開始。  
 **Constraints**: 
@@ -30,7 +30,9 @@
 - 紙吹雪演出は外部ライブラリ不使用、純粋 CSS による軽量 DOM パーティクル。
 - 紙吹雪の発火条件は **5連続達成時のみ（`streak === 5`）**、6連続以降は非表示（1セッション最大1回）。
 - 次問切り替え直後 250ms 間は全モード共通で回答入力を無視（誤タップガード）。
-- 自動遷移時間は保存完了後一律 2.0秒（2,000ms）。
+- 自動遷移時間は保存完了後一律 2.0秒（2,000ms）。都道府県クイズのタイムアタックモードは正解 500ms、誤答 900ms。
+- 都道府県クイズで誤答時に地図が拡大した場合、次問進行時に確実に拡大フレーミングをリセット（`qIdx` 連動）。
+- PC画面（`md:` 768px以上）ではカードサイズを最大幅 480px、最大高 160px に拡大。
 - `prefers-reduced-motion: reduce` の完全尊重。
 - スクリーンリーダー（`aria-live="polite"`）では 2.0s 内に確実に読み終えるため連続正解数は除外。
 
@@ -191,9 +193,24 @@ __tests__/
 
 ---
 
+### Phase 4: 都道府県クイズ適用 & PC 大画面レイアウト最適化
+
+- **目標**: 都道府県クイズ（`/quiz/prefecture`）への達成感・フィードバック統一適用と、PC画面（`md:`）での視認性向上。
+- **タスク内容**:
+  1. 都道府県クイズ（`app/(app)/quiz/prefecture/page.tsx`）への統合:
+     - `FloatingFeedbackCard`、和音 SE、`ConfettiOverlay`（5連続）、パルス演出を組み込み。
+     - 進行制御: 通常モード（2.0s）、タイムアタックモード（正解 500ms / 誤答 900ms）。
+     - 地図フレーミングリセット: `JapanMap` に `qIdx={currentIndex}` を渡し、次問遷移時に確実に拡大状態をリセット（FR-007c）。
+  2. PC / デスクトップ表示（`md:` 768px以上）の最適化:
+     - `FloatingFeedbackCard` に `md:max-w-[480px]` / `md:max-h-[160px]`、文字サイズ拡大（`md:text-base` / `md:text-lg`）を適用。
+  3. テストの拡充:
+     - 都道府県クイズのフィードバック・進行・拡大リセット検証（`prefecture-quiz-feedback.test.tsx`）。
+
+---
+
 ## Verification & Quality Assurance
 
 - **全テスト通過**: `pnpm test`
 - **厳格型検査**: `pnpm type-check`
 - **Lint / Ratchet 検査**: `pnpm lint`, `pnpm lint:ratchet`
-- **手動動作確認**: `quickstart.md` に定義されたシナリオ 1・2・3 の実機 375px 検証
+- **手動動作確認**: `quickstart.md` に定義されたシナリオ 1・2・3 の実機 375px 検証および PC 画面表示検証

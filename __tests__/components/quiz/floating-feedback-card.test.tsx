@@ -105,11 +105,18 @@ describe('FloatingFeedbackCard (FR-003, FR-006a, FR-006e)', () => {
     expect(host.textContent).toContain('2連続');
     expect(host.textContent).toContain('☆☆☆☆ 達人');
     expect(host.textContent).toContain('北海道');
-    expect(host.textContent).toContain('福井県');
+    expect(host.textContent).toContain('(いけだちょう)');
     expect(host.textContent).toContain('長野県');
+    expect(host.textContent).toContain('(いけだまち)');
+    expect(host.textContent).toContain('福井県');
     expect(host.textContent).toContain('岐阜県');
     expect(host.textContent).toContain('約6,320人');
     expect(host.textContent).toContain('約1.4万人');
+
+    // スクリーンリーダー読み上げテキストにも各県の読み仮名（長野県(いけだまち)など）が含まれること (FR-002c, FR-006e)
+    const srElement = host.querySelector('[role="status"]');
+    expect(srElement?.textContent).toContain('長野県(いけだまち)');
+    expect(srElement?.textContent).toContain('北海道(いけだちょう)');
   });
 
   it('omits population display when population is missing/null', () => {

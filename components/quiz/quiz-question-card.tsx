@@ -10,7 +10,7 @@ interface QuizQuestionCardProps {
   readonly title: string;
   readonly subTitle?: string;
   readonly difficulty?: Difficulty;
-  readonly feedback: FeedbackState;
+  readonly feedback?: FeedbackState;
   readonly feedbackDetail?: string;
   readonly extraPrompt?: React.ReactNode;
   readonly streak?: number;
@@ -32,7 +32,7 @@ export function QuizQuestionCard({
   title,
   subTitle,
   difficulty,
-  feedback,
+  feedback = 'idle',
   feedbackDetail,
   extraPrompt,
   streak = 0,

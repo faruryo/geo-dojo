@@ -25,12 +25,14 @@ vi.mock('next/dynamic', () => ({
       onPrefectureClick: (name: string) => void;
       highlightCorrect?: string;
       isIncorrect?: boolean;
+      qIdx?: number;
     }) {
       return (
         <div
           data-testid="japan-map"
           data-highlight={props.highlightCorrect}
           data-is-incorrect={String(props.isIncorrect)}
+          data-q-idx={String(props.qIdx)}
         >
           <button type="button" onClick={() => props.onPrefectureClick('神奈川県')}>
             神奈川県
@@ -167,11 +169,13 @@ describe('PrefectureQuizPage: リッチフィードバック演出と進行制�
     expect(host.textContent).toContain('東京都');
   });
 
-  it('誤答時に playSe("incorrect") が呼ばれ、streak が 0 にリセットされ、isIncorrect が JapanMap に渡る', () => {
+  it('誤答時に playSe("incorrect") が呼ばれ、streak が 0 にリセットされ、JapanMap に isIncorrect と qIdx が渡る', () => {
     startQuiz();
 
-    // 1問目（神奈川県）にお題と異なる東京都をタップ（誤答）
     const map = host.querySelector('[data-testid="japan-map"]') as HTMLElement;
+    expect(map.getAttribute('data-q-idx')).toBe('0');
+
+    // 1問目（神奈川県）にお題と異なる東京都をタップ（誤答）
     const tokyoBtn = map.querySelectorAll('button').item(1);
     expect(tokyoBtn).not.toBeNull();
     act(() => {
@@ -181,6 +185,16 @@ describe('PrefectureQuizPage: リッチフィードバック演出と進行制�
     expect(mockPlaySe).toHaveBeenCalledWith('incorrect');
     expect(host.textContent).toContain('✗ 不正解');
     expect(map.getAttribute('data-is-incorrect')).toBe('true');
+    expect(map.getAttribute('data-q-idx')).toBe('0');
+
+    // スキップで次問へ
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', repeat: false }));
+    });
+
+    // 2問目へ遷移したとき、qIdx が 1 に更新され、isIncorrect が解除される
+    expect(map.getAttribute('data-q-idx')).toBe('1');
+    expect(map.getAttribute('data-is-incorrect')).toBe('false');
   });
 
   it('次問遷移後 250ms 以内のタップは誤タップ防止ガードにより無視される', () => {

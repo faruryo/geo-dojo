@@ -586,6 +586,7 @@ export default function PrefectureQuizPage() {
           highlightCorrect={feedback !== 'none' ? target : undefined}
           highlightWrong={feedback === 'wrong' && selected ? selected : undefined}
           isIncorrect={feedback === 'wrong'}
+          qIdx={currentIndex}
         />
 
         {feedback === 'correct' && streak === 5 && (

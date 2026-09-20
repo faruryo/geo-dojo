@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo } from 'react';
 import { representativeDifficulty, type Municipality } from '@/lib/quiz/municipality-data';
-import { formatSingleFeedback } from '@/lib/quiz/feedback-labels';
 import { resolveFeedbackItems } from '@/lib/quiz/municipality-population';
 import { sessionUsesImmersiveLayout } from '@/lib/quiz/immersive-layout';
 import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
@@ -48,9 +47,7 @@ function QuestionCardWithFeedback({
   const { municipality, mode } = question;
   const promptText =
     mode === 'B' ? 'この市区町村はどの都道府県？' : `${municipality.prefecture}の市区町村はどれ？`;
-  const feedbackDetail = formatSingleFeedback(municipality, mode);
   const feedbackItems = resolveFeedbackItems({ mode, municipality, designatedCityMap });
-  const populationText = feedbackItems[0]?.formattedPopulation ?? null;
 
   return (
     <div className="relative">
@@ -58,10 +55,6 @@ function QuestionCardWithFeedback({
         promptText={promptText}
         title={mode === 'B' ? municipality.name : municipality.prefecture}
         difficulty={representativeDifficulty([municipality])}
-        feedback="idle"
-        feedbackDetail={feedbackDetail}
-        streak={streak}
-        populationText={populationText}
       />
       {feedback !== 'idle' && (
         <FloatingFeedbackCard

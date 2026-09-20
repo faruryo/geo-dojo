@@ -62,7 +62,7 @@ function MultiItemsBody({ items }: Readonly<{ items: readonly FeedbackItem[] }>)
             {item.prefecture}
             {item.kana && (
               <span className="text-[10px] md:text-xs text-white/60 ml-0.5">
-                ({item.kana.replace(/(ちょう|まち|し|く|そん|むら)$/, '')})
+                ({item.kana})
               </span>
             )}
           </span>
@@ -99,15 +99,25 @@ function buildSrText(
   items: readonly FeedbackItem[],
 ): string {
   if (!firstItem) return '';
+  const prefix = isCorrect ? '正解！' : '不正解。正解は';
   const diffText = difficultyLabel ? `難易度: ${difficultyLabel}、` : '';
+
+  if (isMulti && items.length > 1) {
+    const details = items
+      .map((item) => {
+        const kana = item.kana ? `(${item.kana})` : '';
+        const pop = item.formattedPopulation ? ` 人口: ${item.formattedPopulation}` : '';
+        return `${item.prefecture}${kana}${pop}`;
+      })
+      .join('、');
+    return `${prefix} ${firstItem.name}。${details}。${diffText}`;
+  }
+
   const popText = firstItem.formattedPopulation ? `人口: ${firstItem.formattedPopulation}` : '';
   const kanaText = firstItem.kana ? `${firstItem.kana}、` : '';
   const prefText = formatPrefectureText(firstItem, isMulti, items);
 
-  if (isCorrect) {
-    return `正解！ ${firstItem.name}${prefText}、${kanaText}${diffText}${popText}`;
-  }
-  return `不正解。正解は${firstItem.name}${prefText}、${kanaText}${diffText}${popText}`;
+  return `${prefix} ${firstItem.name}${prefText}、${kanaText}${diffText}${popText}`;
 }
 
 function FeedbackHeader({
