@@ -7,7 +7,7 @@ export interface UseModeAShortcutsOptions {
   readonly enabled?: boolean;
   readonly canSubmit: boolean;
   readonly feedback: FeedbackState;
-  readonly onSubmit: () => void;
+  readonly onSubmit: () => void | Promise<void>;
   readonly onClear: () => void;
 }
 
@@ -52,7 +52,7 @@ export function useModeAShortcuts({
   onClear,
 }: UseModeAShortcutsOptions) {
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || feedback !== 'idle') return;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented) return;
@@ -62,26 +62,17 @@ export function useModeAShortcuts({
         return;
       }
 
-      const isConfirmKey = event.key === ' ' || event.code === 'Space' || event.key === 'Enter';
-      if (isConfirmKey && isNonSubmitButton(target)) {
-        return;
-      }
+      const isSpace = event.key === ' ' || event.code === 'Space';
+      const isEnter = event.key === 'Enter';
 
-      if (event.key === ' ' || event.code === 'Space') {
+      if (isSpace || isEnter) {
+        if (isNonSubmitButton(target)) return;
         event.preventDefault();
-        if (feedback === 'idle' && canSubmit) onSubmit();
+        if (canSubmit) void onSubmit();
         return;
       }
 
-      if (event.key === 'Enter') {
-        if (feedback === 'idle' && canSubmit) {
-          event.preventDefault();
-          onSubmit();
-        }
-        return;
-      }
-
-      if (event.key === 'Escape' && feedback === 'idle') {
+      if (event.key === 'Escape') {
         event.preventDefault();
         onClear();
       }

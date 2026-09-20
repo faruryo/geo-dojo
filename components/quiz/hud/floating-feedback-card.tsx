@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { DIFFICULTY_LABEL, type Difficulty } from '@/lib/quiz/municipality-data';
+import { formatDifficulty, type Difficulty } from '@/lib/quiz/municipality-data';
 import type { FeedbackItem } from '@/lib/quiz/municipality-population';
 import { resolvePraiseStage } from '@/lib/quiz/streak';
 
@@ -16,22 +16,6 @@ export interface FloatingFeedbackCardProps {
   readonly items: readonly FeedbackItem[];
   /** カード本体タップ時のスキップハンドラ (FR-004a) */
   readonly onSkip?: () => void;
-}
-
-function formatDifficultyLabel(difficulty?: Difficulty): string {
-  if (!difficulty) return '';
-  switch (difficulty) {
-    case 'easy':
-      return DIFFICULTY_LABEL.easy;
-    case 'medium':
-      return DIFFICULTY_LABEL.medium;
-    case 'hard':
-      return DIFFICULTY_LABEL.hard;
-    case 'expert':
-      return DIFFICULTY_LABEL.expert;
-    default:
-      return '';
-  }
 }
 
 function SingleItemBody({
@@ -160,7 +144,7 @@ export function FloatingFeedbackCard({
 }: Readonly<FloatingFeedbackCardProps>) {
   const isMulti = items.length > 1;
   const firstItem = items[0];
-  const difficultyLabel = formatDifficultyLabel(difficulty);
+  const difficultyLabel = formatDifficulty(difficulty);
   const srText = React.useMemo(
     () => buildSrText(firstItem, isCorrect, isMulti, difficultyLabel, items),
     [firstItem, isCorrect, difficultyLabel, isMulti, items],

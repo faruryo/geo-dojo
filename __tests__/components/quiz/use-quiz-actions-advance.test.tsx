@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { useQuizActions } from '@/components/quiz/use-quiz-actions';
-import type { Question, SingleQuestion } from '@/components/quiz/use-quiz-session';
+import type { ModeAQuestion, Question, SingleQuestion } from '@/components/quiz/use-quiz-session';
 import { useQuizState } from '@/components/quiz/use-quiz-state';
+import { useModeAShortcuts } from '@/components/quiz/hud/use-mode-a-shortcuts';
 import type { Municipality } from '@/lib/quiz/municipality-data';
 
 (globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -61,6 +62,13 @@ const mockQuestionB: SingleQuestion = {
   choices: ['北海道', '青森県', '秋田県', '岩手県'],
 };
 
+const mockQuestionA: ModeAQuestion = {
+  kind: 'A',
+  name: '中央区',
+  instances: [sampleMuni()],
+  correctPrefectures: new Set(['北海道']),
+};
+
 interface TestHarnessHandle {
   actions: ReturnType<typeof useQuizActions>;
   state: ReturnType<typeof useQuizState>;
@@ -91,6 +99,41 @@ function TestComponent({
     currentQuestion,
     allMunicipalities: [mockQuestionB.municipality],
     state,
+  });
+
+  handle = { actions, state };
+  return null;
+}
+
+function TestComponentWithModeA({
+  onAdvance,
+}: {
+  onAdvance?: () => void;
+}) {
+  const state = useQuizState(10, () => {});
+  const prevQIdxRef = React.useRef(state.qIdx);
+
+  React.useEffect(() => {
+    if (state.qIdx !== prevQIdxRef.current) {
+      prevQIdxRef.current = state.qIdx;
+      onAdvance?.();
+    }
+  }, [state.qIdx, onAdvance]);
+
+  const actions = useQuizActions({
+    currentQuestion: mockQuestionA,
+    allMunicipalities: mockQuestionA.instances,
+    state,
+  });
+
+  useModeAShortcuts({
+    canSubmit: state.selectedPrefectures.size > 0,
+    feedback: state.feedback,
+    onSubmit: () => {
+      void actions.handleModeASubmit();
+    },
+    onClear: () => state.setSelectedPrefectures(new Set()),
+    enabled: true,
   });
 
   handle = { actions, state };
@@ -313,6 +356,33 @@ describe('useQuizActions: 進行制御・スキップ・誤タップガード (U
       vi.advanceTimersByTime(201);
     });
     expect(handle.actions.isTapGuarded()).toBe(false);
+  });
+
+  it('Mode A で useModeAShortcuts と併存時も Space キーで正しくスキップできる (M-4, FR-004a, FR-004c)', async () => {
+    const onAdvance = vi.fn();
+    act(() => {
+      root.render(<TestComponentWithModeA onAdvance={onAdvance} />);
+    });
+
+    // 北海道を選択
+    act(() => {
+      handle.state.setSelectedPrefectures(new Set(['北海道']));
+    });
+
+    // Space で解答確定
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space' }));
+    });
+
+    expect(handle.state.feedback).toBe('correct');
+    expect(onAdvance).not.toHaveBeenCalled();
+
+    // 正解フィードバック中に Space を押すと、useModeAShortcuts を通過して useFeedbackKeyboardSkip により即時スキップされる
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', repeat: false }));
+    });
+
+    expect(onAdvance).toHaveBeenCalledTimes(1);
   });
 });
 

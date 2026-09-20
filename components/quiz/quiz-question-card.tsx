@@ -1,7 +1,7 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
-import { DIFFICULTY_LABEL, type Difficulty } from '@/lib/quiz/municipality-data';
+import { formatDifficulty, type Difficulty } from '@/lib/quiz/municipality-data';
 import { resolvePraiseStage } from '@/lib/quiz/streak';
 import type { FeedbackState } from './use-quiz-session';
 
@@ -18,22 +18,8 @@ interface QuizQuestionCardProps {
 }
 
 function getDifficultyBadge(difficulty?: Difficulty) {
-  if (!difficulty) return null;
-  let label = '';
-  switch (difficulty) {
-    case 'easy':
-      label = DIFFICULTY_LABEL.easy;
-      break;
-    case 'medium':
-      label = DIFFICULTY_LABEL.medium;
-      break;
-    case 'hard':
-      label = DIFFICULTY_LABEL.hard;
-      break;
-    case 'expert':
-      label = DIFFICULTY_LABEL.expert;
-      break;
-  }
+  const label = formatDifficulty(difficulty);
+  if (!label) return null;
   return (
     <Badge variant="secondary" className="mb-1">
       {label}
