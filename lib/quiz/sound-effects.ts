@@ -31,7 +31,7 @@ export function completionSeEvent(results: { correct: boolean }[]): 'perfect' | 
   return results.length > 0 && results.every((r) => r.correct) ? 'perfect' : 'complete';
 }
 
-interface Tone {
+export interface Tone {
   frequency: number;
   startAt: number;
   duration: number;
@@ -39,11 +39,59 @@ interface Tone {
   peakGain: number;
 }
 
+export interface CorrectSeOptions {
+  /** 連続正解数（1〜）。未指定時は 1 として扱う */
+  readonly streak?: number;
+}
+
+export const CHORD_TOTAL_DURATION_SEC = 0.28;
+export const FANFARE_TOTAL_DURATION_SEC = 0.34;
+
+const BASE_CHORD_FREQS = [1046.5, 1318.51, 1567.98]; // C6, E6, G6
+
+export function getChordTones(streak: number = 1): Tone[] {
+  if (streak === 5) {
+    // 5連続達成時ファンファーレ (FR-005c)
+    return [
+      { frequency: 1046.5, startAt: 0.0, duration: 0.08, type: 'triangle', peakGain: 0.4 },
+      { frequency: 1318.51, startAt: 0.06, duration: 0.08, type: 'triangle', peakGain: 0.4 },
+      { frequency: 1567.98, startAt: 0.12, duration: 0.08, type: 'triangle', peakGain: 0.4 },
+      { frequency: 2093.0, startAt: 0.18, duration: 0.16, type: 'sine', peakGain: 0.45 },
+      { frequency: 1567.98, startAt: 0.18, duration: 0.16, type: 'triangle', peakGain: 0.35 },
+    ];
+  }
+
+  // 1〜4問目および6問目以降: メジャーコード和音 (FR-005b)
+  const shiftSemitones = Math.min(3, Math.max(0, streak - 1)) * 2;
+  const multiplier = Math.pow(2, shiftSemitones / 12);
+
+  return [
+    {
+      frequency: BASE_CHORD_FREQS[0] * multiplier,
+      startAt: 0,
+      duration: CHORD_TOTAL_DURATION_SEC,
+      type: 'sine',
+      peakGain: 0.35,
+    },
+    {
+      frequency: BASE_CHORD_FREQS[1] * multiplier,
+      startAt: 0,
+      duration: CHORD_TOTAL_DURATION_SEC,
+      type: 'sine',
+      peakGain: 0.35,
+    },
+    {
+      frequency: BASE_CHORD_FREQS[2] * multiplier,
+      startAt: 0,
+      duration: CHORD_TOTAL_DURATION_SEC,
+      type: 'sine',
+      peakGain: 0.3,
+    },
+  ];
+}
+
 const SE_TONES: Record<SeEvent, Tone[]> = {
-  correct: [
-    { frequency: 659.25, startAt: 0, duration: 0.09, type: 'sine', peakGain: 0.95 },
-    { frequency: 880, startAt: 0.09, duration: 0.14, type: 'sine', peakGain: 0.95 },
-  ],
+  correct: getChordTones(1),
   incorrect: [
     { frequency: 196, startAt: 0, duration: 0.18, type: 'triangle', peakGain: 0.9 },
   ],
@@ -151,7 +199,11 @@ export function registerAudioUnlockListener(): void {
   window.addEventListener('touchstart', onUserGesture, { passive: true });
 }
 
-export function playSe(event: SeEvent): void {
+export function playCorrectSe(options?: CorrectSeOptions): void {
+  playSe('correct', options);
+}
+
+export function playSe(event: SeEvent, options?: CorrectSeOptions): void {
   try {
     if (isSoundMuted()) return;
     if (typeof window === 'undefined' || typeof window.AudioContext !== 'function') return;
@@ -175,7 +227,9 @@ export function playSe(event: SeEvent): void {
       }
     }
     const now = ctx.currentTime;
-    for (const tone of SE_TONES[event]) {
+    const tones =
+      event === 'correct' ? getChordTones(options?.streak ?? 1) : SE_TONES[event];
+    for (const tone of tones) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       const node = { osc, gain };

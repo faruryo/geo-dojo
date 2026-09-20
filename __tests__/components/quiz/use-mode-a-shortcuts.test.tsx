@@ -105,13 +105,15 @@ describe('useModeAShortcuts: Space / Enter キーでの即時解答確定', () =
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('feedback !== idle（正誤判定表示中）のとき、Space / Enter キーを押しても onSubmit は呼ばれない', () => {
+  it('feedback !== idle（正誤判定表示中）のとき、Space / Enter キーを押しても onSubmit は呼ばれず、preventDefault も呼ばれない（スキップに譲る）', () => {
     const { onSubmit } = render({ canSubmit: true, feedback: 'correct' });
 
-    fireKey(' ', 'Space');
-    fireKey('Enter', 'Enter');
+    const spaceEvent = fireKey(' ', 'Space');
+    const enterEvent = fireKey('Enter', 'Enter');
 
     expect(onSubmit).not.toHaveBeenCalled();
+    expect(spaceEvent.defaultPrevented).toBe(false);
+    expect(enterEvent.defaultPrevented).toBe(false);
   });
 
   it('enabled === false のとき、Space / Enter キーを押しても onSubmit は呼ばれない', () => {

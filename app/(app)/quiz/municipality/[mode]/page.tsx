@@ -167,6 +167,7 @@ export default function MunicipalityQuizPage() {
         region: m.region,
         difficulty: m.difficulty as Difficulty,
         kana: m.kana ?? undefined,
+        population: m.population ?? undefined,
       })),
     [masterData],
   );

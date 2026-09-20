@@ -46,6 +46,7 @@ export default function ReviewPage() {
         region: m.region,
         difficulty: m.difficulty as Difficulty,
         kana: m.kana ?? undefined,
+        population: m.population ?? undefined,
       })),
     [masterData],
   );

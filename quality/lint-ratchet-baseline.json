@@ -184,7 +184,7 @@
     {
       "file": "components/map/JapanMap.tsx",
       "rule": "sonarjs/no-nested-conditional",
-      "count": 5
+      "count": 1
     },
     {
       "file": "components/map/JapanMap.tsx",

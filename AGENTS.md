@@ -1,14 +1,14 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/025-detailed-analytics/plan.md
+at specs/029-rich-answer-feedback/plan.md
 
 Backlog（将来の spec 候補）は specs/backlog.md に管理
 <!-- SPECKIT END -->
 
 # geo-dojo
 
-日本の地理クイズ PWA。市区町村・都道府県の位置当てクイズと、苦手・適応型の出題推薦を提供する。詳細設計は `specs/<feature>/plan.md`（最新: `specs/017-answer-time-recording/plan.md`）を参照。
+日本の地理クイズ PWA。市区町村・都道府県の位置当てクイズと、苦手・適応型の出題推薦を提供する。詳細設計は `specs/<feature>/plan.md`（最新: `specs/029-rich-answer-feedback/plan.md`）を参照。
 
 ## 技術スタック
 
@@ -131,6 +131,7 @@ supabase db reset           # マイグレーションをゼロから再適用�
 
 - `public/japan-municipalities.topojson`（16MB）は serwist precache / Tailwind v4 スキャナ / Turbopack+serwist を詰まらせるため除外設定済み（`next.config.ts` / `sw.ts`）。安易に precache 対象へ戻さない。
 - `municipality_master` は e-Stat 由来データなので、ローカルでは `sync` を実行しないと空（クイズが成立しない）。
+- `municipality_master.population` はクイズ解答時のリッチフィードバック（難易度・人口表示、政令市合算・池田町多県併記）で参照される。各クイズ出題ページ（`/quiz/municipality/[mode]`、`/quiz/review`）でマッピングされ、クライアントに渡される。
 
 ### 本番障害・運用から得た教訓（重要 / PR #12, PR #29）
 

@@ -274,6 +274,7 @@ export function JapanMap({
               highlightCorrect={highlightCorrect}
               highlightWrong={highlightWrong}
               selectedNames={selectedNames}
+              isIncorrect={isIncorrect}
               onPrefectureClick={(name) => {
                 if (didDrag.current || suppressNextClick.current) {
                   disarmSuppressNextClick();
@@ -305,11 +306,18 @@ export function JapanMap({
   );
 }
 
+function resolvePrefectureFills(isCorrect: boolean, isWrong: boolean, isSelected: boolean) {
+  if (isCorrect) return { base: '#4a7c59', hover: '#4a7c59' };
+  if (isWrong) return { base: '#ef4444', hover: '#ef4444' };
+  if (isSelected) return { base: '#3b82f6', hover: '#60a5fa' };
+  return { base: '#2a2a2a', hover: '#3a3a3a' };
+}
+
 // Geographies 1.2.1 は children が変わるたびに内部のコンポーネント型を作り直す。
 // タイマーなどの親更新でタップ対象が消えないよう、同じ hook で直接描画する。
 function PrefectureGeographies({
-  topology, highlightCorrect, highlightWrong, selectedNames, onPrefectureClick,
-}: Pick<JapanMapProps, 'highlightCorrect' | 'highlightWrong' | 'selectedNames' | 'onPrefectureClick'> & {
+  topology, highlightCorrect, highlightWrong, selectedNames, isIncorrect, onPrefectureClick,
+}: Pick<JapanMapProps, 'highlightCorrect' | 'highlightWrong' | 'selectedNames' | 'isIncorrect' | 'onPrefectureClick'> & {
   topology: Topology;
 }) {
   const { geographies } = useGeographies({ geography: topology });
@@ -325,17 +333,16 @@ function PrefectureGeographies({
         const isCorrect = correctSet.has(name);
         const isWrong = name === highlightWrong;
         const isSelected = selectedSet.has(name);
-        const baseFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#3b82f6' : '#2a2a2a';
-        const hoverFill = isCorrect ? '#4a7c59' : isWrong ? '#ef4444' : isSelected ? '#60a5fa' : '#3a3a3a';
+        const { base, hover } = resolvePrefectureFills(isCorrect, isWrong, isSelected);
         const defaultStyle = {
-          fill: baseFill,
+          fill: base,
           stroke: '#444',
           strokeWidth: 0.5,
           outline: 'none',
           cursor: 'pointer',
         };
         const hoverStyle = {
-          fill: hoverFill,
+          fill: hover,
           stroke: '#555',
           strokeWidth: 0.5,
           outline: 'none',
@@ -348,6 +355,7 @@ function PrefectureGeographies({
             geography={geo}
             tabIndex={-1}
             onClick={() => onPrefectureClick(name)}
+            className={isCorrect && !isIncorrect ? 'motion-safe:animate-pulse' : undefined}
             style={{
               default: defaultStyle,
               hover: canHover ? hoverStyle : defaultStyle,

@@ -32,6 +32,8 @@ interface BottomHudProps {
   readonly selectedCount?: number;
   /** 帯をタップしたときにお題を中央へ再表示する。 */
   readonly onRequestIntro?: () => void;
+  /** 解答フィードバック中に帯をタップしたとき即時スキップする (FR-004a)。 */
+  readonly onSkip?: () => void;
   /**
    * 移動アニメーションを行わない設定のとき、導入の代わりにお題の文字を大きく見せる。
    * 中央のオーバーレイを出さない分をここで補う。
@@ -119,12 +121,14 @@ function BandBody({
   content,
   reshowable,
   onRequestIntro,
+  onSkip,
   textPx,
   restoreMs,
 }: Readonly<{
   content: BottomHudContent;
   reshowable: boolean;
   onRequestIntro?: () => void;
+  onSkip?: () => void;
   textPx: number;
   restoreMs: number;
 }>) {
@@ -138,11 +142,14 @@ function BandBody({
     );
   }
 
+  const isClickable = onSkip !== undefined || reshowable;
+  const handleClick = onSkip ?? (reshowable ? onRequestIntro : undefined);
+
   return (
     <button
       type="button"
-      onClick={onRequestIntro}
-      disabled={!reshowable}
+      onClick={handleClick}
+      disabled={!isClickable}
       className="min-w-0 flex-1 text-left disabled:cursor-default"
     >
       <PromptBody
@@ -156,32 +163,50 @@ function BandBody({
   );
 }
 
+function SubmitAction({ submit }: Readonly<{ submit: NonNullable<BottomHudProps['submit']> }>) {
+  return (
+    <Button
+      onClick={submit.onSubmit}
+      disabled={submit.disabled}
+      data-submit-button="true"
+      className="h-11 shrink-0 px-4 text-xs"
+    >
+      <span>{submit.label}</span>
+      {submit.shortcutHint && !submit.disabled && (
+        <kbd className="ml-1.5 hidden rounded border border-white/20 bg-white/10 px-1.5 py-0.5 font-mono text-[10px] leading-none text-white/80 md:inline-flex">
+          {submit.shortcutHint}
+        </kbd>
+      )}
+    </Button>
+  );
+}
+
 export function BottomHud({
   content,
   mode,
   submit,
   selectedCount,
   onRequestIntro,
+  onSkip,
   emphasis,
   choices,
   restoreMs = 0,
 }: Readonly<BottomHudProps>) {
   const height = bottomBandHeightPx(mode, feedbackStateOf(content));
-  const reshowable = content.kind === 'prompt' && onRequestIntro !== undefined;
+  const reshowable = !onSkip && content.kind === 'prompt' && onRequestIntro !== undefined;
 
-  // 帯のどこを触ってもお題が戻るようにする。選択肢を帯の中に積んだことで、
-  // その余白やボタンの隙間という「帯だが再表示ボタンではない」場所ができた。
-  // 操作対象（選択肢・確定）の上だけは、それぞれの動作に譲る。
   function handleBackgroundTap(event: React.MouseEvent<HTMLElement>) {
-    if (!reshowable) return;
-    if ((event.target as HTMLElement).closest('button')) return;
-    onRequestIntro?.();
+    if ((event.target as HTMLElement).closest('button:not([disabled])')) return;
+    if (onSkip) {
+      onSkip();
+      return;
+    }
+    if (reshowable) {
+      onRequestIntro?.();
+    }
   }
 
   return (
-    // 背景は完全な不透明にする。半透明やすりガラスだと下地の地図の明度を拾い、
-    // 明るい Google Maps タイルの上でコントラストを数値で保証できない。
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- キーボードと読み上げの経路は中のお題ボタンが持つ。ここは同じ操作を指で広く受けるためだけの補助で、tabIndex を足すと同じ操作に二重の停止点ができる
     <footer
       className="shrink-0 bg-[#111111] pb-[env(safe-area-inset-bottom)]"
       onClick={handleBackgroundTap}
@@ -189,42 +214,30 @@ export function BottomHud({
       <ChoiceRegion choices={choices} />
       <div
         className="mx-auto flex max-w-2xl items-center justify-center gap-2 px-2"
-        // 高さは内容の長短でも導入表示でも変えない。伸縮すると地図コンテナの高さが
-        // 変わり、拡大率と位置がずれるうえ、不正解後の自動フォーカスも安定しない。
         style={{ height }}
       >
-        {/* aria-label は付けない。付けると子要素のお題がアクセシブル名から外れ、
-            中央の導入表示は aria-hidden なので読み上げでお題を取得できなくなる。
-            操作の説明は sr-only のテキストで添える。 */}
         <BandBody
           content={content}
           reshowable={reshowable}
           onRequestIntro={onRequestIntro}
+          onSkip={onSkip}
           textPx={emphasis?.textPx ?? STEADY_TEXT_PX}
           restoreMs={restoreMs}
         />
 
-        {selectedCount !== undefined && content.kind === 'prompt' && (
+        {onSkip && content.kind === 'prompt' && (
+          <span className="shrink-0 rounded bg-white/10 px-2 py-1 text-[11px] font-medium text-[#fafafa]/80">
+            タップで次へ
+          </span>
+        )}
+
+        {selectedCount !== undefined && content.kind === 'prompt' && !onSkip && (
           <span className="shrink-0 font-mono text-xs tabular-nums text-[#fafafa]">
             {selectedCount} 件
           </span>
         )}
 
-        {submit && (
-          <Button
-            onClick={submit.onSubmit}
-            disabled={submit.disabled}
-            data-submit-button="true"
-            className="h-11 shrink-0 px-4 text-xs"
-          >
-            <span>{submit.label}</span>
-            {submit.shortcutHint && !submit.disabled && (
-              <kbd className="ml-1.5 hidden rounded border border-white/20 bg-white/10 px-1.5 py-0.5 font-mono text-[10px] leading-none text-white/80 md:inline-flex">
-                {submit.shortcutHint}
-              </kbd>
-            )}
-          </Button>
-        )}
+        {submit && <SubmitAction submit={submit} />}
       </div>
     </footer>
   );

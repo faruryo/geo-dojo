@@ -155,18 +155,24 @@ export function MunicipalityMap({
       const code = f.getProperty('code') as string | undefined;
       const isCorrect = code ? highlightSet.has(code) : false;
       const isWrong = code ? wrongSet.has(code) : false;
+      const isCorrectSuccess = isCorrect && !isIncorrect;
       const fillColor = isCorrect ? '#22c55e' : isWrong ? '#ef4444' : '#3b82f6';
-      const fillOpacity = isCorrect || isWrong ? 0.55 : 0.15;
+      let fillOpacity = 0.15;
+      if (isCorrectSuccess) {
+        fillOpacity = 0.7;
+      } else if (isCorrect || isWrong) {
+        fillOpacity = 0.55;
+      }
       return {
         fillColor,
         fillOpacity,
         strokeColor: isCorrect ? '#16a34a' : isWrong ? '#dc2626' : '#1d4ed8',
-        strokeWeight: 1.2,
+        strokeWeight: isCorrectSuccess ? 2.2 : 1.2,
         clickable: true,
         cursor: 'pointer',
       };
     });
-  }, [highlightCodes, wrongCodes]);
+  }, [highlightCodes, wrongCodes, isIncorrect]);
 
   useEffect(() => {
     if (ready) applyStyle();

@@ -103,7 +103,7 @@ export function ChoiceView({
             key={choice}
             disabled={feedback !== 'idle'}
             onClick={() => onSelectChoice(choice)}
-            className={`flex w-full items-center gap-2 rounded-xl border p-3 text-left text-sm transition-colors ${btnStyle}`}
+            className={`flex w-full items-center gap-2 rounded-xl border p-3 text-left text-sm transition-colors disabled:pointer-events-none ${btnStyle}`}
           >
             {isHud && <OutcomeIcon outcome={outcome} />}
             <span className="min-w-0 flex-1">{choice}</span>
