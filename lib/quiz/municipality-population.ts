@@ -1,4 +1,5 @@
 import { dedupeInstancesByPrefecture, type Municipality } from './municipality-data';
+import { locationLabel, locationKana } from './location-labels';
 
 export interface FeedbackItem {
   readonly prefecture: string;
@@ -105,6 +106,8 @@ export function resolveFeedbackItems(options: ResolveOptions): FeedbackItem[] {
 
   const { municipality: m } = options;
   let pop: number | null = null;
+  const name = mode === 'D' ? locationLabel(m.code, m.name) : m.name;
+  const kana = mode === 'D' ? locationKana(m.code, m.kana) : m.kana;
 
   if (mode === 'D') {
     // Mode D: 当該区自身の人口
@@ -119,8 +122,8 @@ export function resolveFeedbackItems(options: ResolveOptions): FeedbackItem[] {
   return [
     {
       prefecture: m.prefecture,
-      name: m.name,
-      kana: m.kana,
+      name,
+      kana,
       population: pop,
       formattedPopulation: formatPopulation(pop),
     },

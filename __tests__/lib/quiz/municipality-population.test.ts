@@ -93,10 +93,10 @@ describe('resolveFeedbackItems (FR-002a, FR-002b, FR-002c)', () => {
   it('resolves single municipality for Mode D using the ward itself (FR-002b)', () => {
     const m: Municipality = {
       code: '22101',
-      name: '葵区',
+      name: '静岡市',
       prefecture: '静岡県',
       region: '中部',
-      kana: 'あおいく',
+      kana: 'しずおかし',
       population: 250_000,
     };
 
@@ -107,6 +107,8 @@ describe('resolveFeedbackItems (FR-002a, FR-002b, FR-002c)', () => {
     });
 
     expect(items).toHaveLength(1);
+    expect(items[0].name).toBe('静岡市葵区');
+    expect(items[0].kana).toBe('しずおかしあおいく');
     expect(items[0].population).toBe(250_000);
     expect(items[0].formattedPopulation).toBe('約25.0万人');
   });
