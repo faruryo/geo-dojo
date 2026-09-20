@@ -17,6 +17,7 @@ import { usePopstateGuard } from '@/lib/hooks/usePopstateGuard';
 import { QuizHeader } from './quiz-header';
 import { QuizQuestionCard } from './quiz-question-card';
 import { ChoiceView } from './views/choice-view';
+import { ConfettiOverlay } from './effects/confetti-overlay';
 import { ImmersiveQuizView } from './hud/immersive-quiz-view';
 
 export type { Question, ModeAQuestion, SingleQuestion };
@@ -66,7 +67,10 @@ function ChoiceOnlyQuizView({
   const populationText = feedbackItems[0]?.formattedPopulation ?? null;
 
   return (
-    <div className="flex flex-col h-full gap-2 p-3 max-w-4xl mx-auto">
+    <div className="relative flex flex-col h-full gap-2 p-3 max-w-4xl mx-auto">
+      {feedback === 'correct' && streak === 5 && (
+        <ConfettiOverlay streak={streak} />
+      )}
       <QuizHeader
         currentIndex={qIdx}
         totalQuestions={questions.length}

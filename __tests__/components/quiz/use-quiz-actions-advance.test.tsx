@@ -27,6 +27,7 @@ vi.mock('@/app/(app)/quiz/municipality/actions', () => ({
 
 vi.mock('@/lib/quiz/sound-effects', () => ({
   playSe: vi.fn(),
+  playCorrectSe: vi.fn(),
   isAudioContextRunning: vi.fn(() => false),
   completionSeEvent: vi.fn(),
 }));

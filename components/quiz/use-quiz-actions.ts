@@ -12,9 +12,10 @@ import {
   type QuizSessionEntry,
   type QuizResultEntry,
 } from '@/lib/quiz/quiz-session-core';
-import { isAudioContextRunning, playSe } from '@/lib/quiz/sound-effects';
+import { isAudioContextRunning, playCorrectSe, playSe } from '@/lib/quiz/sound-effects';
 import { isModeDTapCorrect } from '@/lib/quiz/mode-d-judge';
 import { toQuestionResult } from '@/lib/quiz/quiz-results';
+import { calculateStreak } from '@/lib/quiz/streak';
 import { appendRecommendQuestion, readActiveRecommendUserId } from '@/lib/quiz/recommendation/history-cache';
 import type { Question } from './use-quiz-session';
 import type { useQuizState } from './use-quiz-state';
@@ -47,7 +48,11 @@ export function useModeAAction(
     const elapsedMs = Math.max(0, Date.now() - state.startTimeRef.current);
     const correct = isModeACorrect(state.selectedPrefectures, currentQuestion.correctPrefectures);
     state.setFeedback(correct ? 'correct' : 'incorrect');
-    playSe(correct ? 'correct' : 'incorrect');
+    if (correct) {
+      playCorrectSe({ streak: calculateStreak(state.results) + 1 });
+    } else {
+      playSe('incorrect');
+    }
     const reps = dedupeInstancesByPrefecture(currentQuestion.instances);
     await recordAndAdvance(
       reps.map((m) => ({ municipality: m, isCorrect: correct, mode: 'A', answerTimeMs: elapsedMs })),
@@ -70,7 +75,11 @@ export function useChoiceAction(
       const correct = mode === 'B' ? choice === municipality.prefecture : choice === municipality.name;
       state.setSelectedChoice(choice);
       state.setFeedback(correct ? 'correct' : 'incorrect');
-      playSe(correct ? 'correct' : 'incorrect');
+      if (correct) {
+        playCorrectSe({ streak: calculateStreak(state.results) + 1 });
+      } else {
+        playSe('incorrect');
+      }
       await recordAndAdvance([
         { municipality, isCorrect: correct, mode, answerTimeMs: elapsedMs },
       ]);
@@ -99,7 +108,11 @@ export function useMapAction(
         state.setCorrectCodes(highlight);
       }
       state.setFeedback(correct ? 'correct' : 'incorrect');
-      playSe(correct ? 'correct' : 'incorrect');
+      if (correct) {
+        playCorrectSe({ streak: calculateStreak(state.results) + 1 });
+      } else {
+        playSe('incorrect');
+      }
       await recordAndAdvance([
         { municipality, isCorrect: correct, mode: 'D', answerTimeMs: elapsedMs },
       ]);

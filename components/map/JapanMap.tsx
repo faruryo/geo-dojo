@@ -348,6 +348,7 @@ function PrefectureGeographies({
             geography={geo}
             tabIndex={-1}
             onClick={() => onPrefectureClick(name)}
+            className={isCorrect ? 'motion-safe:animate-pulse' : undefined}
             style={{
               default: defaultStyle,
               hover: canHover ? hoverStyle : defaultStyle,

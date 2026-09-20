@@ -85,16 +85,16 @@
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T020 [P] [US3] `__tests__/lib/quiz/sound-effects-chord.test.ts` を新設し、和音SE合成パラメータ（0.35s以内）、連続正解ピッチシフト計算（FR-005b）、5連続ファンファーレ（FR-005c）、ミュート状態の単体テストを作成
+- [x] T020 [P] [US3] `__tests__/lib/quiz/sound-effects-chord.test.ts` を新設し、和音SE合成パラメータ（0.35s以内）、連続正解ピッチシフト計算（FR-005b）、5連続ファンファーレ（FR-005c）、ミュート状態の単体テストを作成
 
 ### Implementation for User Story 3
 
-- [ ] T021 [P] [US3] `lib/quiz/sound-effects.ts` を改修し、Web Audio API によるメジャーコード調和音（0.28s）、全音単位のピッチ上昇（最大4段階）、5連続時のファンファーレ和音（0.34s）を実装（`contracts/sound-effects-contract.md` 準拠）
-- [ ] T022 [P] [US3] `components/quiz/effects/confetti-overlay.tsx` を新設し、純粋 CSS アニメーションによる軽量 DOM 紙吹雪コンポーネント（16〜20パーティクル、1.5sフェードアウト、reduced-motion配慮）を実装
-- [ ] T023 [US3] `components/quiz/hud/floating-feedback-card.tsx` および `components/quiz/quiz-question-card.tsx` に称賛ラベルのステップアップ（「正解！」→「いいね！」→「お見事！」→「すごい！」→「完璧！」）、2連続以降の「n連続」チップ、バウンスアニメーション（`prefers-reduced-motion: reduce` FR-006d 準拠）を組み込み
-- [ ] T024 [US3] `components/quiz/hud/immersive-quiz-view.tsx` に `streak === 5` の条件でのみ `ConfettiOverlay` をマウントする紙吹雪発火ロジック（FR-006b、6連続以降は非表示）を組み込み
-- [ ] T025 [US3] `components/map/JapanMap.tsx` (Mode A) および `components/map/MunicipalityMap.tsx` (Mode D) に正解ハイライト時のポリゴンパルス（Pulse/Glow）視覚効果を実装（FR-006c, FR-006d）
-- [ ] T026 [US3] `components/quiz/use-quiz-actions.ts` で正解時に `streak` を渡して `playCorrectSe` を呼び出し、連続正解SEを連動
+- [x] T021 [P] [US3] `lib/quiz/sound-effects.ts` を改修し、Web Audio API によるメジャーコード調和音（0.28s）、全音単位のピッチ上昇（最大4段階）、5連続時のファンファーレ和音（0.34s）を実装（`contracts/sound-effects-contract.md` 準拠）
+- [x] T022 [P] [US3] `components/quiz/effects/confetti-overlay.tsx` を新設し、純粋 CSS アニメーションによる軽量 DOM 紙吹雪コンポーネント（16〜20パーティクル、1.5sフェードアウト、reduced-motion配慮）を実装
+- [x] T023 [US3] `components/quiz/hud/floating-feedback-card.tsx` および `components/quiz/quiz-question-card.tsx` に称賛ラベルのステップアップ（「正解！」→「いいね！」→「お見事！」→「すごい！」→「完璧！」）、2連続以降の「n連続」チップ、バウンスアニメーション（`prefers-reduced-motion: reduce` FR-006d 準拠）を組み込み
+- [x] T024 [US3] `components/quiz/hud/immersive-quiz-view.tsx` に `streak === 5` の条件でのみ `ConfettiOverlay` をマウントする紙吹雪発火ロジック（FR-006b、6連続以降は非表示）を組み込み
+- [x] T025 [US3] `components/map/JapanMap.tsx` (Mode A) および `components/map/MunicipalityMap.tsx` (Mode D) に正解ハイライト時のポリゴンパルス（Pulse/Glow）視覚効果を実装（FR-006c, FR-006d）
+- [x] T026 [US3] `components/quiz/use-quiz-actions.ts` で正解時に `streak` を渡して `playCorrectSe` を呼び出し、連続正解SEを連動
 
 **Checkpoint**: 全3ストーリーが統合され、視覚・音響・補足情報・テンポのすべてが調和していること
 

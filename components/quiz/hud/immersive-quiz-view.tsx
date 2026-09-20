@@ -14,6 +14,7 @@ import { TIME_LIMIT_SEC } from '../use-quiz-timer';
 import { ModeAView } from '../views/mode-a-view';
 import { MunicipalityMapView } from '../views/municipality-map-view';
 import { BottomHud, type BottomHudContent } from './bottom-hud';
+import { ConfettiOverlay } from '../effects/confetti-overlay';
 import { FloatingFeedbackCard } from './floating-feedback-card';
 import { MapCountdownPulse } from './map-countdown-pulse';
 import { QuestionIntro } from './question-intro';
@@ -181,6 +182,9 @@ function ModeAStageAndHud({
           feedback={feedback}
           onPrefectureTap={handlePrefectureTap}
         />
+        {feedback === 'correct' && session.streak === 5 && (
+          <ConfettiOverlay streak={session.streak} />
+        )}
         {feedback !== 'idle' && (
           <FloatingFeedbackCard
             isCorrect={feedback === 'correct'}
@@ -271,6 +275,9 @@ function SingleStageAndHud({
         />
         {isMap && (
           <MapCountdownPulse secondsLeft={timeLeft} feedback={feedback} />
+        )}
+        {feedback === 'correct' && session.streak === 5 && (
+          <ConfettiOverlay streak={session.streak} />
         )}
         {feedback !== 'idle' && (
           <FloatingFeedbackCard
