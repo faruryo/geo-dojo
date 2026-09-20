@@ -64,14 +64,14 @@
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T015 [P] [US2] `__tests__/components/quiz/use-quiz-actions-advance.test.ts` を新設し、スキップ保留（`skipRequestedRef`）・2.0s 自動遷移・次問切り替え直後 250ms 誤タップガード、および SC-004（スキップから 50ms 以内に描画遷移開始）の単体・結合テストを作成
+- [x] T015 [P] [US2] `__tests__/components/quiz/use-quiz-actions-advance.test.ts` を新設し、スキップ保留（`skipRequestedRef`）・2.0s 自動遷移・次問切り替え直後 250ms 誤タップガード、および SC-004（スキップから 50ms 以内に描画遷移開始）の単体・結合テストを作成
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] `components/quiz/use-quiz-actions.ts` を改修し、自動遷移時間を保存完了後一律 2.0秒（2,000ms）に統一し、非同期保存保留フラグ（`skipRequestedRef`）、次問直後 250ms の回答ガード（`guardUntilRef`）、Space/Enter のキーリピート抑止（`event.repeat`）を実装
-- [ ] T017 [US2] `components/quiz/hud/bottom-hud.tsx` の `handleBackgroundTap` を改修し、出題中は `onRequestIntro`、フィードバック中は `onSkip` を発火するよう状態遷移を実装。HUD経路の4択無効化ボタンに `disabled:pointer-events-none` を付与して帯タップの死角を解消し、右端にスキップ案内を表示（FR-004a 準拠）
-- [ ] T018 [US2] `components/quiz/hud/floating-feedback-card.tsx` に `onSkip` タップハンドラを接続し、カード本体タップで即時スキップを発火
-- [ ] T019 [US2] `components/quiz/hud/immersive-quiz-view.tsx` にスキップハンドラを統合し、地図面ドラッグ・ズーム操作および `TopHud` 操作からスキップが除外されることを保証
+- [x] T016 [US2] `components/quiz/use-quiz-actions.ts` を改修し、自動遷移時間を保存完了後一律 2.0秒（2,000ms）に統一し、非同期保存保留フラグ（`skipRequestedRef`）、次問直後 250ms の回答ガード（`guardUntilRef`）、Space/Enter のキーリピート抑止（`event.repeat`）を実装
+- [x] T017 [US2] `components/quiz/hud/bottom-hud.tsx` の `handleBackgroundTap` を改修し、出題中は `onRequestIntro`、フィードバック中は `onSkip` を発火するよう状態遷移を実装。HUD経路の4択無効化ボタンに `disabled:pointer-events-none` を付与して帯タップの死角を解消し、右端にスキップ案内を表示（FR-004a 準拠）
+- [x] T018 [US2] `components/quiz/hud/floating-feedback-card.tsx` に `onSkip` タップハンドラを接続し、カード本体タップで即時スキップを発火
+- [x] T019 [US2] `components/quiz/hud/immersive-quiz-view.tsx` にスキップハンドラを統合し、地図面ドラッグ・ズーム操作および `TopHud` 操作からスキップが除外されることを保証
 
 **Checkpoint**: US1 と US2 が統合され、補足情報を確認しつつテンポよくスキップ進行できること
 
