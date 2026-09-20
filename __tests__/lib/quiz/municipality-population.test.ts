@@ -151,4 +151,29 @@ describe('resolveFeedbackItems (FR-002a, FR-002b, FR-002c)', () => {
     expect(items[2].formattedPopulation).toBe('約1.4万人');
     expect(items[3].formattedPopulation).toBe('約2.3万人');
   });
+
+  it('deduplicates multiple ward instances of a designated city to a single item in Mode A (FR-002a)', () => {
+    const rawYokohamaWards: Municipality[] = [
+      { code: '14101', name: '横浜市', prefecture: '神奈川県', region: '関東', kana: 'よこはまし', population: 200_000 },
+      { code: '14102', name: '横浜市', prefecture: '神奈川県', region: '関東', kana: 'よこはまし', population: 250_000 },
+      { code: '14103', name: '横浜市', prefecture: '神奈川県', region: '関東', kana: 'よこはまし', population: 300_000 },
+    ];
+    const map = new Map<string, number | null>([['神奈川県:横浜市', 3_770_000]]);
+
+    const items = resolveFeedbackItems({
+      mode: 'A',
+      instances: rawYokohamaWards,
+      designatedCityMap: map,
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toEqual({
+      prefecture: '神奈川県',
+      name: '横浜市',
+      kana: 'よこはまし',
+      population: 3_770_000,
+      formattedPopulation: '約377.0万人',
+    });
+  });
 });
+

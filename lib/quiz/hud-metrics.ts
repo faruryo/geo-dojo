@@ -14,9 +14,6 @@ export const BOTTOM_BAND_PX = 44;
 /** 県当て（A）の下端 HUD。確定ボタンの 44px タップ領域を収めるぶん高い。 */
 export const BOTTOM_BAND_MODE_A_PX = 52;
 
-/** 029にて廃止。下部帯はお題据え置き・0px変動を維持するため、フィードバック中も伸長しない（後方互換のため定数定義のみ維持）。 */
-export const BOTTOM_BAND_FEEDBACK_PX = 56;
-
 /** 出題直後に画面中央へ大きく出すお題の文字サイズ。 */
 export const INTRO_TEXT_PX = 34;
 

@@ -11,8 +11,8 @@ import type { Municipality } from '@/lib/quiz/municipality-data';
 
 // DB 保存 Server Action をモック
 let mockSaveDeferred: {
-  promise: Promise<{ success: boolean }>;
-  resolve: (val: { success: boolean }) => void;
+  promise: Promise<{ quizPersisted: boolean; srsPersisted: boolean }>;
+  resolve: (val: { quizPersisted: boolean; srsPersisted: boolean }) => void;
   reject: (err: unknown) => void;
 } | null = null;
 
@@ -21,7 +21,7 @@ vi.mock('@/app/(app)/quiz/municipality/actions', () => ({
     if (mockSaveDeferred) {
       return mockSaveDeferred.promise;
     }
-    return Promise.resolve({ success: true });
+    return Promise.resolve({ quizPersisted: true, srsPersisted: true });
   }),
 }));
 
@@ -140,7 +140,7 @@ describe('useQuizActions: 進行制御・スキップ・誤タップガード (U
   });
 
   it('保存待機中のスキップ要求が保留され、保存完了時に待機時間ゼロで即遷移する (FR-004b)', async () => {
-    const deferred = createDeferred<{ success: boolean }>();
+    const deferred = createDeferred<{ quizPersisted: boolean; srsPersisted: boolean }>();
     mockSaveDeferred = deferred;
     const onAdvance = vi.fn();
 
@@ -164,7 +164,7 @@ describe('useQuizActions: 進行制御・スキップ・誤タップガード (U
 
     // 保存が完了する
     await act(async () => {
-      deferred.resolve({ success: true });
+      deferred.resolve({ quizPersisted: true, srsPersisted: true });
       await choicePromise;
     });
 
@@ -260,4 +260,59 @@ describe('useQuizActions: 進行制御・スキップ・誤タップガード (U
     });
     expect(onAdvance).toHaveBeenCalledTimes(1);
   });
+
+  it('回答直後に保存完了を待たずに currentStreak が即時同期される (M-1)', async () => {
+    const deferred = createDeferred<{ quizPersisted: boolean; srsPersisted: boolean }>();
+    mockSaveDeferred = deferred;
+
+    act(() => {
+      root.render(<TestComponent currentQuestion={mockQuestionB} />);
+    });
+
+    expect(handle.state.currentStreak).toBe(0);
+
+    // 回答実行（保存は pending 状態）
+    act(() => {
+      void handle.actions.handleChoice('北海道', 'B');
+    });
+
+    // 保存完了を待たずに、回答直後の瞬間（0ms）で currentStreak が 1 に更新されている
+    expect(handle.state.feedback).toBe('correct');
+    expect(handle.state.currentStreak).toBe(1);
+
+    // 保存完了
+    await act(async () => {
+      deferred.resolve({ quizPersisted: true, srsPersisted: true });
+    });
+
+    expect(handle.state.currentStreak).toBe(1);
+  });
+
+  it('isTapGuarded が遷移直後 250ms 間 true を返し、その後 false に戻る (M-3, FR-004d)', async () => {
+    act(() => {
+      root.render(<TestComponent currentQuestion={mockQuestionB} />);
+    });
+
+    await act(async () => {
+      await handle.actions.handleChoice('北海道', 'B');
+    });
+
+    // 自動遷移 (2000ms)
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    // 遷移直後 (50ms後) はガード有効
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(handle.actions.isTapGuarded()).toBe(true);
+
+    // 250ms 経過後はガード解除
+    act(() => {
+      vi.advanceTimersByTime(201);
+    });
+    expect(handle.actions.isTapGuarded()).toBe(false);
+  });
 });
+

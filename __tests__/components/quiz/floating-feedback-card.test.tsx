@@ -142,13 +142,13 @@ describe('FloatingFeedbackCard (FR-003, FR-006a, FR-006e)', () => {
       onSkip,
     });
 
-    const card = host.querySelector('[role="status"]') as HTMLElement;
+    const card = host.firstElementChild as HTMLElement;
     expect(card).not.toBeNull();
     card.click();
     expect(onSkip).toHaveBeenCalledTimes(1);
   });
 
-  it('has aria-live="polite" and screen reader announcement excluding streak (FR-006e)', () => {
+  it('isolates aria-live="polite" to sr-only element and hides visible content from assistive tech (FR-006e)', () => {
     render({
       isCorrect: true,
       streak: 4,
@@ -156,11 +156,14 @@ describe('FloatingFeedbackCard (FR-003, FR-006a, FR-006e)', () => {
       items: [singleItem],
     });
 
-    const card = host.querySelector('[role="status"]');
-    expect(card?.getAttribute('aria-live')).toBe('polite');
-
     const srOnly = host.querySelector('.sr-only');
     expect(srOnly).not.toBeNull();
+    expect(srOnly?.getAttribute('role')).toBe('status');
+    expect(srOnly?.getAttribute('aria-live')).toBe('polite');
+
+    const visibleContent = host.querySelector('[aria-hidden="true"]');
+    expect(visibleContent).not.toBeNull();
+
     const text = srOnly?.textContent ?? '';
     expect(text).toContain('正解！');
     expect(text).toContain('館山市');

@@ -3,7 +3,6 @@
 import { useCallback, useMemo } from 'react';
 import type { Municipality } from '@/lib/quiz/municipality-data';
 import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
-import { calculateStreak } from '@/lib/quiz/streak';
 import { buildDesignatedCityPopulationMap } from '@/lib/quiz/municipality-population';
 import { useQuizState, type FeedbackState } from './use-quiz-state';
 import { useQuizTimer } from './use-quiz-timer';
@@ -43,7 +42,6 @@ export function useQuizSession({
   const state = useQuizState(questions.length, onComplete);
   const currentQuestion = state.qIdx < questions.length ? questions.at(state.qIdx) ?? null : null;
 
-  const streak = useMemo(() => calculateStreak(state.results), [state.results]);
   const designatedCityMap = useMemo(
     () => buildDesignatedCityPopulationMap(allMunicipalities),
     [allMunicipalities],
@@ -51,22 +49,23 @@ export function useQuizSession({
 
   const actions = useQuizActions({ currentQuestion, allMunicipalities, state });
   const { setSelectedPrefectures, setModeDFailed, feedback } = state;
-  const { handleTimeout } = actions;
+  const { handleTimeout, isTapGuarded } = actions;
+  const streak = state.currentStreak;
 
   const handlePrefectureTap = useCallback((name: string) => {
-    if (feedback !== 'idle') return;
+    if (feedback !== 'idle' || isTapGuarded()) return;
     setSelectedPrefectures((prev) => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
       return next;
     });
-  }, [feedback, setSelectedPrefectures]);
+  }, [feedback, isTapGuarded, setSelectedPrefectures]);
 
   const handleClearPrefectures = useCallback(() => {
-    if (feedback !== 'idle') return;
+    if (feedback !== 'idle' || isTapGuarded()) return;
     setSelectedPrefectures(new Set());
-  }, [feedback, setSelectedPrefectures]);
+  }, [feedback, isTapGuarded, setSelectedPrefectures]);
 
   const handleModeDFallback = useCallback(() => setModeDFailed(true), [setModeDFailed]);
   const handleTimeoutCallback = useCallback(() => { void handleTimeout(); }, [handleTimeout]);

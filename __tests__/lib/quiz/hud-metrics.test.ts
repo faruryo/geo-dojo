@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  BOTTOM_BAND_FEEDBACK_PX,
   BOTTOM_BAND_MODE_A_PX,
   BOTTOM_BAND_PX,
   INTRO_TEXT_PX,
@@ -68,10 +67,6 @@ describe('bottomBandHeightPx (029: 0px変動保証)', () => {
     expect(bottomBandHeightPx('A', 'incorrect') - bottomBandHeightPx('A', 'idle')).toBe(0);
     expect(bottomBandHeightPx('BCD', 'correct') - bottomBandHeightPx('BCD', 'idle')).toBe(0);
     expect(bottomBandHeightPx('BCD', 'incorrect') - bottomBandHeightPx('BCD', 'idle')).toBe(0);
-  });
-
-  it('廃止された定数 BOTTOM_BAND_FEEDBACK_PX は 56 を保持する（後方互換）', () => {
-    expect(BOTTOM_BAND_FEEDBACK_PX).toBe(56);
   });
 });
 

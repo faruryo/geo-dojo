@@ -74,7 +74,7 @@ function MultiItemsBody({ items }: Readonly<{ items: readonly FeedbackItem[] }>)
             {item.prefecture}
             {item.kana && (
               <span className="text-[10px] text-white/60 ml-0.5">
-                ({item.kana.replace(/[市区町村]$/, '')})
+                ({item.kana.replace(/(ちょう|まち|し|く|そん|むら)$/, '')})
               </span>
             )}
           </span>
@@ -94,12 +94,15 @@ function buildSrText(
   isCorrect: boolean,
   isMulti: boolean,
   difficultyLabel: string,
+  items: readonly FeedbackItem[],
 ): string {
   if (!firstItem) return '';
   const diffText = difficultyLabel ? `難易度: ${difficultyLabel}、` : '';
   const popText = firstItem.formattedPopulation ? `人口: ${firstItem.formattedPopulation}` : '';
   const kanaText = firstItem.kana ? `${firstItem.kana}、` : '';
-  const prefText = isMulti ? '' : `（${firstItem.prefecture}）`;
+  const prefText = isMulti && items.length > 1
+    ? `（${items.map((i) => i.prefecture).join('、')}）`
+    : `（${firstItem.prefecture}）`;
 
   if (isCorrect) {
     return `正解！ ${firstItem.name}${prefText}、${kanaText}${diffText}${popText}`;
@@ -159,28 +162,30 @@ export function FloatingFeedbackCard({
   const firstItem = items[0];
   const difficultyLabel = formatDifficultyLabel(difficulty);
   const srText = React.useMemo(
-    () => buildSrText(firstItem, isCorrect, isMulti, difficultyLabel),
-    [firstItem, isCorrect, difficultyLabel, isMulti],
+    () => buildSrText(firstItem, isCorrect, isMulti, difficultyLabel, items),
+    [firstItem, isCorrect, difficultyLabel, isMulti, items],
   );
 
   return (
     <div
-      role="status"
-      aria-live="polite"
       onClick={onSkip}
       className="pointer-events-auto absolute top-2 left-1/2 -translate-x-1/2 z-20 flex w-[calc(100%-32px)] max-w-[340px] flex-col gap-1 rounded-xl border border-white/10 bg-[#111111] p-2.5 text-[#fafafa] shadow-lg cursor-pointer max-h-[112px] select-none"
     >
-      <span className="sr-only">{srText}</span>
-      <FeedbackHeader
-        isCorrect={isCorrect}
-        streak={streak}
-        isMulti={isMulti}
-        difficultyLabel={difficultyLabel}
-      />
-      {!isMulti && firstItem && (
-        <SingleItemBody item={firstItem} difficultyLabel={difficultyLabel} />
-      )}
-      {isMulti && <MultiItemsBody items={items} />}
+      <span role="status" aria-live="polite" className="sr-only">
+        {srText}
+      </span>
+      <div aria-hidden="true" className="flex flex-col gap-1">
+        <FeedbackHeader
+          isCorrect={isCorrect}
+          streak={streak}
+          isMulti={isMulti}
+          difficultyLabel={difficultyLabel}
+        />
+        {!isMulti && firstItem && (
+          <SingleItemBody item={firstItem} difficultyLabel={difficultyLabel} />
+        )}
+        {isMulti && <MultiItemsBody items={items} />}
+      </div>
     </div>
   );
 }

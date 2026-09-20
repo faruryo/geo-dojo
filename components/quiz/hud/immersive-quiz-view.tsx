@@ -259,12 +259,10 @@ function SingleStageArea({
   question,
   session,
   isMap,
-  effectiveMode,
 }: Readonly<{
   question: SingleQuestion;
   session: QuizSessionValue;
   isMap: boolean;
-  effectiveMode: SingleMode;
 }>) {
   const { feedback, timeLeft, streak, designatedCityMap, handleSkip } = session;
   return (
@@ -278,7 +276,7 @@ function SingleStageArea({
           streak={streak}
           difficulty={question.municipality.difficulty}
           items={resolveFeedbackItems({
-            mode: effectiveMode,
+            mode: question.mode,
             municipality: question.municipality,
             designatedCityMap,
           })}
@@ -320,7 +318,6 @@ function SingleStageAndHud({
         question={question}
         session={session}
         isMap={isMap}
-        effectiveMode={effectiveMode}
       />
       <IntroOverlay intro={intro} content={content} />
       <BottomHud

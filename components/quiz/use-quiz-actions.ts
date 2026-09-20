@@ -36,6 +36,21 @@ function isModeACorrect(
   );
 }
 
+function applyAnswerFeedback(
+  correct: boolean,
+  state: QuizState,
+) {
+  state.setFeedback(correct ? 'correct' : 'incorrect');
+  if (correct) {
+    const nextStreak = calculateStreak(state.results) + 1;
+    state.setCurrentStreak(nextStreak);
+    playCorrectSe({ streak: nextStreak });
+  } else {
+    state.setCurrentStreak(0);
+    playSe('incorrect');
+  }
+}
+
 export function useModeAAction(
   currentQuestion: Question | null,
   state: QuizState,
@@ -47,12 +62,7 @@ export function useModeAAction(
     if (!currentQuestion || currentQuestion.kind !== 'A' || state.feedback !== 'idle') return;
     const elapsedMs = Math.max(0, Date.now() - state.startTimeRef.current);
     const correct = isModeACorrect(state.selectedPrefectures, currentQuestion.correctPrefectures);
-    state.setFeedback(correct ? 'correct' : 'incorrect');
-    if (correct) {
-      playCorrectSe({ streak: calculateStreak(state.results) + 1 });
-    } else {
-      playSe('incorrect');
-    }
+    applyAnswerFeedback(correct, state);
     const reps = dedupeInstancesByPrefecture(currentQuestion.instances);
     await recordAndAdvance(
       reps.map((m) => ({ municipality: m, isCorrect: correct, mode: 'A', answerTimeMs: elapsedMs })),
@@ -74,12 +84,7 @@ export function useChoiceAction(
       const { municipality } = currentQuestion;
       const correct = mode === 'B' ? choice === municipality.prefecture : choice === municipality.name;
       state.setSelectedChoice(choice);
-      state.setFeedback(correct ? 'correct' : 'incorrect');
-      if (correct) {
-        playCorrectSe({ streak: calculateStreak(state.results) + 1 });
-      } else {
-        playSe('incorrect');
-      }
+      applyAnswerFeedback(correct, state);
       await recordAndAdvance([
         { municipality, isCorrect: correct, mode, answerTimeMs: elapsedMs },
       ]);
@@ -107,12 +112,7 @@ export function useMapAction(
         state.setWrongCodes([code]);
         state.setCorrectCodes(highlight);
       }
-      state.setFeedback(correct ? 'correct' : 'incorrect');
-      if (correct) {
-        playCorrectSe({ streak: calculateStreak(state.results) + 1 });
-      } else {
-        playSe('incorrect');
-      }
+      applyAnswerFeedback(correct, state);
       await recordAndAdvance([
         { municipality, isCorrect: correct, mode: 'D', answerTimeMs: elapsedMs },
       ]);
@@ -125,6 +125,7 @@ export function useMapAction(
     if (currentQuestion.kind === 'BCD' && currentQuestion.mode === 'D' && !state.modeDFailed) {
       const { municipality } = currentQuestion;
       state.setCorrectCodes([municipality.code]);
+      state.setCurrentStreak(0);
       state.setFeedback('incorrect');
       if (isAudioContextRunning()) {
         playSe('incorrect');
@@ -306,12 +307,15 @@ export function useQuizActions({
     guardUntilRef,
   );
 
+  const isTapGuarded = useCallback(() => Date.now() < guardUntilRef.current, []);
+
   return {
     handleModeASubmit,
     handleChoice,
     handleDTap,
     handleTimeout,
     handleSkip,
+    isTapGuarded,
     awaitPendingSaves,
     abort,
   };

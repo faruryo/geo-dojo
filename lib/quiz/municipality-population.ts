@@ -1,4 +1,4 @@
-import type { Municipality } from './municipality-data';
+import { dedupeInstancesByPrefecture, type Municipality } from './municipality-data';
 
 export interface FeedbackItem {
   readonly prefecture: string;
@@ -88,7 +88,8 @@ export function resolveFeedbackItems(options: ResolveOptions): FeedbackItem[] {
   const { mode, designatedCityMap } = options;
 
   if (mode === 'A') {
-    return options.instances.map((m) => {
+    const uniqueInstances = dedupeInstancesByPrefecture([...options.instances]);
+    return uniqueInstances.map((m) => {
       const key = `${m.prefecture}:${m.name}`;
       const designatedPop = designatedCityMap?.get(key);
       const pop = designatedPop !== undefined ? designatedPop : (m.population ?? null);
