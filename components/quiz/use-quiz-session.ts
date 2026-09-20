@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { Municipality } from '@/lib/quiz/municipality-data';
 import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
+import { calculateStreak } from '@/lib/quiz/streak';
+import { buildDesignatedCityPopulationMap } from '@/lib/quiz/municipality-population';
 import { useQuizState, type FeedbackState } from './use-quiz-state';
 import { useQuizTimer } from './use-quiz-timer';
 import { useQuizActions } from './use-quiz-actions';
@@ -40,6 +42,12 @@ export function useQuizSession({
 }: Readonly<UseQuizSessionProps>) {
   const state = useQuizState(questions.length, onComplete);
   const currentQuestion = state.qIdx < questions.length ? questions.at(state.qIdx) ?? null : null;
+
+  const streak = useMemo(() => calculateStreak(state.results), [state.results]);
+  const designatedCityMap = useMemo(
+    () => buildDesignatedCityPopulationMap(allMunicipalities),
+    [allMunicipalities],
+  );
 
   const actions = useQuizActions({ currentQuestion, allMunicipalities, state });
   const { setSelectedPrefectures, setModeDFailed, feedback } = state;
@@ -83,6 +91,8 @@ export function useQuizSession({
     currentQuestion,
     timeLeft,
     intro,
+    streak,
+    designatedCityMap,
     handlePrefectureTap,
     handleClearPrefectures,
     handleModeDFallback,

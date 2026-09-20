@@ -78,6 +78,8 @@ function sessionFor(
     selectedChoice,
     correctCodes: [],
     wrongCodes: [],
+    streak: 0,
+    designatedCityMap: new Map(),
     timeLeft: 30,
     handlePrefectureTap: () => {},
     handleClearPrefectures: () => {},
@@ -209,7 +211,9 @@ describe('復習セッションの枠', () => {
   it('4択の文字を色分けしない（帯の上で赤が 7:1 に届かない）', () => {
     render(modeB, false, 'incorrect', WRONG_PICK);
 
-    const buttons = [...host.querySelectorAll('footer button')];
+    const buttons = [...host.querySelectorAll('footer button')].filter((b) =>
+      modeB.choices.some((c) => b.textContent?.includes(c)),
+    );
     expect(buttons).toHaveLength(modeB.choices.length);
     for (const b of buttons) {
       expect(b.className).not.toMatch(/text-(green|red)-/);
@@ -224,7 +228,9 @@ describe('復習セッションの枠', () => {
 
     // 帯のフィードバック行も同じ印を出すので、選択肢のボタン単位で見る。
     // 読み上げ用の「正解。」がボタンの文字列に混ざるため、ラベルは包含で引く。
-    const buttons = [...host.querySelectorAll('footer button')];
+    const buttons = [...host.querySelectorAll('footer button')].filter((b) =>
+      modeB.choices.some((c) => b.textContent?.includes(c)),
+    );
     const find = (label: string) => buttons.find((b) => b.textContent?.includes(label));
 
     expect(find(CORRECT_ANSWER)?.querySelectorAll('svg')).toHaveLength(1);

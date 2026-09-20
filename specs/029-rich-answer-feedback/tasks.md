@@ -12,9 +12,9 @@
 
 **Purpose**: プロジェクト全体の共通型定義およびマスターデータマッピングの更新
 
-- [ ] T001 `lib/quiz/municipality-data.ts` の `Municipality` 型に `population?: number` プロパティを追加
-- [ ] T002 [P] `app/(app)/quiz/municipality/[mode]/page.tsx` のデータマッピングに `population: m.population ?? undefined` を追加
-- [ ] T003 [P] `app/(app)/quiz/review/page.tsx` のデータマッピングに `population: m.population ?? undefined` を追加
+- [x] T001 `lib/quiz/municipality-data.ts` の `Municipality` 型に `population?: number` プロパティを追加
+- [x] T002 [P] `app/(app)/quiz/municipality/[mode]/page.tsx` のデータマッピングに `population: m.population ?? undefined` を追加
+- [x] T003 [P] `app/(app)/quiz/review/page.tsx` のデータマッピングに `population: m.population ?? undefined` を追加
 
 ---
 
@@ -24,10 +24,10 @@
 
 **⚠️ CRITICAL**: ユーザーストーリーの実装開始前に本フェーズの完了とテスト通過が必須
 
-- [ ] T004 [P] `lib/quiz/municipality-population.ts` を新設し、政令市全区人口合算 `buildDesignatedCityPopulationMap`（一部区欠損時は null）と人口表記フォーマット `formatPopulation`（小数第2位を四捨五入し『約○.○万人』、1万人未満カンマ区切り『約○,○○○人』、FR-002d 準拠）の純粋関数を実装
-- [ ] T005 [P] `lib/quiz/streak.ts` を新設し、クイズ結果 `QuizResultEntry[]` の末尾から連続正解数を算出する純粋関数 `calculateStreak` を実装
-- [ ] T006 [P] `__tests__/lib/quiz/municipality-population.test.ts` を新設し、政令市全区合算・欠損防御・四捨五入・カンマ区切りフォーマットの単体テストを作成
-- [ ] T007 [P] `__tests__/lib/quiz/streak.test.ts` を新設し、連続正解数算出・誤答リセット・タイムアウトリセット・Mode A 1問1件正規化の単体テストを作成
+- [x] T004 [P] `lib/quiz/municipality-population.ts` を新設し、政令市全区人口合算 `buildDesignatedCityPopulationMap`（一部区欠損時は null）と人口表記フォーマット `formatPopulation`（小数第2位を四捨五入し『約○.○万人』、1万人未満カンマ区切り『約○,○○○人』、FR-002d 準拠）の純粋関数を実装
+- [x] T005 [P] `lib/quiz/streak.ts` を新設し、クイズ結果 `QuizResultEntry[]` の末尾から連続正解数を算出する純粋関数 `calculateStreak` を実装
+- [x] T006 [P] `__tests__/lib/quiz/municipality-population.test.ts` を新設し、政令市全区合算・欠損防御・四捨五入・カンマ区切りフォーマットの単体テストを作成
+- [x] T007 [P] `__tests__/lib/quiz/streak.test.ts` を新設し、連続正解数算出・誤答リセット・タイムアウトリセット・Mode A 1問1件正規化の単体テストを作成
 
 **Checkpoint**: 共通データ層・純粋関数が揃い、単体テストがすべてパスしていること
 
@@ -41,16 +41,16 @@
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T008 [P] [US1] `__tests__/lib/quiz/hud-metrics.test.ts` を新設し、解答フィードバック中の帯高さ 0px 変動保証と廃止定数の回帰テストを作成
-- [ ] T009 [P] [US1] `__tests__/components/quiz/floating-feedback-card.test.tsx` を新設し、フローティングカードの描画（正否バッジ、称賛ラベル、難易度、人口、池田町4県グリッド、aria-live）の単体テストを作成
+- [x] T008 [P] [US1] `__tests__/lib/quiz/hud-metrics.test.ts` を新設し、解答フィードバック中の帯高さ 0px 変動保証と廃止定数の回帰テストを作成
+- [x] T009 [P] [US1] `__tests__/components/quiz/floating-feedback-card.test.tsx` を新設し、フローティングカードの描画（正否バッジ、称賛ラベル、難易度、人口、池田町4県グリッド、aria-live）の単体テストを作成
 
 ### Implementation for User Story 1
 
-- [ ] T010 [P] [US1] `lib/quiz/hud-metrics.ts` の `BOTTOM_BAND_FEEDBACK_PX`（56px）を廃止し、`bottomBandHeightPx` がフィードバック中も常に idle 高さ（A: 52px, それ以外: 44px）を返すよう改修（0px 変動保証）
-- [ ] T011 [US1] `components/quiz/hud/floating-feedback-card.tsx` を新設し、Stage最前面（`absolute top-2 left-1/2 -translate-x-1/2 z-20`、最大幅340px、最大高112px、不透明 `bg-[#111111]`）のフローティングカードを実装（`contracts/feedback-card-contract.md` 準拠）
-- [ ] T012 [US1] `components/quiz/hud/bottom-hud.tsx` の `BandBody` を改修し、HUD経路での解答フィードバック中もお題表示（`kind: 'prompt'`）のまま据え置くよう変更
-- [ ] T013 [US1] `components/quiz/hud/immersive-quiz-view.tsx` に `FloatingFeedbackCard` を組み込み、`modeAContent` および `singleContent` がフィードバック中も `kind: 'prompt'` を維持するよう改修
-- [ ] T014 [US1] `components/quiz/quiz-question-card.tsx`（4択単独セッションのカード経路）の解答フィードバック行に人口情報を追加し、称賛ラベル・n連続チップ・バウンス演出を適用（FR-006a 整合）
+- [x] T010 [P] [US1] `lib/quiz/hud-metrics.ts` の `BOTTOM_BAND_FEEDBACK_PX`（56px）を廃止し、`bottomBandHeightPx` がフィードバック中も常に idle 高さ（A: 52px, それ以外: 44px）を返すよう改修（0px 変動保証）
+- [x] T011 [US1] `components/quiz/hud/floating-feedback-card.tsx` を新設し、Stage最前面（`absolute top-2 left-1/2 -translate-x-1/2 z-20`、最大幅340px、最大高112px、不透明 `bg-[#111111]`）のフローティングカードを実装（`contracts/feedback-card-contract.md` 準拠）
+- [x] T012 [US1] `components/quiz/hud/bottom-hud.tsx` の `BandBody` を改修し、HUD経路での解答フィードバック中もお題表示（`kind: 'prompt'`）のまま据え置くよう変更
+- [x] T013 [US1] `components/quiz/hud/immersive-quiz-view.tsx` に `FloatingFeedbackCard` を組み込み、`modeAContent` および `singleContent` がフィードバック中も `kind: 'prompt'` を維持するよう改修
+- [x] T014 [US1] `components/quiz/quiz-question-card.tsx`（4択単独セッションのカード経路）の解答フィードバック行に人口情報を追加し、称賛ラベル・n連続チップ・バウンス演出を適用（FR-006a 整合）
 
 **Checkpoint**: US1 単独で完全に動作し、全出題モードで補足情報が正しく表示され下部帯が 0px 変動を維持すること
 

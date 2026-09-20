@@ -15,15 +15,7 @@ export const BOTTOM_BAND_PX = 44;
 export const BOTTOM_BAND_MODE_A_PX = 52;
 
 /**
- * 正否フィードバック中の下端 HUD の高さ。
- *
- * 375px 幅での実測に基づく。`municipality_master` 全件から feedback-labels の
- * 最長形を出すと `池田町 （正解: 北海道: … / 長野県: いけだまち）`（62文字）で、
- * 折り返して2行・30px（行の高さ 15px）になる。
- *
- * その 30px に対して余裕を持たせた値にしている。データが増えて3行（45px）に
- * なっても割れず、かつ県当て（A）の定常 52px を下回らないため、解答した瞬間に
- * 帯が縮んで地図が広がり、また戻るという動きが起きない。
+ * @deprecated 029にて廃止。下部帯はお題据え置き・0px変動を維持するため、フィードバック中も伸長しない。
  */
 export const BOTTOM_BAND_FEEDBACK_PX = 56;
 
@@ -88,15 +80,16 @@ export function resolveIntroPlan(reducedMotion: boolean): IntroPlan {
 }
 
 /**
- * 下端 HUD の高さ。内容の長短では変えない。
+ * 下端 HUD の高さ。内容の長短やフィードバック状態では変えない。
  *
- * フィードバック中はモードによらず同じ高さにする。正解・不正解や文言の長さで
- * 帯が伸縮すると、地図コンテナの高さが毎問変わって自動フォーカスが安定しない。
+ * 029: 下部帯はお題据え置きとし、答え・補足情報はフローティングカードに集約したため、
+ * フィードバック中であっても帯の高さは一切変えない（0px 変動）。
+ * これにより、解答瞬間の地図コンテナ伸縮、拡大率・中心位置のズレ、
+ * Google Maps ロゴや自動フォーカス矩形の破壊を完全に防止する。
  */
 export function bottomBandHeightPx(
   mode: HudQuestionMode,
-  feedback: HudFeedbackState,
+  _feedback?: HudFeedbackState,
 ): number {
-  if (feedback !== 'idle') return BOTTOM_BAND_FEEDBACK_PX;
   return mode === 'A' ? BOTTOM_BAND_MODE_A_PX : BOTTOM_BAND_PX;
 }

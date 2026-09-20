@@ -50,43 +50,28 @@ describe('resolveIntroPlan', () => {
   });
 });
 
-describe('bottomBandHeightPx', () => {
-  it('県当て（A）の定常状態は確定ボタンを収めるぶん高い', () => {
+describe('bottomBandHeightPx (029: 0px変動保証)', () => {
+  it('県当て（A）は定常・フィードバック中ともに 52px を維持する（0px変動）', () => {
     expect(bottomBandHeightPx('A', 'idle')).toBe(BOTTOM_BAND_MODE_A_PX);
-    expect(BOTTOM_BAND_MODE_A_PX).toBeGreaterThan(BOTTOM_BAND_PX);
+    expect(bottomBandHeightPx('A', 'correct')).toBe(BOTTOM_BAND_MODE_A_PX);
+    expect(bottomBandHeightPx('A', 'incorrect')).toBe(BOTTOM_BAND_MODE_A_PX);
   });
 
-  it('A 以外の定常状態は標準の帯の高さになる', () => {
+  it('BCD は定常・フィードバック中ともに 44px を維持する（0px変動）', () => {
     expect(bottomBandHeightPx('BCD', 'idle')).toBe(BOTTOM_BAND_PX);
+    expect(bottomBandHeightPx('BCD', 'correct')).toBe(BOTTOM_BAND_PX);
+    expect(bottomBandHeightPx('BCD', 'incorrect')).toBe(BOTTOM_BAND_PX);
   });
 
-  it('フィードバック中はモードによらず同じ高さになる（SC-008）', () => {
-    expect(bottomBandHeightPx('A', 'correct')).toBe(BOTTOM_BAND_FEEDBACK_PX);
-    expect(bottomBandHeightPx('BCD', 'correct')).toBe(BOTTOM_BAND_FEEDBACK_PX);
-    expect(bottomBandHeightPx('A', 'incorrect')).toBe(BOTTOM_BAND_FEEDBACK_PX);
-    expect(bottomBandHeightPx('BCD', 'incorrect')).toBe(BOTTOM_BAND_FEEDBACK_PX);
+  it('解答した瞬間に帯の高さが一切変動しない（SC-003: 0px変動）', () => {
+    expect(bottomBandHeightPx('A', 'correct') - bottomBandHeightPx('A', 'idle')).toBe(0);
+    expect(bottomBandHeightPx('A', 'incorrect') - bottomBandHeightPx('A', 'idle')).toBe(0);
+    expect(bottomBandHeightPx('BCD', 'correct') - bottomBandHeightPx('BCD', 'idle')).toBe(0);
+    expect(bottomBandHeightPx('BCD', 'incorrect') - bottomBandHeightPx('BCD', 'idle')).toBe(0);
   });
 
-  it('正解と不正解で高さが変わらない（SC-008）', () => {
-    expect(bottomBandHeightPx('A', 'correct')).toBe(bottomBandHeightPx('A', 'incorrect'));
-    expect(bottomBandHeightPx('BCD', 'correct')).toBe(bottomBandHeightPx('BCD', 'incorrect'));
-  });
-
-  it('フィードバック中は定常状態より低くならない（解答した瞬間に帯が縮まない）', () => {
-    expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThanOrEqual(BOTTOM_BAND_MODE_A_PX);
-    expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThanOrEqual(BOTTOM_BAND_PX);
-  });
-
-  it('実測で確定した高さから動かさない', () => {
-    // 375px の実測に基づく値。最長形（62文字）は2行 30px、行の高さは 15px。
-    // 下の関係だけでは暫定値だった 72px も通ってしまい、実測へ詰めた変更を守れない。
-    // 動かすときは測り直し、この期待値も一緒に更新する。
+  it('廃止された定数 BOTTOM_BAND_FEEDBACK_PX は 56 を保持する（後方互換）', () => {
     expect(BOTTOM_BAND_FEEDBACK_PX).toBe(56);
-  });
-
-  it('最長形が3行になっても割れない高さがある', () => {
-    const LINE_HEIGHT_PX = 15;
-    expect(BOTTOM_BAND_FEEDBACK_PX).toBeGreaterThanOrEqual(LINE_HEIGHT_PX * 3);
   });
 });
 

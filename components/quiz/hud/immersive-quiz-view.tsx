@@ -1,8 +1,8 @@
 'use client';
 
-import { formatModeAFeedback, formatSingleFeedback } from '@/lib/quiz/feedback-labels';
 import { locationLabel } from '@/lib/quiz/location-labels';
-import type { Municipality } from '@/lib/quiz/municipality-data';
+import { representativeDifficulty, type Municipality } from '@/lib/quiz/municipality-data';
+import { resolveFeedbackItems } from '@/lib/quiz/municipality-population';
 import type {
   FeedbackState,
   ModeAQuestion,
@@ -14,6 +14,7 @@ import { TIME_LIMIT_SEC } from '../use-quiz-timer';
 import { ModeAView } from '../views/mode-a-view';
 import { MunicipalityMapView } from '../views/municipality-map-view';
 import { BottomHud, type BottomHudContent } from './bottom-hud';
+import { FloatingFeedbackCard } from './floating-feedback-card';
 import { MapCountdownPulse } from './map-countdown-pulse';
 import { QuestionIntro } from './question-intro';
 import { TopHud, type HudTimer } from './top-hud';
@@ -43,6 +44,9 @@ type QuizSessionValue = {
   readonly correctCodes: readonly string[];
   readonly wrongCodes: readonly string[];
   readonly timeLeft: number;
+  readonly streak: number;
+  readonly designatedCityMap: Map<string, number | null>;
+  readonly handleSkip?: () => void;
   readonly handlePrefectureTap: (name: string) => void;
   readonly handleClearPrefectures: () => void;
   readonly handleModeASubmit: () => void;
@@ -71,13 +75,8 @@ function submitLabel(remaining: number, canSubmit: boolean, feedback: FeedbackSt
   return `あと ${remaining} か所`;
 }
 
-function modeAContent(question: ModeAQuestion, feedback: FeedbackState): BottomHudContent {
-  if (feedback === 'idle') return { kind: 'prompt', title: question.name };
-  return {
-    kind: 'feedback',
-    correct: feedback === 'correct',
-    detail: formatModeAFeedback(question.name, question.instances),
-  };
+function modeAContent(question: ModeAQuestion): BottomHudContent {
+  return { kind: 'prompt', title: question.name };
 }
 
 function singleTitle(question: SingleQuestion, effectiveMode: SingleMode): string {
@@ -87,22 +86,10 @@ function singleTitle(question: SingleQuestion, effectiveMode: SingleMode): strin
   return municipality.prefecture;
 }
 
-function singleDetail(question: SingleQuestion, effectiveMode: SingleMode): string {
-  return formatSingleFeedback(question.municipality, question.mode, effectiveMode);
-}
-
 function singleContent(
   question: SingleQuestion,
   effectiveMode: SingleMode,
-  feedback: FeedbackState,
 ): BottomHudContent {
-  if (feedback !== 'idle') {
-    return {
-      kind: 'feedback',
-      correct: feedback === 'correct',
-      detail: singleDetail(question, effectiveMode),
-    };
-  }
   return {
     kind: 'prompt',
     title: singleTitle(question, effectiveMode),
@@ -173,7 +160,7 @@ function ModeAStageAndHud({
   } = session;
   const remaining = question.correctPrefectures.size - selectedPrefectures.size;
   const canSubmit = remaining === 0 && feedback === 'idle';
-  const content = modeAContent(question, feedback);
+  const content = modeAContent(question);
 
   useModeAShortcuts({
     enabled: true,
@@ -194,6 +181,19 @@ function ModeAStageAndHud({
           feedback={feedback}
           onPrefectureTap={handlePrefectureTap}
         />
+        {feedback !== 'idle' && (
+          <FloatingFeedbackCard
+            isCorrect={feedback === 'correct'}
+            streak={session.streak}
+            difficulty={representativeDifficulty(question.instances)}
+            items={resolveFeedbackItems({
+              mode: 'A',
+              instances: question.instances,
+              designatedCityMap: session.designatedCityMap,
+            })}
+            onSkip={session.handleSkip}
+          />
+        )}
       </Stage>
       <IntroOverlay intro={intro} content={content} />
       <BottomHud
@@ -201,6 +201,7 @@ function ModeAStageAndHud({
         mode="A"
         selectedCount={feedback === 'idle' ? selectedPrefectures.size : undefined}
         onRequestIntro={intro.requestIntro}
+        onSkip={feedback !== 'idle' ? session.handleSkip : undefined}
         emphasis={emphasisOf(intro, content)}
         restoreMs={restoreMsOf(intro, content)}
         submit={{
@@ -248,7 +249,7 @@ function SingleStageAndHud({
 }>) {
   const { qIdx, feedback, modeDFailed, timeLeft, selectedChoice, handleChoice, intro } = session;
   const effectiveMode = effectiveModeOf(question, modeDFailed);
-  const content = singleContent(question, effectiveMode, feedback);
+  const content = singleContent(question, effectiveMode);
   const isMap = effectiveMode === 'D';
   const timer: HudTimer | undefined = isMap
     ? { kind: 'countdown', secondsLeft: timeLeft, totalSeconds: TIME_LIMIT_SEC }
@@ -271,12 +272,26 @@ function SingleStageAndHud({
         {isMap && (
           <MapCountdownPulse secondsLeft={timeLeft} feedback={feedback} />
         )}
+        {feedback !== 'idle' && (
+          <FloatingFeedbackCard
+            isCorrect={feedback === 'correct'}
+            streak={session.streak}
+            difficulty={question.municipality.difficulty}
+            items={resolveFeedbackItems({
+              mode: effectiveMode,
+              municipality: question.municipality,
+              designatedCityMap: session.designatedCityMap,
+            })}
+            onSkip={session.handleSkip}
+          />
+        )}
       </Stage>
       <IntroOverlay intro={intro} content={content} />
       <BottomHud
         content={content}
         mode="BCD"
         onRequestIntro={intro.requestIntro}
+        onSkip={feedback !== 'idle' ? session.handleSkip : undefined}
         emphasis={emphasisOf(intro, content)}
         restoreMs={restoreMsOf(intro, content)}
         choices={

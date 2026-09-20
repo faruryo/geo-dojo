@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { DIFFICULTY_LABEL, type Difficulty } from '@/lib/quiz/municipality-data';
+import { resolvePraiseStage } from '@/lib/quiz/streak';
 import type { FeedbackState } from './use-quiz-session';
 
 interface QuizQuestionCardProps {
@@ -12,6 +13,8 @@ interface QuizQuestionCardProps {
   readonly feedback: FeedbackState;
   readonly feedbackDetail?: string;
   readonly extraPrompt?: React.ReactNode;
+  readonly streak?: number;
+  readonly populationText?: string | null;
 }
 
 function getDifficultyBadge(difficulty?: Difficulty) {
@@ -46,7 +49,11 @@ export function QuizQuestionCard({
   feedback,
   feedbackDetail,
   extraPrompt,
+  streak = 0,
+  populationText,
 }: Readonly<QuizQuestionCardProps>) {
+  const stage = resolvePraiseStage(feedback === 'correct' ? streak : 0);
+
   return (
     <>
       <div className="rounded-xl bg-card p-3 text-center shrink-0">
@@ -62,15 +69,31 @@ export function QuizQuestionCard({
       {feedback !== 'idle' && (
         <div className="text-center shrink-0">
           <div
-            className={`text-base font-semibold ${
-              feedback === 'correct' ? 'text-green-500' : 'text-red-500'
+            className={`flex items-center justify-center gap-1.5 text-base font-semibold ${
+              feedback === 'correct' ? 'text-emerald-500' : 'text-red-500'
             }`}
           >
-            {feedback === 'correct' ? '✓ 正解！' : '✗ 不正解'}
+            {feedback === 'correct' ? (
+              <>
+                <span>🎉 正解！</span>
+                <span className="motion-safe:animate-in motion-safe:zoom-in-95">
+                  {stage.label}
+                </span>
+                {stage.showStreakBadge && (
+                  <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-xs font-mono text-emerald-400">
+                    {streak}連続
+                  </span>
+                )}
+              </>
+            ) : (
+              '✗ 不正解'
+            )}
           </div>
-          {feedbackDetail && (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {feedbackDetail}
+          {(feedbackDetail || populationText) && (
+            <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-2">
+              {feedbackDetail && <span>{feedbackDetail}</span>}
+              {feedbackDetail && populationText && <span className="opacity-40">|</span>}
+              {populationText && <span>人口 {populationText}</span>}
             </p>
           )}
         </div>

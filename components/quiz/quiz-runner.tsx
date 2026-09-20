@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from 'react';
 import { representativeDifficulty, type Municipality } from '@/lib/quiz/municipality-data';
 import { formatSingleFeedback } from '@/lib/quiz/feedback-labels';
+import { resolveFeedbackItems } from '@/lib/quiz/municipality-population';
 import { sessionUsesImmersiveLayout } from '@/lib/quiz/immersive-layout';
 import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
 import { useImmersiveLayout } from '@/app/(app)/app-shell';
@@ -44,13 +45,25 @@ function ChoiceOnlyQuizView({
   session: QuizSession;
   onAbort: () => void;
 }>) {
-  const { qIdx, currentQuestion, feedback, results, selectedChoice, handleChoice } = session;
+  const {
+    qIdx,
+    currentQuestion,
+    feedback,
+    results,
+    selectedChoice,
+    handleChoice,
+    streak,
+    designatedCityMap,
+  } = session;
   if (!currentQuestion || currentQuestion.kind !== 'BCD') return null;
 
   const { municipality, choices, mode } = currentQuestion;
   const promptText =
     mode === 'B' ? 'この市区町村はどの都道府県？' : `${municipality.prefecture}の市区町村はどれ？`;
   const feedbackDetail = formatSingleFeedback(municipality, mode);
+
+  const feedbackItems = resolveFeedbackItems({ mode, municipality, designatedCityMap });
+  const populationText = feedbackItems[0]?.formattedPopulation ?? null;
 
   return (
     <div className="flex flex-col h-full gap-2 p-3 max-w-4xl mx-auto">
@@ -67,6 +80,8 @@ function ChoiceOnlyQuizView({
         difficulty={representativeDifficulty([municipality])}
         feedback={feedback}
         feedbackDetail={feedbackDetail}
+        streak={streak}
+        populationText={populationText}
       />
 
       <ChoiceView

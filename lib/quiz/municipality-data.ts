@@ -5,6 +5,7 @@ export interface Municipality {
   region: string;
   difficulty?: Difficulty;
   kana?: string;
+  population?: number;
 }
 
 
