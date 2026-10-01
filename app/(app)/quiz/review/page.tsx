@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
@@ -19,59 +19,9 @@ import { QuizRunner } from '@/components/quiz/quiz-runner';
 import type { Question } from '@/components/quiz/quiz-runner';
 import { type Difficulty, type Municipality } from '@/lib/quiz/municipality-data';
 import type { QuestionSaveMeta, QuizResultEntry } from '@/lib/quiz/quiz-session-core';
-import {
-  buildReviewOutcome,
-  collectSrsKeys,
-  isSaveMetaConsistent,
-  persistedSrsKeys,
-  type ReviewOutcome,
-} from '@/lib/quiz/srs/outcome';
-import { MAX_SNAPSHOT_KEYS, type SrsSnapshotEntry, type SrsSnapshotKey } from '@/lib/quiz/srs/snapshot';
+import { createReviewOutcomeFlow, type OutcomeState } from '@/lib/quiz/srs/review-outcome-flow';
 
 type Phase = 'loading' | 'empty' | 'playing' | 'result';
-
-type OutcomeState =
-  | { status: 'unavailable' }
-  | { status: 'loading' }
-  | { status: 'ready'; outcome: ReviewOutcome };
-
-interface ActiveBatch {
-  id: number;
-  questions: Question[];
-  /** 出題開始前の SRS 状態。取得できなければ null で、成果表示は行わない。 */
-  pre: SrsSnapshotEntry[] | null;
-}
-
-async function fetchSnapshot(keys: SrsSnapshotKey[]): Promise<SrsSnapshotEntry[] | null> {
-  if (keys.length === 0) return [];
-  if (keys.length > MAX_SNAPSHOT_KEYS) return null;
-  try {
-    return await getSrsSnapshot(keys);
-  } catch (reason: unknown) {
-    console.error('[review] failed to load srs snapshot', { count: keys.length, reason });
-    return null;
-  }
-}
-
-function canBuildOutcome(
-  batch: ActiveBatch | null,
-  results: readonly QuizResultEntry[],
-  saveMeta: readonly QuestionSaveMeta[] | undefined,
-): boolean {
-  return !!batch?.pre && isSaveMetaConsistent(batch.questions, saveMeta, results.length);
-}
-
-async function resolveOutcome(
-  batch: ActiveBatch,
-  results: QuizResultEntry[],
-  saveMeta: readonly QuestionSaveMeta[] | undefined,
-): Promise<ReviewOutcome | null> {
-  const { pre, questions } = batch;
-  if (!pre || !isSaveMetaConsistent(questions, saveMeta, results.length)) return null;
-  const post = await fetchSnapshot(persistedSrsKeys(questions, saveMeta));
-  if (!post) return null;
-  return buildReviewOutcome({ questions, results, meta: saveMeta, pre, post, now: new Date() });
-}
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -79,8 +29,9 @@ export default function ReviewPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [results, setResults] = useState<QuizResultEntry[]>([]);
   const [outcomeState, setOutcomeState] = useState<OutcomeState>({ status: 'unavailable' });
-  const batchRef = useRef<ActiveBatch | null>(null);
-  const batchSeqRef = useRef(0);
+  const [outcomeFlow] = useState(() =>
+    createReviewOutcomeFlow({ fetchSnapshot: getSrsSnapshot, onChange: setOutcomeState }),
+  );
   const queryClient = useQueryClient();
 
   const { data: masterData, isLoading: masterLoading } = useMunicipalityMaster();
@@ -114,17 +65,13 @@ export default function ReviewPage() {
         return;
       }
 
-      // 1問目の保存より先に取り終えないと、回答後の値を回答前として読んでしまう。
-      const pre = await fetchSnapshot(collectSrsKeys(qs));
-      batchSeqRef.current += 1;
-      batchRef.current = { id: batchSeqRef.current, questions: qs, pre };
-
+      await outcomeFlow.startBatch(qs);
       setQuestions(qs);
       setPhase('playing');
     } catch {
       setPhase('empty');
     }
-  }, [allMunicipalities]);
+  }, [allMunicipalities, outcomeFlow]);
 
   useEffect(() => {
     if (masterLoading || allMunicipalities.length === 0 || phase !== 'loading') return;
@@ -133,21 +80,13 @@ export default function ReviewPage() {
 
   const handleComplete = useCallback(
     async (completedResults: QuizResultEntry[], saveMeta?: readonly QuestionSaveMeta[]) => {
-      const batch = batchRef.current;
       setResults(completedResults);
-      setOutcomeState(
-        canBuildOutcome(batch, completedResults, saveMeta) ? { status: 'loading' } : { status: 'unavailable' },
-      );
-      const outcomePromise = batch ? resolveOutcome(batch, completedResults, saveMeta) : Promise.resolve(null);
-
+      const outcomePromise = outcomeFlow.complete(completedResults, saveMeta);
       await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       setPhase('result');
-
-      const outcome = await outcomePromise;
-      if (!batch || batchRef.current?.id !== batch.id) return;
-      setOutcomeState(outcome ? { status: 'ready', outcome } : { status: 'unavailable' });
+      await outcomePromise;
     },
-    [queryClient],
+    [queryClient, outcomeFlow],
   );
 
   // ─── Loading ──────────────────────────────────────────────────────
@@ -211,7 +150,7 @@ export default function ReviewPage() {
           <Button
             className="w-full"
             onClick={() => {
-              batchRef.current = null;
+              outcomeFlow.reset();
               setPhase('loading');
             }}
           >

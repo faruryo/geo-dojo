@@ -72,7 +72,8 @@ lib/quiz/
 └── srs/
     ├── simulation.ts             # [NEW] simulateStepsToGraduation, MAX_SIMULATION_STEPS
     ├── snapshot.ts               # [NEW] SrsSnapshotKey/Entry 型, validateSrsSnapshotKeys
-    └── outcome.ts                # [NEW] questionSrsKeys, isSaveMetaConsistent, buildReviewOutcome, 文言整形
+    ├── outcome.ts                # [NEW] questionSrsKeys, isSaveMetaConsistent, buildReviewOutcome, 文言整形
+    └── review-outcome-flow.ts    # [NEW] 回答前取得 → 整合ガード → 回答後取得 → 古い応答の破棄（取得関数を注入）
 components/quiz/
 ├── use-quiz-actions.ts           # [MODIFY] meta 蓄積・triggerAdvance へ受け渡し
 ├── use-quiz-state.ts             # [MODIFY] advanceQuestion(results, meta) → onComplete(results, meta)
@@ -82,7 +83,7 @@ components/quiz/
 └── review-outcome-section.tsx    # [NEW] ReviewOutcomeSummary / ReviewOutcomeDetails（表示専用）
 app/(app)/quiz/review/
 ├── actions.ts                    # [MODIFY] getSrsSnapshot 追加
-└── page.tsx                      # [MODIFY] 回答前スナップショット・回答後取得・成果表示
+└── page.tsx                      # [MODIFY] review-outcome-flow の呼び出しと成果表示のスロット割り当て
 .design-sync/
 ├── config.json                   # [MODIFY] QuizResultCard の footer、新コンポーネント2件
 ├── entry.tsx                     # [MODIFY] export 追加
@@ -91,6 +92,8 @@ __tests__/
 ├── lib/quiz/srs/simulation.test.ts       # [NEW]
 ├── lib/quiz/srs/snapshot.test.ts         # [NEW]
 ├── lib/quiz/srs/outcome.test.ts          # [NEW]
+├── lib/quiz/srs/review-outcome-flow.test.ts  # [NEW] 順序・フォールバック・古い応答の破棄
+├── server/srs-snapshot-action.test.ts    # [NEW] 本人スコープ・突き合わせ・失敗ログ
 └── components/quiz/use-quiz-actions-advance.test.tsx  # [MODIFY] meta 受け渡し
 AGENTS.md                         # [MODIFY] SPECKIT ポインタと復習成果の不変条件
 ```
