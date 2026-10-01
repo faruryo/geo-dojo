@@ -2,15 +2,14 @@
 
 import { useCallback, useMemo } from 'react';
 import type { Municipality } from '@/lib/quiz/municipality-data';
-import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
 import { buildDesignatedCityPopulationMap } from '@/lib/quiz/municipality-population';
-import { useQuizState, type FeedbackState } from './use-quiz-state';
+import { useQuizState, type FeedbackState, type QuizCompleteHandler } from './use-quiz-state';
 import { useQuizTimer } from './use-quiz-timer';
 import { useQuizActions } from './use-quiz-actions';
 import { usePrefersReducedMotion } from '@/lib/hooks/usePrefersReducedMotion';
 import { useQuestionIntro } from './hud/use-question-intro';
 
-export type { FeedbackState };
+export type { FeedbackState, QuizCompleteHandler };
 
 export interface ModeAQuestion {
   kind: 'A';
@@ -31,7 +30,7 @@ export type Question = ModeAQuestion | SingleQuestion;
 export interface UseQuizSessionProps {
   readonly questions: readonly Question[];
   readonly allMunicipalities: readonly Municipality[];
-  readonly onComplete: (results: QuizResultEntry[]) => void;
+  readonly onComplete: QuizCompleteHandler;
 }
 
 export function useQuizSession({

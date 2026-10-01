@@ -1,11 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
+import type { QuestionSaveMeta, QuizResultEntry } from '@/lib/quiz/quiz-session-core';
 import { completionSeEvent, playSe } from '@/lib/quiz/sound-effects';
 import { calculateStreak } from '@/lib/quiz/streak';
 
 export type FeedbackState = 'idle' | 'correct' | 'incorrect';
+
+export type QuizCompleteHandler = (
+  results: QuizResultEntry[],
+  saveMeta?: readonly QuestionSaveMeta[],
+) => void;
 
 function useSelectionState() {
   const [selectedPrefectures, setSelectedPrefectures] = useState<Set<string>>(new Set());
@@ -35,7 +40,7 @@ function useSelectionState() {
 
 export function useQuizState(
   totalQuestions: number,
-  onComplete: (results: QuizResultEntry[]) => void,
+  onComplete: QuizCompleteHandler,
 ) {
   const [qIdx, setQIdx] = useState(0);
   const [feedback, setFeedback] = useState<FeedbackState>('idle');
@@ -51,7 +56,7 @@ export function useQuizState(
   }, [qIdx]);
 
   const advanceQuestion = useCallback(
-    (updatedResults: QuizResultEntry[]) => {
+    (updatedResults: QuizResultEntry[], saveMeta?: readonly QuestionSaveMeta[]) => {
       setFeedback('idle');
       setCurrentStreak(calculateStreak(updatedResults));
       selection.resetSelection();
@@ -61,7 +66,7 @@ export function useQuizState(
         if (!completedRef.current) {
           completedRef.current = true;
           playSe(completionSeEvent(updatedResults));
-          onComplete(updatedResults);
+          onComplete(updatedResults, saveMeta);
         }
       } else {
         setQIdx(nextIdx);

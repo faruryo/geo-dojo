@@ -22,5 +22,6 @@ export { QuizHeader } from '../components/quiz/quiz-header.tsx';
 export { QuizPoolProgress } from '../components/quiz/quiz-pool-progress.tsx';
 export { QuizQuestionCard } from '../components/quiz/quiz-question-card.tsx';
 export { QuizResultCard } from '../components/quiz/quiz-result-card.tsx';
+export { ReviewOutcomeDetails, ReviewOutcomeSummary } from '../components/quiz/review-outcome-section.tsx';
 export { ScopeSelector } from '../components/quiz/scope-selector.tsx';
 export { SessionCountSelector } from '../components/quiz/session-count-selector.tsx';

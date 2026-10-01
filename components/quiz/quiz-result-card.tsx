@@ -17,6 +17,7 @@ interface QuizResultCardProps {
   readonly weakTitle?: string;
   readonly children?: React.ReactNode;
   readonly actions: React.ReactNode;
+  readonly footer?: React.ReactNode;
 }
 
 export function QuizResultCard({
@@ -28,6 +29,7 @@ export function QuizResultCard({
   weakTitle = '苦手な市区町村：',
   children,
   actions,
+  footer,
 }: Readonly<QuizResultCardProps>) {
   const accuracy = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
 
@@ -70,6 +72,8 @@ export function QuizResultCard({
       {children}
 
       {actions}
+
+      {footer}
     </div>
   );
 }

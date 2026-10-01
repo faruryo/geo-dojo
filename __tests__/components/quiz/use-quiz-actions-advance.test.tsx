@@ -6,7 +6,9 @@ import { useQuizActions } from '@/components/quiz/use-quiz-actions';
 import type { ModeAQuestion, Question, SingleQuestion } from '@/components/quiz/use-quiz-session';
 import { useQuizState } from '@/components/quiz/use-quiz-state';
 import { useModeAShortcuts } from '@/components/quiz/hud/use-mode-a-shortcuts';
+import { saveMunicipalityQuizResults } from '@/app/(app)/quiz/municipality/actions';
 import type { Municipality } from '@/lib/quiz/municipality-data';
+import type { QuestionSaveMeta, QuizResultEntry } from '@/lib/quiz/quiz-session-core';
 
 (globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -357,6 +359,100 @@ describe('useQuizActions: 進行制御・スキップ・誤タップガード (U
     });
 
     expect(onAdvance).toHaveBeenCalledTimes(1);
+  });
+});
+
+function TestComponentSession({
+  questions,
+  onComplete,
+}: {
+  questions: Question[];
+  onComplete: (results: QuizResultEntry[], meta?: readonly QuestionSaveMeta[]) => void;
+}) {
+  const state = useQuizState(questions.length, onComplete);
+  const actions = useQuizActions({
+    currentQuestion: questions[state.qIdx] ?? null,
+    allMunicipalities: [],
+    state,
+  });
+  handle = { actions, state };
+  return null;
+}
+
+const TAP_GUARD_ELAPSED_MS = 251;
+
+describe('useQuizActions: 完了時の保存メタ受け渡し (030 FR-004)', () => {
+  const dateHokkaido = sampleMuni({ code: '01233', name: '伊達市', prefecture: '北海道' });
+  const dateFukushima = sampleMuni({ code: '07213', name: '伊達市', prefecture: '福島県' });
+  const questionDate: ModeAQuestion = {
+    kind: 'A',
+    name: '伊達市',
+    instances: [dateHokkaido, dateFukushima],
+    correctPrefectures: new Set(['北海道', '福島県']),
+  };
+
+  it('問題順の QuestionSaveMeta を onComplete の第2引数で渡し、保存失敗は persisted: false になる', async () => {
+    const onComplete = vi.fn<(results: QuizResultEntry[], meta?: readonly QuestionSaveMeta[]) => void>();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    act(() => {
+      root.render(<TestComponentSession questions={[mockQuestionB, questionDate]} onComplete={onComplete} />);
+    });
+
+    await act(async () => {
+      await handle.actions.handleChoice('北海道', 'B');
+    });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    act(() => {
+      vi.advanceTimersByTime(TAP_GUARD_ELAPSED_MS);
+    });
+
+    vi.mocked(saveMunicipalityQuizResults).mockRejectedValueOnce(new Error('db down'));
+    act(() => {
+      handle.state.setSelectedPrefectures(new Set(['北海道']));
+    });
+    await act(async () => {
+      await handle.actions.handleModeASubmit();
+    });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    const [results, meta] = onComplete.mock.calls[0];
+    expect(results).toHaveLength(2);
+    expect(meta).toEqual([
+      { questionIndex: 0, persisted: true, mode: 'B', isCorrect: true, codes: ['01101'] },
+      { questionIndex: 1, persisted: false, mode: 'A', isCorrect: false, codes: ['01233', '07213'] },
+    ]);
+    consoleError.mockRestore();
+  });
+
+  it('保存中のスキップ要求で完了した場合も最後の問題のメタを含む', async () => {
+    const onComplete = vi.fn<(results: QuizResultEntry[], meta?: readonly QuestionSaveMeta[]) => void>();
+    const deferred = createDeferred<{ quizPersisted: boolean; srsPersisted: boolean }>();
+    mockSaveDeferred = deferred;
+    act(() => {
+      root.render(<TestComponentSession questions={[mockQuestionB]} onComplete={onComplete} />);
+    });
+
+    let choicePromise: Promise<void>;
+    act(() => {
+      choicePromise = handle.actions.handleChoice('青森県', 'B');
+    });
+    act(() => {
+      handle.actions.handleSkip();
+    });
+    await act(async () => {
+      deferred.resolve({ quizPersisted: true, srsPersisted: true });
+      await choicePromise;
+    });
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete.mock.calls[0][1]).toEqual([
+      { questionIndex: 0, persisted: true, mode: 'B', isCorrect: false, codes: ['01101'] },
+    ]);
   });
 });
 

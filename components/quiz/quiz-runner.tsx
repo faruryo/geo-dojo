@@ -4,12 +4,12 @@ import { useCallback, useMemo } from 'react';
 import { representativeDifficulty, type Municipality } from '@/lib/quiz/municipality-data';
 import { resolveFeedbackItems } from '@/lib/quiz/municipality-population';
 import { sessionUsesImmersiveLayout } from '@/lib/quiz/immersive-layout';
-import type { QuizResultEntry } from '@/lib/quiz/quiz-session-core';
 import { useImmersiveLayout } from '@/app/(app)/app-shell';
 import {
   useQuizSession,
   type Question,
   type ModeAQuestion,
+  type QuizCompleteHandler,
   type SingleQuestion,
 } from './use-quiz-session';
 import { usePopstateGuard } from '@/lib/hooks/usePopstateGuard';
@@ -26,7 +26,7 @@ export interface QuizRunnerProps {
   readonly questions: readonly Question[];
   readonly allMunicipalities: readonly Municipality[];
   readonly onAbort: () => void;
-  readonly onComplete: (results: QuizResultEntry[]) => void;
+  readonly onComplete: QuizCompleteHandler;
 }
 
 type QuizSession = ReturnType<typeof useQuizSession>;

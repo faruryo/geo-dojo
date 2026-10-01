@@ -9,6 +9,8 @@ import {
 import {
   executeQuizAdvance,
   createTimeoutEntry,
+  toQuestionSaveMeta,
+  type QuestionSaveMeta,
   type QuizSessionEntry,
   type QuizResultEntry,
 } from '@/lib/quiz/quiz-session-core';
@@ -179,8 +181,29 @@ function useInFlightSaves() {
   return { trackSave, awaitPendingSaves, hasInFlight };
 }
 
+function clearAdvanceTimer(ref: React.RefObject<NodeJS.Timeout | null>) {
+  if (ref.current) {
+    clearTimeout(ref.current);
+    ref.current = null;
+  }
+}
+
+function useSaveMetaLog() {
+  const saveMetaRef = useRef<QuestionSaveMeta[]>([]);
+  const recordSaveMeta = useCallback(
+    (entries: QuizSessionEntry[], questionIndex: number, persisted: boolean) => {
+      const meta = toQuestionSaveMeta(entries, questionIndex, persisted);
+      if (meta) saveMetaRef.current = [...saveMetaRef.current, meta];
+    },
+    [],
+  );
+  const snapshotSaveMeta = useCallback(() => [...saveMetaRef.current], []);
+  return { recordSaveMeta, snapshotSaveMeta };
+}
+
 function useAdvanceCoordinator(state: QuizState, guardUntilRef: React.RefObject<number>) {
   const { trackSave, awaitPendingSaves, hasInFlight } = useInFlightSaves();
+  const { recordSaveMeta, snapshotSaveMeta } = useSaveMetaLog();
   const advanceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isAbortedRef = useRef<boolean>(false);
   const skipRequestedRef = useRef<boolean>(false);
@@ -193,15 +216,12 @@ function useAdvanceCoordinator(state: QuizState, guardUntilRef: React.RefObject<
   const triggerAdvance = useCallback(
     (resultsToAdvance: QuizResultEntry[]) => {
       if (isAbortedRef.current) return;
-      if (advanceTimerRef.current) {
-        clearTimeout(advanceTimerRef.current);
-        advanceTimerRef.current = null;
-      }
+      clearAdvanceTimer(advanceTimerRef);
       skipRequestedRef.current = false;
       guardUntilRef.current = Date.now() + TAP_GUARD_MS;
-      state.advanceQuestion(resultsToAdvance);
+      state.advanceQuestion(resultsToAdvance, snapshotSaveMeta());
     },
-    [state, guardUntilRef],
+    [state, guardUntilRef, snapshotSaveMeta],
   );
 
   const handleSkip = useCallback(() => {
@@ -215,16 +235,14 @@ function useAdvanceCoordinator(state: QuizState, guardUntilRef: React.RefObject<
 
   const abort = useCallback(async () => {
     isAbortedRef.current = true;
-    if (advanceTimerRef.current) {
-      clearTimeout(advanceTimerRef.current);
-      advanceTimerRef.current = null;
-    }
+    clearAdvanceTimer(advanceTimerRef);
     await awaitPendingSaves();
   }, [awaitPendingSaves]);
 
   const recordAndAdvance = useCallback(
     async (entries: QuizSessionEntry[]) => {
       skipRequestedRef.current = false;
+      const questionIndex = state.qIdx;
       const savePromise = executeQuizAdvance(entries, state.results, saveMunicipalityQuizResults);
       trackSave(savePromise);
 
@@ -232,6 +250,7 @@ function useAdvanceCoordinator(state: QuizState, guardUntilRef: React.RefObject<
       if (persisted) await appendDisplayQuestion(entries);
       if (isAbortedRef.current) return;
 
+      recordSaveMeta(entries, questionIndex, persisted);
       latestResultsRef.current = updated;
       state.setResults(updated);
 
@@ -244,7 +263,7 @@ function useAdvanceCoordinator(state: QuizState, guardUntilRef: React.RefObject<
         triggerAdvance(updated);
       }, FEEDBACK_ADVANCE_DELAY_MS);
     },
-    [state, trackSave, triggerAdvance],
+    [state, trackSave, triggerAdvance, recordSaveMeta],
   );
 
   return { handleSkip, recordAndAdvance, awaitPendingSaves, abort };

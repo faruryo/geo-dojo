@@ -15,6 +15,34 @@ export interface QuizResultEntry {
   kana?: string;
 }
 
+/**
+ * 1問ぶんの保存成否と保存したコード。表示用の QuizResultEntry は 1問1件に正規化されて
+ * コードを持たないため、完了画面で SRS の変化を引くにはこちらを使う。
+ */
+export interface QuestionSaveMeta {
+  questionIndex: number;
+  persisted: boolean;
+  mode: GameMode;
+  isCorrect: boolean;
+  codes: string[];
+}
+
+export function toQuestionSaveMeta(
+  entries: readonly QuizSessionEntry[],
+  questionIndex: number,
+  persisted: boolean,
+): QuestionSaveMeta | null {
+  const head = entries[0];
+  if (!head) return null;
+  return {
+    questionIndex,
+    persisted,
+    mode: head.mode,
+    isCorrect: head.isCorrect,
+    codes: entries.map((e) => e.municipality.code),
+  };
+}
+
 export interface SaveResultInput {
   municipalityCode: string;
   municipalityName: string;

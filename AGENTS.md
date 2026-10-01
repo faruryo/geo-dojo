@@ -1,14 +1,14 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/029-rich-answer-feedback/plan.md
+at specs/030-review-outcome-feedback/plan.md
 
 Backlog（将来の spec 候補）は specs/backlog.md に管理
 <!-- SPECKIT END -->
 
 # geo-dojo
 
-日本の地理クイズ PWA。市区町村・都道府県の位置当てクイズと、苦手・適応型の出題推薦を提供する。詳細設計は `specs/<feature>/plan.md`（最新: `specs/029-rich-answer-feedback/plan.md`）を参照。
+日本の地理クイズ PWA。市区町村・都道府県の位置当てクイズと、苦手・適応型の出題推薦を提供する。詳細設計は `specs/<feature>/plan.md`（最新: `specs/030-review-outcome-feedback/plan.md`）を参照。
 
 ## 技術スタック
 
@@ -132,6 +132,7 @@ supabase db reset           # マイグレーションをゼロから再適用�
 - `public/japan-municipalities.topojson`（16MB）は serwist precache / Tailwind v4 スキャナ / Turbopack+serwist を詰まらせるため除外設定済み（`next.config.ts` / `sw.ts`）。安易に precache 対象へ戻さない。
 - `municipality_master` は e-Stat 由来データなので、ローカルでは `sync` を実行しないと空（クイズが成立しない）。
 - `municipality_master.population` はクイズ解答時のリッチフィードバック（難易度・人口表示、政令市合算・池田町多県併記）で参照される。各クイズ出題ページ（`/quiz/municipality/[mode]`、`/quiz/review`）でマッピングされ、クライアントに渡される。
+- **復習完了画面の SRS 成果表示（spec 030）**は、出題前と完了後に `getSrsSnapshot`（read-only）で SRS 状態を取り、差分でラベルを決める。回答前の取得は必ず `setPhase('playing')` より前に終える（後にすると1問目の保存結果を回答前として読む）。回答前・保存・回答後の3か所のコード集合は `questionSaveTargets`（Mode A は `dedupeInstancesByPrefecture`）で揃え、`QuestionSaveMeta` と出題が一致しない場合は従来表示にフォールバックする。「あと○回で卒業」は `simulateStepsToGraduation` が SM-2 と早期卒業判定を再現しているので、`sm2.ts` / `update.ts` の卒業条件を変えたら `__tests__/lib/quiz/srs/simulation.test.ts` も通ることを確認する。
 
 ### 本番障害・運用から得た教訓（重要 / PR #12, PR #29）
 
@@ -175,6 +176,7 @@ supabase db reset           # マイグレーションをゼロから再適用�
   - Mode A の同名市（伊達市等）は 1問で出題され DB には県別で保存される。表示カウント、出題数、正答率推移、苦手判定、制覇率計算において、保存行数ではなく必ず `toQuestionResult()` 相当の 1問1件に正規化されているか。
 - **モードごとの集計・判定単位の不変条件**:
   - Mode D（場所当て）は政令市・区単位（コード単位）で出題・正誤判定・制覇進捗を扱う。Mode B/C のような市単位（同名集約）と混同していないか。
+  - 復習完了画面のサマリ（定着／復習継続／保存失敗）は1問1件で数え、合計が回答した問題数と一致しているか。Mode A 多県は全県卒業のときだけ「定着」か。
 - **除外自治体の母数整合性**:
   - Mode A/B/C の出題および制覇率母数から東京23区が除外されているか。
 - **Database & RLS Security**:

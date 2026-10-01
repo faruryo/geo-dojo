@@ -16,6 +16,25 @@ export function Perfect() {
   );
 }
 
+export function WithFooter() {
+  return (
+    <div style={frame}>
+      <QuizResultCard
+        correctCount={15}
+        totalCount={20}
+        backHref="/"
+        backLabel="ダッシュボードに戻る"
+        actions={action}
+        footer={
+          <div style={{ borderRadius: 12, background: '#1c1c1c', color: '#a3a3a3', fontSize: 12, padding: 14 }}>
+            footer（詳細アコーディオン・復習予定）
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
 export function WithWeakItems() {
   return (
     <div style={frame}>
