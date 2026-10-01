@@ -55,14 +55,17 @@ const questions: Question[] = [q1, q2];
 const results = [resultFor(q1), resultFor(q2)];
 const fullMeta = [metaFor(q1, 0), metaFor(q2, 1)];
 
-/** 回答前は rep1、回答後は「今回保存した」rep2 を返す。呼び出しごとにどちらを返すかを切り替える。 */
+/**
+ * 回答前は rep1、回答後は「今回保存した」rep2 を返す。
+ * 誤答歴ありにしているのは、誤答歴なしの rep2 は早期卒業して graduated になり、reviewing のままにならないため。
+ */
 function snapshotOf(keys: SrsSnapshotKey[], after: boolean): SrsSnapshotEntry[] {
   return keys.map((k) => ({
     ...k,
     record: after
       ? record({ repetition: 2, interval: 6, dueDate: '2026-06-07T00:00:00.000Z', lastReviewedAt: '2026-06-01T09:59:00.000Z' })
       : record(),
-    everWrong: false,
+    everWrong: true,
   }));
 }
 
@@ -116,13 +119,14 @@ describe('createReviewOutcomeFlow — 回答前スナップショットの順序
 });
 
 describe('createReviewOutcomeFlow — 従来表示へのフォールバック（FR-008）', () => {
-  it.each<{ name: string; fetchSnapshot: SnapshotFetcher; meta: readonly QuestionSaveMeta[] | undefined; states: string[]; fetchCalls: number }>([
+  it.each<{ name: string; fetchSnapshot: SnapshotFetcher; meta: readonly QuestionSaveMeta[] | undefined; states: string[]; fetchCalls: number; logged: boolean }>([
     {
       name: '回答前取得が失敗したら回答後取得をせず unavailable',
       fetchSnapshot: () => Promise.reject(new Error('boom')),
       meta: fullMeta,
       states: ['unavailable'],
       fetchCalls: 1,
+      logged: true,
     },
     {
       name: '回答後取得が失敗したら loading → unavailable',
@@ -133,6 +137,7 @@ describe('createReviewOutcomeFlow — 従来表示へのフォールバック（
       meta: fullMeta,
       states: ['loading', 'unavailable'],
       fetchCalls: 2,
+      logged: true,
     },
     {
       name: '保存メタが欠けていたら回答後取得をせず unavailable',
@@ -140,6 +145,7 @@ describe('createReviewOutcomeFlow — 従来表示へのフォールバック（
       meta: [fullMeta[0]].filter((m): m is QuestionSaveMeta => !!m),
       states: ['unavailable'],
       fetchCalls: 1,
+      logged: false,
     },
     {
       name: '保存メタが渡されなかったら unavailable',
@@ -147,14 +153,22 @@ describe('createReviewOutcomeFlow — 従来表示へのフォールバック（
       meta: undefined,
       states: ['unavailable'],
       fetchCalls: 1,
+      logged: false,
     },
-  ])('$name', async ({ fetchSnapshot, meta, states: expected, fetchCalls }) => {
+  ])('$name', async ({ fetchSnapshot, meta, states: expected, fetchCalls, logged }) => {
     const spy = vi.fn(fetchSnapshot);
     const { flow, states } = setup(spy);
     await flow.startBatch(questions);
     await flow.complete(results, meta);
     expect(states.map((s) => s.status)).toEqual(expected);
     expect(spy).toHaveBeenCalledTimes(fetchCalls);
+    expect(errorSpy).toHaveBeenCalledTimes(logged ? 1 : 0);
+    if (logged) {
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[review] failed to load srs snapshot',
+        expect.objectContaining({ count: 2 }),
+      );
+    }
   });
 
   it('キーが100件を超えるバッチは取得せずに unavailable', async () => {
