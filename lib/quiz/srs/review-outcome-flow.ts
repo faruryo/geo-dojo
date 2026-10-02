@@ -49,14 +49,21 @@ export function createReviewOutcomeFlow({ fetchSnapshot, onChange, now = () => n
   }
 
   return {
-    /** 1問目の保存より先に解決させること。遅れると回答後の値を回答前として読んでしまう。 */
-    async startBatch(questions: readonly Question[]): Promise<void> {
-      const pre = await load(collectSrsKeys(questions));
+    /**
+     * 1問目の保存より先に解決させること。遅れると回答後の値を回答前として読んでしまう。
+     * 取得中に別の startBatch / reset が走っていたら false を返し、呼び出し側はその問題で出題を始めない。
+     */
+    async startBatch(questions: readonly Question[]): Promise<boolean> {
       seq += 1;
-      active = { id: seq, questions, pre };
+      const id = seq;
+      const pre = await load(collectSrsKeys(questions));
+      if (id !== seq) return false;
+      active = { id, questions, pre };
+      return true;
     },
 
     reset(): void {
+      seq += 1;
       active = null;
     },
 

@@ -32,7 +32,7 @@ function record(over: Partial<SrsSnapshotRecord> = {}): SrsSnapshotRecord {
 }
 
 function metaFor(q: SingleQuestion, questionIndex: number, persisted = true): QuestionSaveMeta {
-  return { questionIndex, persisted, mode: q.mode, isCorrect: true, codes: [q.municipality.code] };
+  return { questionIndex, persisted, mode: q.mode, isCorrect: true, codes: [q.municipality.code], srsSkippedCodes: [] };
 }
 
 function resultFor(q: SingleQuestion): QuizResultEntry {
@@ -191,6 +191,41 @@ describe('createReviewOutcomeFlow — 従来表示へのフォールバック（
 });
 
 describe('createReviewOutcomeFlow — 古い応答の破棄（FR-009）', () => {
+  it('startBatch が重なり古い回答前取得が後着しても、古いバッチは採用しない', async () => {
+    const preA = deferred<SrsSnapshotEntry[]>();
+    const preB = deferred<SrsSnapshotEntry[]>();
+    const pending = [preA, preB];
+    let n = 0;
+    const { flow, states } = setup((keys) => {
+      const d = pending[n++];
+      return d ? d.promise : Promise.resolve(snapshotOf(keys, true));
+    });
+
+    const batchA = [q1];
+    const batchB = [q2];
+    const startA = flow.startBatch(batchA);
+    const startB = flow.startBatch(batchB);
+    preB.resolve(snapshotOf([{ municipalityCode: '01203', mode: 'B' }], false));
+    preA.resolve(snapshotOf([{ municipalityCode: '01202', mode: 'B' }], false));
+
+    expect(await startB).toBe(true);
+    expect(await startA).toBe(false);
+
+    await flow.complete([resultFor(q2)], [metaFor(q2, 0)]);
+    expect(states.map((s) => s.status)).toEqual(['loading', 'ready']);
+  });
+
+  it('取得中に reset されたら startBatch は false を返す', async () => {
+    const pre = deferred<SrsSnapshotEntry[]>();
+    const { flow, last } = setup(() => pre.promise);
+    const starting = flow.startBatch(questions);
+    flow.reset();
+    pre.resolve([]);
+    expect(await starting).toBe(false);
+    await flow.complete(results, fullMeta);
+    expect(last()).toBe('unavailable');
+  });
+
   it('「続けて復習する」で reset した後に前バッチの回答後スナップショットが返っても反映しない', async () => {
     const post = deferred<SrsSnapshotEntry[]>();
     let n = 0;

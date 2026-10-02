@@ -20,12 +20,13 @@
 
 ## R4. 同日ガードの検出方法
 
-- **Decision**: 正解 かつ 回答前のレコードがあり、回答前後で `last_reviewed_at` が同一であれば「同日回答済み」とする。
-- **Rationale**: `computeSrsUpdate` の skip は upsert を行わないため、`last_reviewed_at` が変わらない。更新されれば必ずサーバの `now` に変わるので、等値比較で判別できる。
+- **Decision**: 保存処理（`upsertSrsRecord`）が同日ガードで更新しなかったコードを `saveMunicipalityQuizResults` の戻り値 `srsSkippedCodes` で返し、`QuestionSaveMeta` 経由で完了画面へ渡す。正解 かつ そのコードがスキップされていれば「同日回答済み」とする。回答前後で `last_reviewed_at` が同一の場合も同日回答済みとする（従来の判定を補助として残す）。
+- **Rationale**: 復習バッチは期日到来分だけを出題するので、同日ガードに当たるのは実質「回答前の取得の後に別タブで同じ項目が前進した」場合に限られる。このとき別タブの更新で `last_reviewed_at` が変わるため、スナップショットの差分だけでは自分の保存が更新したのか別タブが更新したのかを区別できず、誤って「卒業」と表示してしまう。スキップの事実を知っているのは保存処理だけなので、そこから返す。
+- **Alternatives considered**: クライアントの回答時刻と回答後の `last_reviewed_at` を比べる案は、端末とサーバの時計のずれで誤判定するため採らない。
 
 ## R5. 保存成否と問題の対応付け
 
-- **Decision**: `recordAndAdvance` で `QuestionSaveMeta { questionIndex: state.qIdx, persisted, mode, isCorrect, codes }` を生成し、ref に蓄積して `onComplete` の第2引数で渡す。受け取り側では件数・番号の範囲と重複・コード集合の一致を検証し、1つでも不一致ならバッチ全体をフォールバックにする。
+- **Decision**: `recordAndAdvance` で `QuestionSaveMeta { questionIndex: state.qIdx, persisted, mode, isCorrect, codes, srsSkippedCodes }` を生成し、ref に蓄積して `onComplete` の第2引数で渡す。受け取り側では件数・番号の範囲と重複・コード集合の一致を検証し、1つでも不一致ならバッチ全体をフォールバックにする。
 - **Rationale**: 表示用の `results` は1問1件に正規化済みで、コード情報を持たない。保存単位のコードは `entries` にしかないので、生成元で記録するのが確実。部分的に表示すると不整合の検出が難しくなるため、全体フォールバックにする。
 
 ## R6. 件数上限

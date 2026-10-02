@@ -65,7 +65,7 @@ export default function ReviewPage() {
         return;
       }
 
-      await outcomeFlow.startBatch(qs);
+      if (!(await outcomeFlow.startBatch(qs))) return;
       setQuestions(qs);
       setPhase('playing');
     } catch {

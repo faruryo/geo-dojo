@@ -398,6 +398,11 @@ describe('useQuizActions: 完了時の保存メタ受け渡し (030 FR-004)', ()
       root.render(<TestComponentSession questions={[mockQuestionB, questionDate]} onComplete={onComplete} />);
     });
 
+    vi.mocked(saveMunicipalityQuizResults).mockResolvedValueOnce({
+      quizPersisted: true,
+      srsPersisted: true,
+      srsSkippedCodes: ['01101'],
+    });
     await act(async () => {
       await handle.actions.handleChoice('北海道', 'B');
     });
@@ -423,8 +428,8 @@ describe('useQuizActions: 完了時の保存メタ受け渡し (030 FR-004)', ()
     const [results, meta] = onComplete.mock.calls[0];
     expect(results).toHaveLength(2);
     expect(meta).toEqual([
-      { questionIndex: 0, persisted: true, mode: 'B', isCorrect: true, codes: ['01101'] },
-      { questionIndex: 1, persisted: false, mode: 'A', isCorrect: false, codes: ['01233', '07213'] },
+      { questionIndex: 0, persisted: true, mode: 'B', isCorrect: true, codes: ['01101'], srsSkippedCodes: ['01101'] },
+      { questionIndex: 1, persisted: false, mode: 'A', isCorrect: false, codes: ['01233', '07213'], srsSkippedCodes: [] },
     ]);
     consoleError.mockRestore();
   });
@@ -451,7 +456,7 @@ describe('useQuizActions: 完了時の保存メタ受け渡し (030 FR-004)', ()
 
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onComplete.mock.calls[0][1]).toEqual([
-      { questionIndex: 0, persisted: true, mode: 'B', isCorrect: false, codes: ['01101'] },
+      { questionIndex: 0, persisted: true, mode: 'B', isCorrect: false, codes: ['01101'], srsSkippedCodes: [] },
     ]);
   });
 });

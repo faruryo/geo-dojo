@@ -33,21 +33,23 @@ DB スキーマの変更はない。以下はすべてアプリ内の型（永�
 | `mode` | `GameMode` | |
 | `isCorrect` | `boolean` | |
 | `codes` | `string[]` | 保存したコード（`entries` の順） |
+| `srsSkippedCodes` | `string[]` | 保存時に同日ガードで SRS を更新しなかったコード。`saveMunicipalityQuizResults` の戻り値 `srsSkippedCodes` をそのまま入れる。保存失敗時は空 |
 
 整合ガード（`isSaveMetaConsistent(questions, meta, resultCount)`）は、次のすべてを満たすときだけ真を返す。
 
 1. `meta.length === resultCount`
 2. `questionIndex` が `0..resultCount-1` の範囲内で重複しない
 3. 各 meta の `mode` と `codes` が `questionSrsKeys(questions[questionIndex])` と順序込みで一致する
+4. `srsSkippedCodes` がすべて `codes` に含まれる
 
 ## 行ラベル（OutcomeLabel）の判定表
 
-入力: `persisted`, `isCorrect`, `pre: SrsSnapshotEntry | undefined`, `post: SrsSnapshotEntry | undefined`, `now`。上から順に評価し、最初に当てはまったものを採用する。
+入力: `persisted`, `isCorrect`, `srsSkipped`（その行のコードが `srsSkippedCodes` に含まれるか）, `pre: SrsSnapshotEntry | undefined`, `post: SrsSnapshotEntry | undefined`, `now`。上から順に評価し、最初に当てはまったものを採用する。
 
 | # | 条件 | `kind` | 表示 |
 |---|---|---|---|
 | 1 | `!persisted` | `saveFailed` | ⚠️ 保存失敗 |
-| 2 | `isCorrect && pre.record && post.record.lastReviewedAt === pre.record.lastReviewedAt` | `sameDay` | ⏸️ 同日回答済み |
+| 2 | `isCorrect && (srsSkipped \|\| (pre.record && post.record.lastReviewedAt === pre.record.lastReviewedAt))` | `sameDay` | ⏸️ 同日回答済み |
 | 3 | `!isCorrect && pre.record?.status === 'graduated'` | `relapsed` | ⚠️ 復習に戻りました（明日もう一度） |
 | 4 | `!isCorrect` | `retryTomorrow` | 🔄 明日もう一度 |
 | 5 | `post.status === 'graduated' && pre.record?.status === 'graduated'` | `kept` | 🎓 定着維持 |

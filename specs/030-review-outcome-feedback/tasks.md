@@ -63,6 +63,13 @@
 
 ---
 
+## Phase 6: 別 LLM レビュー（Codex）の差し戻し対応
+
+- [x] T023 同日ガードの判定を保存処理の事実に基づかせる。`upsertSrsRecord` が `'updated' | 'skipped'` を返し、`saveMunicipalityQuizResults` が `srsSkippedCodes` を返す。`executeQuizAdvance` → `toQuestionSaveMeta` → `QuestionSaveMeta.srsSkippedCodes` で完了画面へ渡し、`resolveOutcomeLabel` はスキップされた行を `sameDay` にする（回答前取得の後に別タブが卒業させた場合に「卒業」と誤表示しない）。整合ガードは `srsSkippedCodes ⊆ codes` も検証する。テストは `outcome.test.ts`（判定表・Mode A 県別・整合ガード）、`quiz-session-core.test.ts`、`use-quiz-actions-advance.test.tsx`、`__tests__/server/save-results-srs-skip.test.ts`。ラベル判定・スキップコードの収集・受け渡しを外すと赤くなることを確認済み
+- [x] T024 `startBatch` の世代番号を取得開始時に振り、取得中に別の `startBatch` / `reset` が走った場合は `false` を返して古いバッチを採用しない。`page.tsx` は `false` のとき出題を始めない。`review-outcome-flow.test.ts` に重なりと reset のケースを追加し、世代ガードを外すと赤くなることを確認済み
+
+---
+
 ## Dependencies
 
 - T001・T003・T005 → T006 → T007

@@ -191,8 +191,8 @@ function clearAdvanceTimer(ref: React.RefObject<NodeJS.Timeout | null>) {
 function useSaveMetaLog() {
   const saveMetaRef = useRef<QuestionSaveMeta[]>([]);
   const recordSaveMeta = useCallback(
-    (entries: QuizSessionEntry[], questionIndex: number, persisted: boolean) => {
-      const meta = toQuestionSaveMeta(entries, questionIndex, persisted);
+    (entries: QuizSessionEntry[], questionIndex: number, persisted: boolean, srsSkippedCodes: string[]) => {
+      const meta = toQuestionSaveMeta(entries, questionIndex, persisted, srsSkippedCodes);
       if (meta) saveMetaRef.current = [...saveMetaRef.current, meta];
     },
     [],
@@ -246,11 +246,11 @@ function useAdvanceCoordinator(state: QuizState, guardUntilRef: React.RefObject<
       const savePromise = executeQuizAdvance(entries, state.results, saveMunicipalityQuizResults);
       trackSave(savePromise);
 
-      const { results: updated, persisted } = await savePromise;
+      const { results: updated, persisted, srsSkippedCodes } = await savePromise;
       if (persisted) await appendDisplayQuestion(entries);
       if (isAbortedRef.current) return;
 
-      recordSaveMeta(entries, questionIndex, persisted);
+      recordSaveMeta(entries, questionIndex, persisted, srsSkippedCodes);
       latestResultsRef.current = updated;
       state.setResults(updated);
 

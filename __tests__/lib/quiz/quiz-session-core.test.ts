@@ -137,6 +137,23 @@ describe('quiz-session-core', () => {
       );
     });
 
+    it('保存処理が返した同日ガードのスキップコードをそのまま返し、保存失敗時は空にする', async () => {
+      const entries: QuizSessionEntry[] = [
+        { municipality: mSapporo, isCorrect: true, mode: 'A', answerTimeMs: 800 },
+      ];
+      const mockLogger = { error: vi.fn() };
+      const skipped = await executeQuizAdvance(
+        entries,
+        [],
+        vi.fn(async () => ({ quizPersisted: true, srsPersisted: true, srsSkippedCodes: ['01100'] })),
+        mockLogger,
+      );
+      expect(skipped.srsSkippedCodes).toEqual(['01100']);
+
+      const failed = await executeQuizAdvance(entries, [], vi.fn(async () => Promise.reject(new Error('boom'))), mockLogger);
+      expect(failed.srsSkippedCodes).toEqual([]);
+    });
+
     it('entries が空配列の場合、例外を投げずに currentResults をそのまま返し persisted=true となること', async () => {
       const currentResults: QuizResultEntry[] = [
         { name: '札幌市', prefecture: '北海道', correct: true },

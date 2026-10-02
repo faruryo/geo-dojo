@@ -68,10 +68,11 @@ specs/030-review-outcome-feedback/
 
 ```text
 lib/quiz/
-├── quiz-session-core.ts          # [MODIFY] QuestionSaveMeta 型 + toQuestionSaveMeta
+├── quiz-session-core.ts          # [MODIFY] QuestionSaveMeta 型 + toQuestionSaveMeta、executeQuizAdvance が srsSkippedCodes を返す
 └── srs/
     ├── simulation.ts             # [NEW] simulateStepsToGraduation, MAX_SIMULATION_STEPS
     ├── snapshot.ts               # [NEW] SrsSnapshotKey/Entry 型, validateSrsSnapshotKeys
+    ├── record-service.ts         # [MODIFY] upsertSrsRecord が 'updated' | 'skipped' を返す
     ├── outcome.ts                # [NEW] questionSrsKeys, isSaveMetaConsistent, buildReviewOutcome, 文言整形
     └── review-outcome-flow.ts    # [NEW] 回答前取得 → 整合ガード → 回答後取得 → 古い応答の破棄（取得関数を注入）
 components/quiz/
@@ -81,6 +82,8 @@ components/quiz/
 ├── quiz-runner.tsx               # [MODIFY] onComplete 型
 ├── quiz-result-card.tsx          # [MODIFY] footer スロット追加
 └── review-outcome-section.tsx    # [NEW] ReviewOutcomeSummary / ReviewOutcomeDetails（表示専用）
+app/(app)/quiz/municipality/
+└── actions.ts                    # [MODIFY] saveMunicipalityQuizResults が srsSkippedCodes を返す
 app/(app)/quiz/review/
 ├── actions.ts                    # [MODIFY] getSrsSnapshot 追加
 └── page.tsx                      # [MODIFY] review-outcome-flow の呼び出しと成果表示のスロット割り当て
@@ -94,6 +97,7 @@ __tests__/
 ├── lib/quiz/srs/outcome.test.ts          # [NEW]
 ├── lib/quiz/srs/review-outcome-flow.test.ts  # [NEW] 順序・フォールバック・古い応答の破棄
 ├── server/srs-snapshot-action.test.ts    # [NEW] 本人スコープ・突き合わせ・失敗ログ
+├── server/save-results-srs-skip.test.ts  # [NEW] 同日ガードのスキップコード報告
 └── components/quiz/use-quiz-actions-advance.test.tsx  # [MODIFY] meta 受け渡し
 AGENTS.md                         # [MODIFY] SPECKIT ポインタと復習成果の不変条件
 ```

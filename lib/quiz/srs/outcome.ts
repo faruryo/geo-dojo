@@ -66,6 +66,7 @@ export function isSaveMetaConsistent(
     const targets = questionSaveTargets(questions[m.questionIndex]);
     if (!targets.every((t) => t.mode === m.mode)) return false;
     if (targets.map((t) => t.municipalityCode).join(',') !== m.codes.join(',')) return false;
+    if (!m.srsSkippedCodes.every((code) => m.codes.includes(code))) return false;
   }
   return true;
 }
@@ -89,19 +90,23 @@ export type OutcomeLabel =
 interface LabelInput {
   persisted: boolean;
   isCorrect: boolean;
+  /** 保存時に同日ガードで更新しなかったか。回答前の取得後に別タブが前進させた場合も true になる。 */
+  srsSkipped: boolean;
   pre: SrsSnapshotEntry;
   post: SrsSnapshotEntry | undefined;
   now: Date;
 }
 
 /** data-model.md の判定表どおり、上から最初に当てはまったラベルを1つ返す。 */
-export function resolveOutcomeLabel({ persisted, isCorrect, pre, post, now }: LabelInput): OutcomeLabel | null {
+export function resolveOutcomeLabel({ persisted, isCorrect, srsSkipped, pre, post, now }: LabelInput): OutcomeLabel | null {
   if (!persisted) return { kind: 'saveFailed' };
   const after = post?.record;
   if (!after) return null;
   const before = pre.record;
 
-  if (isCorrect && before && after.lastReviewedAt === before.lastReviewedAt) return { kind: 'sameDay' };
+  if (isCorrect && (srsSkipped || (before && after.lastReviewedAt === before.lastReviewedAt))) {
+    return { kind: 'sameDay' };
+  }
   if (!isCorrect) return before?.status === 'graduated' ? { kind: 'relapsed' } : { kind: 'retryTomorrow' };
   if (after.status === 'graduated') {
     return before?.status === 'graduated' ? { kind: 'kept' } : { kind: 'graduated' };
@@ -165,7 +170,14 @@ function buildRow(
   const pre = preMap.get(id);
   if (!pre) return null;
   const post = m.persisted ? postMap.get(id) : undefined;
-  const label = resolveOutcomeLabel({ persisted: m.persisted, isCorrect: m.isCorrect, pre, post, now });
+  const label = resolveOutcomeLabel({
+    persisted: m.persisted,
+    isCorrect: m.isCorrect,
+    srsSkipped: m.srsSkippedCodes.includes(target.municipalityCode),
+    pre,
+    post,
+    now,
+  });
   if (!label) return null;
 
   const after = post?.record;

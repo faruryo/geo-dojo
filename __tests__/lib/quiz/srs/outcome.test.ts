@@ -51,12 +51,18 @@ function entry(
   return { municipalityCode, mode, record: rec, everWrong };
 }
 
-function meta(questionIndex: number, q: Question, isCorrect: boolean, persisted = true): QuestionSaveMeta {
+function meta(
+  questionIndex: number,
+  q: Question,
+  isCorrect: boolean,
+  persisted = true,
+  srsSkippedCodes: string[] = [],
+): QuestionSaveMeta {
   const codes =
     q.kind === 'A'
       ? [...new Map(q.instances.map((m) => [m.prefecture, m.code])).values()]
       : [q.municipality.code];
-  return { questionIndex, persisted, mode: q.kind === 'A' ? 'A' : q.mode, isCorrect, codes };
+  return { questionIndex, persisted, mode: q.kind === 'A' ? 'A' : q.mode, isCorrect, codes, srsSkippedCodes };
 }
 
 function result(name: string, correct: boolean): QuizResultEntry {
@@ -67,7 +73,11 @@ describe('resolveOutcomeLabel — 判定表（data-model.md）', () => {
   const pre = (rec: SrsSnapshotRecord | null) => entry('01101', 'B', rec);
   const post = (rec: SrsSnapshotRecord) => entry('01101', 'B', rec);
 
-  it.each<{ label: string; input: Parameters<typeof resolveOutcomeLabel>[0]; expected: OutcomeLabel }>([
+  it.each<{
+    label: string;
+    input: Omit<Parameters<typeof resolveOutcomeLabel>[0], 'srsSkipped'> & { srsSkipped?: boolean };
+    expected: OutcomeLabel;
+  }>([
     {
       label: '1. 保存失敗は post が無くても saveFailed',
       input: { persisted: false, isCorrect: true, pre: pre(record()), post: undefined, now: NOW },
@@ -80,6 +90,18 @@ describe('resolveOutcomeLabel — 判定表（data-model.md）', () => {
         isCorrect: true,
         pre: pre(record({ lastReviewedAt: SAVED_AT, dueDate: '2026-06-02T09:00:00.000Z' })),
         post: post(record({ lastReviewedAt: SAVED_AT, dueDate: '2026-06-02T09:00:00.000Z' })),
+        now: NOW,
+      },
+      expected: { kind: 'sameDay' },
+    },
+    {
+      label: '2. 回答前取得の後に別タブが卒業させ、自分の保存が同日ガードでスキップされたら同日回答済み（卒業扱いにしない）',
+      input: {
+        persisted: true,
+        isCorrect: true,
+        srsSkipped: true,
+        pre: pre(record()),
+        post: post(record({ status: 'graduated', repetition: 2, lastReviewedAt: SAVED_AT })),
         now: NOW,
       },
       expected: { kind: 'sameDay' },
@@ -184,17 +206,25 @@ describe('resolveOutcomeLabel — 判定表（data-model.md）', () => {
       expected: { kind: 'scheduled', daysUntil: 1 },
     },
   ])('$label', ({ input, expected }) => {
-    expect(resolveOutcomeLabel(input)).toEqual(expected);
+    expect(resolveOutcomeLabel({ srsSkipped: false, ...input })).toEqual(expected);
   });
 
   it('保存成功なのに回答後レコードが無ければ null（不整合）', () => {
     expect(
-      resolveOutcomeLabel({ persisted: true, isCorrect: true, pre: pre(record()), post: undefined, now: NOW }),
+      resolveOutcomeLabel({
+        persisted: true,
+        isCorrect: true,
+        srsSkipped: false,
+        pre: pre(record()),
+        post: undefined,
+        now: NOW,
+      }),
     ).toBeNull();
     expect(
       resolveOutcomeLabel({
         persisted: true,
         isCorrect: true,
+        srsSkipped: false,
         pre: pre(record()),
         post: entry('01101', 'B', null),
         now: NOW,
@@ -317,6 +347,16 @@ describe('buildReviewOutcome — サマリ（1問1件）', () => {
     expect(outcome?.summary).toEqual({ graduated: 2, continuing: 1, saveFailed: 1 });
   });
 
+  it('保存時に同日ガードでスキップされた県だけ同日回答済みになり、サマリは回答後の状態で分類する', () => {
+    const skippedMeta = batchMeta.map((m, i) => (i === 2 ? { ...m, srsSkippedCodes: ['01233'] } : m));
+    const date = buildOrThrow({ meta: skippedMeta }).questions[2];
+    expect(date.rows.map((r) => [r.prefecture, r.label.kind, r.graduated])).toEqual([
+      ['北海道', 'sameDay', true],
+      ['福島県', 'scheduled', false],
+    ]);
+    expect(date.category).toBe('continuing');
+  });
+
   it('保存失敗の問題は回答後スナップショットが無くても保存失敗として隔離される', () => {
     const failed = buildOrThrow().questions[3];
     expect(failed.category).toBe('saveFailed');
@@ -342,7 +382,7 @@ describe('buildReviewOutcome — サマリ（1問1件）', () => {
     const outcome = buildReviewOutcome({
       questions: [sapporo],
       results: [result('札幌市', true)],
-      meta: [{ questionIndex: 0, persisted: true, mode: 'A', isCorrect: true, codes: ['01101'] }],
+      meta: [{ questionIndex: 0, persisted: true, mode: 'A', isCorrect: true, codes: ['01101'], srsSkippedCodes: [] }],
       pre: [entry('01101', 'A', record())],
       post: [entry('01101', 'A', record({ dueDate: '2026-06-02T09:59:00.000Z', lastReviewedAt: SAVED_AT }))],
       now: NOW,
@@ -362,6 +402,7 @@ describe('buildReviewOutcome / isSaveMetaConsistent — 整合ガード', () => 
     { label: 'Mode A のコード順が保存時と違う', meta: [batchMeta[0], batchMeta[1], { ...batchMeta[2], codes: ['07213', '01233'] }, batchMeta[3]] },
     { label: 'Mode A の県が欠けている', meta: [batchMeta[0], batchMeta[1], { ...batchMeta[2], codes: ['01233'] }, batchMeta[3]] },
     { label: 'モードが出題と違う', meta: [{ ...batchMeta[0], mode: 'C' }, ...batchMeta.slice(1)] },
+    { label: 'スキップしたコードが保存コードに含まれない', meta: [{ ...batchMeta[0], srsSkippedCodes: ['99999'] }, ...batchMeta.slice(1)] },
   ])('$label なら null（従来表示へフォールバック）', ({ meta: m }) => {
     expect(isSaveMetaConsistent(questions, m, results.length)).toBe(false);
     expect(build({ meta: m })).toBeNull();
