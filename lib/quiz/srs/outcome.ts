@@ -275,3 +275,16 @@ export function formatRemainingSteps(steps: number | null): string {
     ? `通常の速さなら${MAX_SIMULATION_STEPS}回以上`
     : `通常の速さならあと${steps}回で卒業`;
 }
+
+/** 定着した問題名（1問1件）。サマリの強調行に出す。 */
+export function graduatedQuestionNames(outcome: ReviewOutcome): string[] {
+  return outcome.questions.filter((q) => q.category === 'graduated').map((q) => q.name);
+}
+
+export const MAX_GRADUATED_NAMES = 3;
+
+export function formatGraduatedNames(names: readonly string[]): string {
+  const shown = names.slice(0, MAX_GRADUATED_NAMES).join('・');
+  const rest = names.length - MAX_GRADUATED_NAMES;
+  return rest > 0 ? `${shown} ほか${rest}件` : shown;
+}

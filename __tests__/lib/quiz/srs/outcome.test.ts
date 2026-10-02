@@ -7,6 +7,8 @@ import {
   collectSrsKeys,
   formatOutcomeLabel,
   formatRemainingSteps,
+  formatGraduatedNames,
+  graduatedQuestionNames,
   isSaveMetaConsistent,
   persistedSrsKeys,
   resolveOutcomeLabel,
@@ -253,6 +255,14 @@ describe('formatOutcomeLabel / formatRemainingSteps', () => {
     expect(formatRemainingSteps(3)).toBe('通常の速さならあと3回で卒業');
     expect(formatRemainingSteps(null)).toBe('通常の速さなら20回以上');
   });
+
+  it.each([
+    { names: ['函館市'], text: '函館市' },
+    { names: ['函館市', '伊達市', '小樽市'], text: '函館市・伊達市・小樽市' },
+    { names: ['函館市', '伊達市', '小樽市', '室蘭市', '釧路市'], text: '函館市・伊達市・小樽市 ほか2件' },
+  ])('定着した問題名は3件まで並べ、残りは件数でまとめる: $text', ({ names, text }) => {
+    expect(formatGraduatedNames(names)).toBe(text);
+  });
 });
 
 // ─── バッチ全体 ───────────────────────────────────────────────
@@ -334,6 +344,10 @@ describe('buildReviewOutcome — サマリ（1問1件）', () => {
     expect(date.rows[0].remainingSteps).toBeUndefined();
     // 回答後 rep2 int6 EF2.18 誤答歴あり: 13 → 28 → 61 で3回
     expect(date.rows[1].remainingSteps).toBe(3);
+  });
+
+  it('強調行に出す定着名は1問1件で、片県だけ卒業した Mode A 問題は含めない', () => {
+    expect(graduatedQuestionNames(buildOrThrow())).toEqual(['館山市']);
   });
 
   it('Mode A で全県が卒業したときだけ定着に数える', () => {

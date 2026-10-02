@@ -26,11 +26,14 @@ readonly footer?: React.ReactNode;
 ```ts
 interface ReviewOutcomeSummaryProps {
   readonly summary: { graduated: number; continuing: number; saveFailed: number } | null;
+  readonly graduatedNames?: readonly string[]; // 定着した問題名（1問1件、graduatedQuestionNames）
 }
 ```
 
 - 見出し「今回の復習の成果」。
-- チップ: `🎉 定着 {n}件`、`🔄 復習継続 {n}件`、`⚠️ 保存失敗 {n}件`（保存失敗は1件以上のときだけ）。
+- 定着が1件以上: チップより上に緑の強調行「🎉 {n}件 定着しました」（件数は大きく）と、定着した問題名（3件まで `・` 区切り、超過分は「ほかN件」）を出す。定着チップは出さない。
+- 定着0件: チップ `🎉 定着 0件` を出す。
+- チップ: `🔄 復習継続 {n}件`、`⚠️ 保存失敗 {n}件`（保存失敗は1件以上のときだけ）。
 - `summary === null` のときは同じ高さのスケルトンを表示する。
 
 ## ReviewOutcomeDetails（表示専用）

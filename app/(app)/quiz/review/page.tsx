@@ -20,6 +20,7 @@ import type { Question } from '@/components/quiz/quiz-runner';
 import { type Difficulty, type Municipality } from '@/lib/quiz/municipality-data';
 import type { QuestionSaveMeta, QuizResultEntry } from '@/lib/quiz/quiz-session-core';
 import { createReviewOutcomeFlow, type OutcomeState } from '@/lib/quiz/srs/review-outcome-flow';
+import { graduatedQuestionNames } from '@/lib/quiz/srs/outcome';
 
 type Phase = 'loading' | 'empty' | 'playing' | 'result';
 
@@ -189,6 +190,7 @@ export default function ReviewPage() {
         {showOutcome && (
           <ReviewOutcomeSummary
             summary={outcomeState.status === 'ready' ? outcomeState.outcome.summary : null}
+            graduatedNames={outcomeState.status === 'ready' ? graduatedQuestionNames(outcomeState.outcome) : []}
           />
         )}
       </QuizResultCard>

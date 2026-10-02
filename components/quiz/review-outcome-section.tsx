@@ -3,6 +3,7 @@
 import { ChevronDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  formatGraduatedNames,
   formatOutcomeLabel,
   formatRemainingSteps,
   type OutcomeLabel,
@@ -34,15 +35,35 @@ function SummaryChip({ tone, children }: Readonly<{ tone: ChipTone; children: Re
   );
 }
 
+function GraduatedHighlight({ count, names }: Readonly<{ count: number; names: readonly string[] }>) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg bg-emerald-400/10 px-3 py-2.5 ring-1 ring-emerald-400/30">
+      <span aria-hidden className="text-3xl leading-none">🎉</span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <p className="text-base font-bold text-emerald-300">
+          <span className="text-2xl tabular-nums">{count}</span>件 定着しました
+        </p>
+        {names.length > 0 && (
+          <p className="truncate text-xs text-emerald-200/80">{formatGraduatedNames(names)}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ReviewOutcomeSummary({
   summary,
-}: Readonly<{ summary: ReviewOutcomeSummaryCounts | null }>) {
+  graduatedNames = [],
+}: Readonly<{ summary: ReviewOutcomeSummaryCounts | null; graduatedNames?: readonly string[] }>) {
   return (
     <section aria-label="今回の復習の成果" className={`${CARD} flex flex-col gap-2 p-3.5`}>
       <p className="text-xs font-semibold text-muted-foreground">今回の復習の成果</p>
+      {summary && summary.graduated > 0 && (
+        <GraduatedHighlight count={summary.graduated} names={graduatedNames} />
+      )}
       {summary ? (
         <div className="flex flex-wrap gap-1.5">
-          <SummaryChip tone="success">🎉 定着 {summary.graduated}件</SummaryChip>
+          {summary.graduated === 0 && <SummaryChip tone="success">🎉 定着 0件</SummaryChip>}
           <SummaryChip tone="neutral">🔄 復習継続 {summary.continuing}件</SummaryChip>
           {summary.saveFailed > 0 && (
             <SummaryChip tone="warning">⚠️ 保存失敗 {summary.saveFailed}件</SummaryChip>
