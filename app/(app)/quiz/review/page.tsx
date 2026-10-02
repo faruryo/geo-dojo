@@ -11,19 +11,16 @@ import { useDueReviewSummary } from '@/lib/hooks/useDueReviewSummary';
 import { queryKeys } from '@/lib/query-keys';
 import { UpcomingReviewMini } from '@/components/quiz/upcoming-review-mini';
 import { QuizResultCard } from '@/components/quiz/quiz-result-card';
+import { ReviewOutcomeDetails, ReviewOutcomeSummary } from '@/components/quiz/review-outcome-section';
 import { toWeakResultItem } from '@/lib/quiz/quiz-results';
-import { getDueReviewItems } from './actions';
+import { getDueReviewItems, getSrsSnapshot } from './actions';
 import { buildReviewQuestions } from '@/lib/quiz/review-questions';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
 import type { Question } from '@/components/quiz/quiz-runner';
 import { type Difficulty, type Municipality } from '@/lib/quiz/municipality-data';
-
-interface ResultEntry {
-  name: string;
-  prefecture: string;
-  correct: boolean;
-  kana?: string;
-}
+import type { QuestionSaveMeta, QuizResultEntry } from '@/lib/quiz/quiz-session-core';
+import { createReviewOutcomeFlow, type OutcomeState } from '@/lib/quiz/srs/review-outcome-flow';
+import { graduatedQuestionNames } from '@/lib/quiz/srs/outcome';
 
 type Phase = 'loading' | 'empty' | 'playing' | 'result';
 
@@ -31,7 +28,11 @@ export default function ReviewPage() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>('loading');
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [results, setResults] = useState<ResultEntry[]>([]);
+  const [results, setResults] = useState<QuizResultEntry[]>([]);
+  const [outcomeState, setOutcomeState] = useState<OutcomeState>({ status: 'unavailable' });
+  const [outcomeFlow] = useState(() =>
+    createReviewOutcomeFlow({ fetchSnapshot: getSrsSnapshot, onChange: setOutcomeState }),
+  );
   const queryClient = useQueryClient();
 
   const { data: masterData, isLoading: masterLoading } = useMunicipalityMaster();
@@ -65,17 +66,29 @@ export default function ReviewPage() {
         return;
       }
 
+      if (!(await outcomeFlow.startBatch(qs))) return;
       setQuestions(qs);
       setPhase('playing');
     } catch {
       setPhase('empty');
     }
-  }, [allMunicipalities]);
+  }, [allMunicipalities, outcomeFlow]);
 
   useEffect(() => {
     if (masterLoading || allMunicipalities.length === 0 || phase !== 'loading') return;
     void loadBatch();
   }, [masterLoading, allMunicipalities, phase, loadBatch]);
+
+  const handleComplete = useCallback(
+    async (completedResults: QuizResultEntry[], saveMeta?: readonly QuestionSaveMeta[]) => {
+      setResults(completedResults);
+      const outcomePromise = outcomeFlow.complete(completedResults, saveMeta);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      setPhase('result');
+      await outcomePromise;
+    },
+    [queryClient, outcomeFlow],
+  );
 
   // ─── Loading ──────────────────────────────────────────────────────
 
@@ -129,7 +142,8 @@ export default function ReviewPage() {
         ? `続けて復習する（残り${dueCount}件）`
         : '続けて復習する';
 
-    const wrongItems = wrong.map(toWeakResultItem);
+    const showOutcome = outcomeState.status !== 'unavailable';
+    const wrongItems = showOutcome ? [] : wrong.map(toWeakResultItem);
 
     const actions = (
       <>
@@ -137,6 +151,7 @@ export default function ReviewPage() {
           <Button
             className="w-full"
             onClick={() => {
+              outcomeFlow.reset();
               setPhase('loading');
             }}
           >
@@ -152,6 +167,15 @@ export default function ReviewPage() {
       </>
     );
 
+    const footer = (
+      <>
+        {outcomeState.status === 'ready' && (
+          <ReviewOutcomeDetails questions={outcomeState.outcome.questions} />
+        )}
+        <UpcomingReviewMini days={7} />
+      </>
+    );
+
     return (
       <QuizResultCard
         correctCount={correct}
@@ -161,8 +185,14 @@ export default function ReviewPage() {
         weakItems={wrongItems}
         weakTitle="まだ苦手な市区町村："
         actions={actions}
+        footer={footer}
       >
-        <UpcomingReviewMini days={7} />
+        {showOutcome && (
+          <ReviewOutcomeSummary
+            summary={outcomeState.status === 'ready' ? outcomeState.outcome.summary : null}
+            graduatedNames={outcomeState.status === 'ready' ? graduatedQuestionNames(outcomeState.outcome) : []}
+          />
+        )}
       </QuizResultCard>
     );
   }
@@ -174,10 +204,8 @@ export default function ReviewPage() {
       questions={questions}
       allMunicipalities={allMunicipalities}
       onAbort={() => router.replace('/')}
-      onComplete={async (completedResults) => {
-        setResults(completedResults);
-        await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
-        setPhase('result');
+      onComplete={(completedResults, saveMeta) => {
+        void handleComplete(completedResults, saveMeta);
       }}
     />
   );

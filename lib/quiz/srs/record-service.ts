@@ -76,12 +76,15 @@ async function persistSrsRecord(
  * 設計方針:
  * - db.transaction は用いず、quiz 保存後の逐次書き込みを維持する。
  * - 早期卒業判定のため、正解時のみ過去の誤答履歴（everWrong）を照会する。
+ *
+ * 同日ガードで更新しなかった場合は 'skipped' を返す。復習完了画面は、回答前後のスナップショット差分だけでは
+ * 別タブの更新と自分の更新を区別できないため、この戻り値で「同日回答済み」を判定する。
  */
 export async function upsertSrsRecord(
   userId: string,
   input: UpsertSrsRecordInput,
   client: DbClient = db,
-): Promise<void> {
+): Promise<'updated' | 'skipped'> {
   const [existing] = await (client as typeof db)
     .select()
     .from(srsRecords)
@@ -115,7 +118,8 @@ export async function upsertSrsRecord(
     input.answerTimeMs,
   );
 
-  if (action.kind === 'skip') return;
+  if (action.kind === 'skip') return 'skipped';
 
   await persistSrsRecord(userId, input, action, client);
+  return 'updated';
 }

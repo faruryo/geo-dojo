@@ -15,6 +15,38 @@ export interface QuizResultEntry {
   kana?: string;
 }
 
+/**
+ * 1問ぶんの保存成否と保存したコード。表示用の QuizResultEntry は 1問1件に正規化されて
+ * コードを持たないため、完了画面で SRS の変化を引くにはこちらを使う。
+ */
+export interface QuestionSaveMeta {
+  questionIndex: number;
+  persisted: boolean;
+  mode: GameMode;
+  isCorrect: boolean;
+  codes: string[];
+  /** 保存時に同日ガードで SRS を更新しなかったコード（codes の部分集合）。 */
+  srsSkippedCodes: string[];
+}
+
+export function toQuestionSaveMeta(
+  entries: readonly QuizSessionEntry[],
+  questionIndex: number,
+  persisted: boolean,
+  srsSkippedCodes: readonly string[] = [],
+): QuestionSaveMeta | null {
+  const head = entries[0];
+  if (!head) return null;
+  return {
+    questionIndex,
+    persisted,
+    mode: head.mode,
+    isCorrect: head.isCorrect,
+    codes: entries.map((e) => e.municipality.code),
+    srsSkippedCodes: persisted ? [...srsSkippedCodes] : [],
+  };
+}
+
 export interface SaveResultInput {
   municipalityCode: string;
   municipalityName: string;
@@ -26,7 +58,7 @@ export interface SaveResultInput {
 
 export type SaveResultsBatchFn = (
   inputs: SaveResultInput[],
-) => Promise<{ quizPersisted: boolean; srsPersisted: boolean }>;
+) => Promise<{ quizPersisted: boolean; srsPersisted: boolean; srsSkippedCodes?: string[] }>;
 
 export interface QuizAdvanceLogger {
   error: (message: string, context?: unknown) => void;
@@ -46,9 +78,9 @@ export async function executeQuizAdvance(
   currentResults: readonly QuizResultEntry[],
   saveFn: SaveResultsBatchFn,
   logger: QuizAdvanceLogger = console,
-): Promise<{ results: QuizResultEntry[]; persisted: boolean }> {
+): Promise<{ results: QuizResultEntry[]; persisted: boolean; srsSkippedCodes: string[] }> {
   if (entries.length === 0) {
-    return { results: [...currentResults], persisted: true };
+    return { results: [...currentResults], persisted: true, srsSkippedCodes: [] };
   }
 
   const results = [...currentResults, toQuestionResult(entries)];
@@ -63,8 +95,11 @@ export async function executeQuizAdvance(
   }));
 
   let persisted = true;
+  let srsSkippedCodes: string[] = [];
   try {
-    const { quizPersisted, srsPersisted } = await saveFn(inputs);
+    const saved = await saveFn(inputs);
+    const { quizPersisted, srsPersisted } = saved;
+    srsSkippedCodes = saved.srsSkippedCodes ?? [];
     if (!quizPersisted) persisted = false;
     if (!srsPersisted) {
       logger.error('[quiz-runner] srs failed after quiz insert', {
@@ -81,7 +116,7 @@ export async function executeQuizAdvance(
     });
   }
 
-  return { results, persisted };
+  return { results, persisted, srsSkippedCodes };
 }
 
 /**

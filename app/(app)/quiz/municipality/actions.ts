@@ -123,7 +123,7 @@ async function validateNonAModeBatch(results: SaveMunicipalityQuizResultInput[])
 
 export async function saveMunicipalityQuizResults(
   results: SaveMunicipalityQuizResultInput[],
-): Promise<{ quizPersisted: boolean; srsPersisted: boolean }> {
+): Promise<{ quizPersisted: boolean; srsPersisted: boolean; srsSkippedCodes: string[] }> {
   try {
     const userId = await requireUserId();
     if (!checkRateLimit(userId)) throw new Error('Rate limit exceeded');
@@ -136,6 +136,7 @@ export async function saveMunicipalityQuizResults(
     }
 
     const serverAnsweredAt = new Date();
+    const srsSkippedCodes: string[] = [];
     await db.transaction(async (tx) => {
       await tx.insert(municipalityQuizResults).values(
         results.map((r) => ({
@@ -151,11 +152,11 @@ export async function saveMunicipalityQuizResults(
       );
 
       for (const r of results) {
-        await upsertSrsRecord(userId, r, tx);
+        if ((await upsertSrsRecord(userId, r, tx)) === 'skipped') srsSkippedCodes.push(r.municipalityCode);
       }
     });
 
-    return { quizPersisted: true, srsPersisted: true };
+    return { quizPersisted: true, srsPersisted: true, srsSkippedCodes };
   } catch (e) {
     console.error('[saveMunicipalityQuizResults] failed', {
       count: results?.length,

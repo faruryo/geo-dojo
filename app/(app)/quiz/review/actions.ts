@@ -2,9 +2,17 @@
 
 import { requireUserId } from '@/lib/auth/current-user';
 import { db } from '@/lib/db';
-import { srsRecords, municipalityMaster } from '@/lib/db/schema';
-import { sql, eq } from 'drizzle-orm';
+import { srsRecords, municipalityMaster, municipalityQuizResults } from '@/lib/db/schema';
+import { sql, eq, and, inArray } from 'drizzle-orm';
 import { dueReviewCondition } from '@/lib/db/srs-due';
+import {
+  srsKeyId,
+  validateSrsSnapshotKeys,
+  type SrsSnapshotEntry,
+  type SrsSnapshotKey,
+  type SrsSnapshotRecord,
+} from '@/lib/quiz/srs/snapshot';
+import type { SrsStatus } from '@/lib/quiz/srs/types';
 
 export type DueReviewItem = {
   municipalityCode: string;
@@ -51,4 +59,87 @@ export async function getDueReviewItems(opts?: { limit?: number }): Promise<DueR
     dueDate: r.dueDate instanceof Date ? r.dueDate.toISOString() : String(r.dueDate),
     kana: r.kana ?? undefined,
   }));
+}
+
+function toIso(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+/**
+ * 復習完了画面向けに、指定コード×モードの SRS 状態と誤答歴を本人分だけ read-only で返す。
+ * 回答前（出題開始前）と回答後（保存成功分のみ）に呼ばれ、差分から成果ラベルを決める。
+ */
+function querySnapshotRecords(userId: string, codes: string[]) {
+  return db
+    .select({
+      municipalityCode: srsRecords.municipalityCode,
+      mode: srsRecords.mode,
+      easeFactor: srsRecords.easeFactor,
+      repetition: srsRecords.repetition,
+      interval: srsRecords.interval,
+      status: srsRecords.status,
+      dueDate: srsRecords.dueDate,
+      lastReviewedAt: srsRecords.lastReviewedAt,
+    })
+    .from(srsRecords)
+    .where(and(eq(srsRecords.userId, userId), inArray(srsRecords.municipalityCode, codes)));
+}
+
+function queryWrongAnswerKeys(userId: string, codes: string[]) {
+  return db
+    .selectDistinct({
+      municipalityCode: municipalityQuizResults.municipalityCode,
+      mode: municipalityQuizResults.mode,
+    })
+    .from(municipalityQuizResults)
+    .where(
+      and(
+        eq(municipalityQuizResults.userId, userId),
+        eq(municipalityQuizResults.isCorrect, false),
+        inArray(municipalityQuizResults.municipalityCode, codes),
+      ),
+    );
+}
+
+export async function getSrsSnapshot(input: SrsSnapshotKey[]): Promise<SrsSnapshotEntry[]> {
+  try {
+    const userId = await requireUserId();
+    const keys = validateSrsSnapshotKeys(input);
+    const codes = [...new Set(keys.map((k) => k.municipalityCode))];
+
+    const [records, wrongRows] = await Promise.all([
+      querySnapshotRecords(userId, codes),
+      queryWrongAnswerKeys(userId, codes),
+    ]);
+
+    const recordById = new Map<string, SrsSnapshotRecord>(
+      records.map((r) => [
+        srsKeyId({ municipalityCode: r.municipalityCode, mode: r.mode as SrsSnapshotKey['mode'] }),
+        {
+          easeFactor: r.easeFactor,
+          repetition: r.repetition,
+          interval: r.interval,
+          status: r.status as SrsStatus,
+          dueDate: toIso(r.dueDate),
+          lastReviewedAt: r.lastReviewedAt ? toIso(r.lastReviewedAt) : null,
+        },
+      ]),
+    );
+    const wrongIds = new Set(
+      wrongRows.map((r) =>
+        srsKeyId({ municipalityCode: r.municipalityCode, mode: r.mode as SrsSnapshotKey['mode'] }),
+      ),
+    );
+
+    return keys.map((key) => {
+      const id = srsKeyId(key);
+      return { ...key, record: recordById.get(id) ?? null, everWrong: wrongIds.has(id) };
+    });
+  } catch (e) {
+    console.error('[getSrsSnapshot] failed', {
+      count: Array.isArray(input) ? input.length : undefined,
+      error: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+    });
+    throw e;
+  }
 }
