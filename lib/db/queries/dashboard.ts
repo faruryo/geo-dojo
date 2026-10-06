@@ -10,6 +10,7 @@ import {
 } from '@/lib/utils/date-jst';
 import { calculateStreak } from '@/lib/utils/streak';
 import { serialize } from './serialization';
+import { wardAwareName, wardAwareKana } from '@/lib/quiz/location-labels';
 import {
   notSameNameSql,
   notTokyoSpecialWardSql,
@@ -786,12 +787,12 @@ export async function getWeaknessRankingData(
 
   return serialize(rows.map((r) => ({
     municipalityCode: r.municipalityCode,
-    municipalityName: r.municipalityName,
+    municipalityName: wardAwareName(r.mode, r.municipalityCode, r.municipalityName),
     prefecture: r.prefecture,
     mode: r.mode,
     region: r.region,
     difficulty: r.difficulty,
-    kana: r.kana ?? undefined,
+    kana: wardAwareKana(r.mode, r.municipalityCode, r.kana ?? undefined),
     totalCount: Number(r.totalCount),
     errorCount: Number(r.errorCount),
     errorRate: Number(r.errorRate),

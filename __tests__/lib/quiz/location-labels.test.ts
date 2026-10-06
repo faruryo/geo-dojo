@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { locationLabel, locationKana } from '@/lib/quiz/location-labels';
+import { locationLabel, locationKana, wardAwareName, wardAwareKana } from '@/lib/quiz/location-labels';
 
 describe('locationLabel', () => {
   it('distinguishes Sapporo designated-city wards', () => {
@@ -49,3 +49,22 @@ describe('locationKana', () => {
   });
 });
 
+
+describe('wardAwareName / wardAwareKana', () => {
+  it('labels Kyoto designated-city wards on mode D rows', () => {
+    expect(wardAwareName('D', '26103', '京都市')).toBe('京都市左京区');
+    expect(wardAwareKana('D', '26103', 'きょうとし')).toBe('きょうとしさきょうく');
+  });
+
+  it('keeps parent-city names on modes A/B/C rows', () => {
+    expect(wardAwareName('A', '26103', '京都市')).toBe('京都市');
+    expect(wardAwareName('B', '26103', '京都市')).toBe('京都市');
+    expect(wardAwareName('C', '26103', '京都市')).toBe('京都市');
+    expect(wardAwareKana('A', '26103', 'きょうとし')).toBe('きょうとし');
+  });
+
+  it('keeps Tokyo special ward rows unchanged', () => {
+    expect(wardAwareName('D', '13101', '千代田区')).toBe('千代田区');
+    expect(wardAwareKana('D', '13101', 'ちよだく')).toBe('ちよだく');
+  });
+});
