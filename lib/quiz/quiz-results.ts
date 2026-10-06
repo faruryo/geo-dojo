@@ -1,4 +1,4 @@
-import { locationLabel, locationKana } from './location-labels';
+import { locationForMode } from './location-labels';
 import {
   dedupeInstancesByPrefecture,
   type GameMode,
@@ -76,16 +76,17 @@ export function toQuestionResult(entries: readonly AnswerEntry[]): QuestionResul
     };
   }
 
-  const isModeD = mode === 'D';
+  const shown = locationForMode(
+    mode,
+    head.municipality.code,
+    head.municipality.name,
+    head.municipality.kana,
+  );
   return {
-    name: isModeD
-      ? locationLabel(head.municipality.code, head.municipality.name)
-      : head.municipality.name,
+    name: shown.name,
     prefecture: head.municipality.prefecture,
     correct: head.isCorrect,
-    kana: isModeD
-      ? locationKana(head.municipality.code, head.municipality.kana)
-      : head.municipality.kana,
+    kana: shown.kana,
   };
 }
 

@@ -11,3 +11,17 @@ export function locationLabel(code: string, fallbackName: string): string {
 export function locationKana(code: string, fallbackKana?: string): string | undefined {
   return WARD_KANAS.get(code) ?? fallbackKana;
 }
+
+/** Mode D だけ政令市の区名にする。他モードは保存名のまま。 */
+export function locationForMode(
+  mode: string,
+  code: string,
+  name: string,
+  kana?: string | null,
+): { name: string; kana?: string } {
+  if (mode !== 'D') return { name, kana: kana ?? undefined };
+  return {
+    name: locationLabel(code, name),
+    kana: locationKana(code, kana ?? undefined),
+  };
+}
