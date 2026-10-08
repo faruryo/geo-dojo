@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { locationLabel, locationKana } from '@/lib/quiz/location-labels';
+import { locationForMode, locationLabel, locationKana } from '@/lib/quiz/location-labels';
 
 describe('locationLabel', () => {
   it('distinguishes Sapporo designated-city wards', () => {
@@ -46,6 +46,38 @@ describe('locationKana', () => {
     expect(locationKana('13101', 'ちよだく')).toBe('ちよだく');
     expect(locationKana('01233', 'だてし')).toBe('だてし');
     expect(locationKana('99999')).toBeUndefined();
+  });
+});
+
+describe('locationForMode', () => {
+  it('Mode D の政令市区は親市名を区名と区の読みにする', () => {
+    expect(locationForMode('D', '26103', '京都市', 'きょうとし')).toEqual({
+      name: '京都市左京区',
+      kana: 'きょうとしさきょうく',
+    });
+    expect(locationForMode('D', '26104', '京都市', 'きょうとし')).toEqual({
+      name: '京都市中京区',
+      kana: 'きょうとしなかぎょうく',
+    });
+  });
+
+  it('Mode A/B/C の政令市と東京23区は保存名のまま', () => {
+    expect(locationForMode('A', '26103', '京都市', 'きょうとし')).toEqual({
+      name: '京都市',
+      kana: 'きょうとし',
+    });
+    expect(locationForMode('B', '26103', '京都市', 'きょうとし')).toEqual({
+      name: '京都市',
+      kana: 'きょうとし',
+    });
+    expect(locationForMode('C', '26103', '京都市', 'きょうとし')).toEqual({
+      name: '京都市',
+      kana: 'きょうとし',
+    });
+    expect(locationForMode('D', '13101', '千代田区', 'ちよだく')).toEqual({
+      name: '千代田区',
+      kana: 'ちよだく',
+    });
   });
 });
 

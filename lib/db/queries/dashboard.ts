@@ -9,6 +9,7 @@ import {
   toJSTDate,
 } from '@/lib/utils/date-jst';
 import { calculateStreak } from '@/lib/utils/streak';
+import { locationForMode } from '@/lib/quiz/location-labels';
 import { serialize } from './serialization';
 import {
   notSameNameSql,
@@ -784,18 +785,21 @@ export async function getWeaknessRankingData(
     )
     .limit(20);
 
-  return serialize(rows.map((r) => ({
-    municipalityCode: r.municipalityCode,
-    municipalityName: r.municipalityName,
-    prefecture: r.prefecture,
-    mode: r.mode,
-    region: r.region,
-    difficulty: r.difficulty,
-    kana: r.kana ?? undefined,
-    totalCount: Number(r.totalCount),
-    errorCount: Number(r.errorCount),
-    errorRate: Number(r.errorRate),
-  })));
+  return serialize(rows.map((r) => {
+    const shown = locationForMode(r.mode, r.municipalityCode, r.municipalityName, r.kana);
+    return {
+      municipalityCode: r.municipalityCode,
+      municipalityName: shown.name,
+      prefecture: r.prefecture,
+      mode: r.mode,
+      region: r.region,
+      difficulty: r.difficulty,
+      kana: shown.kana,
+      totalCount: Number(r.totalCount),
+      errorCount: Number(r.errorCount),
+      errorRate: Number(r.errorRate),
+    };
+  }));
 }
 
 export async function getStreakData(userId: string) {
