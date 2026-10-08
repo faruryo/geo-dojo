@@ -9,10 +9,13 @@ import {
   formatRemainingSteps,
   formatGraduatedNames,
   graduatedQuestionNames,
+  groupOutcomeQuestions,
   isSaveMetaConsistent,
   persistedSrsKeys,
   resolveOutcomeLabel,
+  type OutcomeCategory,
   type OutcomeLabel,
+  type ReviewOutcomeQuestion,
 } from '@/lib/quiz/srs/outcome';
 import type { SrsSnapshotEntry, SrsSnapshotRecord } from '@/lib/quiz/srs/snapshot';
 
@@ -252,8 +255,8 @@ describe('formatOutcomeLabel / formatRemainingSteps', () => {
   });
 
   it('残り回数の文言', () => {
-    expect(formatRemainingSteps(3)).toBe('通常の速さならあと3回で卒業');
-    expect(formatRemainingSteps(null)).toBe('通常の速さなら20回以上');
+    expect(formatRemainingSteps(3)).toBe('最速あと3回');
+    expect(formatRemainingSteps(null)).toBe('最速20回以上');
   });
 
   it.each([
@@ -342,8 +345,8 @@ describe('buildReviewOutcome — サマリ（1問1件）', () => {
       ['福島県', 'scheduled'],
     ]);
     expect(date.rows[0].remainingSteps).toBeUndefined();
-    // 回答後 rep2 int6 EF2.18 誤答歴あり: 13 → 28 → 61 で3回
-    expect(date.rows[1].remainingSteps).toBe(3);
+    // 回答後 rep2 int6 EF2.18 誤答歴ありを、毎回10秒以内で続けると2回
+    expect(date.rows[1].remainingSteps).toBe(2);
   });
 
   it('強調行に出す定着名は1問1件で、片県だけ卒業した Mode A 問題は含めない', () => {
@@ -382,8 +385,8 @@ describe('buildReviewOutcome — サマリ（1問1件）', () => {
   it('誤答の残り回数は「回答前の誤答歴 OR 今回誤答」で算出する（誤答歴なしでも早期卒業を前提にしない）', () => {
     const wrong = buildOrThrow().questions[1];
     expect(wrong.rows[0].label).toEqual({ kind: 'retryTomorrow' });
-    // rep0 int1 EF2.18 を誤答歴ありで回すと5回。誤答歴なし扱いだと2回になってしまう
-    expect(wrong.rows[0].remainingSteps).toBe(5);
+    // rep0 int1 EF2.18 を誤答歴あり・速答で回すと3回。誤答歴なし扱いだと2回になってしまう
+    expect(wrong.rows[0].remainingSteps).toBe(3);
   });
 
   it('表示名・よみがなは 1問1件に正規化済みの results から取る', () => {
@@ -453,5 +456,73 @@ describe('collectSrsKeys / persistedSrsKeys', () => {
       '01233',
       '07213',
     ]);
+  });
+});
+
+function groupedQuestion(
+  name: string,
+  category: OutcomeCategory,
+  remaining: ReadonlyArray<number | null | undefined>,
+): ReviewOutcomeQuestion {
+  return {
+    name,
+    mode: 'A',
+    isCorrect: category !== 'saveFailed',
+    category,
+    rows: remaining.map((steps, i) => ({
+      code: `${name}-${i}`,
+      prefecture: `県${i}`,
+      label: steps === undefined ? { kind: 'graduated' as const } : { kind: 'retryTomorrow' as const },
+      graduated: steps === undefined,
+      ...(steps !== undefined ? { remainingSteps: steps } : {}),
+    })),
+  };
+}
+
+describe('groupOutcomeQuestions', () => {
+  it('残り回数の少ないまとまり順に並べ、同じ回数は出題順、0件のまとまりは出さない', () => {
+    const groups = groupOutcomeQuestions([
+      groupedQuestion('三日', 'continuing', [3]),
+      groupedQuestion('一日', 'continuing', [1]),
+      groupedQuestion('三日のあと', 'continuing', [3]),
+      groupedQuestion('卒業', 'graduated', [undefined]),
+      groupedQuestion('失敗', 'saveFailed', [undefined]),
+      groupedQuestion('もう一日', 'continuing', [1]),
+    ]);
+
+    expect(groups.map((g) => g.heading)).toEqual(['あと1回 2問', 'あと3回 2問', '卒業 1問', '保存失敗 1問']);
+    expect(groups[0].questions.map((q) => q.name)).toEqual(['一日', 'もう一日']);
+    expect(groups[1].questions.map((q) => q.name)).toEqual(['三日', '三日のあと']);
+  });
+
+  it('複数県は分けず、一番少ない残り回数のまとまりに県行ごと置く', () => {
+    const date = groupedQuestion('伊達市', 'continuing', [5, 2]);
+    const groups = groupOutcomeQuestions([
+      groupedQuestion('単独5', 'continuing', [5]),
+      date,
+    ]);
+
+    expect(groups.map((g) => g.heading)).toEqual(['あと2回 1問', 'あと5回 1問']);
+    expect(groups[0].questions).toEqual([date]);
+    expect(groups[0].questions[0].rows.map((r) => r.remainingSteps)).toEqual([5, 2]);
+  });
+
+  it('打ち切りの20回以上は見出しにせず、卒業の前に置く', () => {
+    const groups = groupOutcomeQuestions([
+      groupedQuestion('壊れた', 'continuing', [null]),
+      groupedQuestion('混在', 'continuing', [null, 4]),
+      groupedQuestion('卒業', 'graduated', [undefined]),
+    ]);
+
+    expect(groups.map((g) => [g.heading, g.questions.map((q) => q.name)])).toEqual([
+      ['あと4回 1問', ['混在']],
+      [null, ['壊れた']],
+      ['卒業 1問', ['卒業']],
+    ]);
+  });
+
+  it('保存失敗は残り回数があっても復習継続のまとまりに入れない', () => {
+    const groups = groupOutcomeQuestions([groupedQuestion('失敗', 'saveFailed', [1])]);
+    expect(groups).toEqual([{ heading: '保存失敗 1問', questions: [groupedQuestion('失敗', 'saveFailed', [1])] }]);
   });
 });

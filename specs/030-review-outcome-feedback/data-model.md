@@ -65,9 +65,10 @@ DB スキーマの変更はない。以下はすべてアプリ内の型（永�
 - 対象: ラベルが `saveFailed` 以外で、かつ `post.record.status === 'reviewing'` の行。
 - 入力: `post.record` の `easeFactor` / `repetition` / `interval`、`effectiveEverWrong = (pre?.everWrong ?? false) || !isCorrect`。
 - `simulateStepsToGraduation` の戻り値: `1..20` の整数、または `null`（20回以内に卒業しない）。
-- 表示: `通常の速さならあと{n}回で卒業` ／ `null` のとき `通常の速さなら20回以上`。
+- 表示: `最速あと{n}回` ／ `null` のとき `最速20回以上`。
+- 画面上の並びは `questions` の保存順とは別。`groupOutcomeQuestions` が残り回数の少ないまとまり（複数県は最小値、同じ回数は元の順）、「最速20回以上」だけの問題、卒業、保存失敗の順に組む。`questions` 自体は results と同じ順のまま。
 
-シミュレーション手順（1ステップ）: `result = applySm2(state, 4)`、`graduated = (!everWrong && result.repetition >= 2) || result.graduated`。卒業すればそのステップ数を返し、しなければ `state = result` で続ける。
+シミュレーション手順（1ステップ）: `result = applySm2(state, 5)`、`graduated = (!everWrong && result.repetition >= 2) || result.graduated`。卒業すればそのステップ数を返し、しなければ `state = result` で続ける。
 
 ## ReviewOutcome
 
