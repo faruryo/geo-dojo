@@ -1,10 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { useCompletionTrend } from '@/lib/hooks/useCompletionTrend';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ResponsiveContainer,
   LineChart,
@@ -17,14 +15,6 @@ import {
 } from 'recharts';
 import { BarChart3 } from 'lucide-react';
 
-type Period = '7d' | '30d' | 'all';
-
-const PERIOD_OPTIONS: { value: Period; label: string }[] = [
-  { value: '7d', label: '7日' },
-  { value: '30d', label: '30日' },
-  { value: 'all', label: '全期間' },
-];
-
 const DIFFICULTY_LINES = [
   { key: 'easy', label: '入門', color: '#22c55e' },
   { key: 'medium', label: '中級', color: '#3b82f6' },
@@ -35,11 +25,12 @@ const DIFFICULTY_LINES = [
 export function CompletionChart({
   mode,
   region,
+  period,
 }: {
   mode: 'all' | 'A' | 'B' | 'C' | 'D';
   region: string;
+  period: '7d' | '30d' | 'all';
 }) {
-  const [period, setPeriod] = useState<Period>('all');
   const { data, isLoading } = useCompletionTrend(period, mode, region);
 
   if (isLoading) {
@@ -55,18 +46,7 @@ export function CompletionChart({
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">全国制覇推移</h2>
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
-          <TabsList>
-            {PERIOD_OPTIONS.map((opt) => (
-              <TabsTrigger key={opt.value} value={opt.value}>
-                {opt.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </div>
+      <h2 className="text-sm font-semibold">全国制覇推移</h2>
 
       {chartData.length === 0 ? (
         <Card size="sm">

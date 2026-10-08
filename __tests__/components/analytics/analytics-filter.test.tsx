@@ -31,6 +31,7 @@ const mockSummaryData = {
 
 const weaknessCalls: unknown[] = [];
 const accuracyCalls: unknown[] = [];
+const completionCalls: unknown[] = [];
 const progressCalls: unknown[] = [];
 
 vi.mock('@/lib/hooks/useDashboardSummary', () => ({
@@ -45,6 +46,16 @@ vi.mock('@/lib/hooks/useAccuracyTrend', () => ({
     accuracyCalls.push({ period, mode, region });
     return {
       data: [{ date: '2026-09-01', all: 80 }],
+      isLoading: false,
+    };
+  },
+}));
+
+vi.mock('@/lib/hooks/useCompletionTrend', () => ({
+  useCompletionTrend: (period: string, mode: string, region: string) => {
+    completionCalls.push({ period, mode, region });
+    return {
+      data: [{ date: '2026-09-01', easy: 10 }],
       isLoading: false,
     };
   },
@@ -87,6 +98,7 @@ vi.mock('@/lib/hooks/useWeaknessRanking', () => ({
 function renderFilterView() {
   weaknessCalls.length = 0;
   accuracyCalls.length = 0;
+  completionCalls.length = 0;
   progressCalls.length = 0;
   const mountPoint = document.createElement('div');
   document.body.appendChild(mountPoint);
@@ -119,6 +131,7 @@ describe('AnalyticsClient Filter Integration', () => {
     try {
       expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
       expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
+      expect(completionCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
       expect(progressCalls).toContainEqual({ mode: 'all', region: '全国' });
     } finally {
       unmount();
@@ -131,6 +144,7 @@ describe('AnalyticsClient Filter Integration', () => {
       clickButton('30日');
       expect(weaknessCalls).toContainEqual({ period: '30d', mode: 'all', region: '全国' });
       expect(accuracyCalls).toContainEqual({ period: '30d', mode: 'all', region: '全国' });
+      expect(completionCalls).toContainEqual({ period: '30d', mode: 'all', region: '全国' });
     } finally {
       unmount();
     }
@@ -142,6 +156,7 @@ describe('AnalyticsClient Filter Integration', () => {
       clickButton('県当て(A)');
       expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'A', region: '全国' });
       expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'A', region: '全国' });
+      expect(completionCalls).toContainEqual({ period: '7d', mode: 'A', region: '全国' });
       expect(progressCalls).toContainEqual({ mode: 'A', region: '全国' });
     } finally {
       unmount();
@@ -154,6 +169,7 @@ describe('AnalyticsClient Filter Integration', () => {
       clickButton('東北');
       expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'all', region: '東北' });
       expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'all', region: '東北' });
+      expect(completionCalls).toContainEqual({ period: '7d', mode: 'all', region: '東北' });
       expect(progressCalls).toContainEqual({ mode: 'all', region: '東北' });
     } finally {
       unmount();
