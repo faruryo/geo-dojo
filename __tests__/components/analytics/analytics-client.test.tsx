@@ -46,6 +46,13 @@ vi.mock('@/lib/hooks/useAccuracyTrend', () => ({
   }),
 }));
 
+vi.mock('@/lib/hooks/useCompletionTrend', () => ({
+  useCompletionTrend: () => ({
+    data: [{ date: '2026-09-01', easy: 10, medium: 5, hard: 2, expert: 1 }],
+    isLoading: false,
+  }),
+}));
+
 vi.mock('@/lib/hooks/useDifficultyProgress', () => ({
   useDifficultyProgress: () => ({
     data: [
@@ -117,8 +124,14 @@ describe('AnalyticsClient', () => {
       expect(mountPoint.textContent).toContain('場所当て(D)制覇率');
       expect(mountPoint.textContent).toContain('20.0%');
 
-      // 各セクション
-      expect(mountPoint.textContent).toContain('正答率推移');
+      const text = mountPoint.textContent ?? '';
+      expect(text.indexOf('正答率推移')).toBeGreaterThanOrEqual(0);
+      expect(text.indexOf('正答率推移')).toBeLessThan(text.indexOf('全国制覇推移'));
+      expect(text.indexOf('全国制覇推移')).toBeLessThan(text.indexOf('難易度別進捗'));
+      const periodTabs = Array.from(mountPoint.querySelectorAll('button')).filter(
+        (b) => b.textContent?.trim() === '7日',
+      );
+      expect(periodTabs).toHaveLength(1);
       expect(mountPoint.textContent).toContain('難易度別進捗');
       expect(mountPoint.textContent).toContain('苦手ランキング');
       expect(mountPoint.textContent).toContain('札幌市');
@@ -143,6 +156,7 @@ describe('AnalyticsClient', () => {
       expect(mountPoint.textContent).toContain('詳細分析');
       expect(mountPoint.textContent).toContain('まだクイズを受けていません。クイズを始めましょう！');
       expect(mountPoint.textContent).not.toContain('正答率推移');
+      expect(mountPoint.textContent).not.toContain('全国制覇推移');
       expect(mountPoint.textContent).not.toContain('苦手ランキング');
     } finally {
       unmount();

@@ -10,6 +10,7 @@ import {
   type FilterRegion,
 } from '@/components/dashboard/filter-bar';
 import { AccuracyChart } from '@/components/dashboard/accuracy-chart';
+import { CompletionChart } from '@/components/dashboard/completion-chart';
 import { DifficultyProgress } from '@/components/dashboard/difficulty-progress';
 import { WeaknessRanking } from '@/components/dashboard/weakness-ranking';
 import { EmptyState } from '@/components/dashboard/empty-state';
@@ -75,6 +76,8 @@ export function AnalyticsClient() {
             onPeriodChange={setPeriod}
             showPeriodTabs={false}
           />
+
+          <CompletionChart mode={mode} region={region} period={period} />
 
           <DifficultyProgress mode={mode} region={region} />
 

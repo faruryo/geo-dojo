@@ -9,6 +9,7 @@ import {
   getStreakData,
   getDifficultyProgressData,
   getAccuracyTrendData,
+  getCompletionTrendData,
   getWeaknessRankingData,
 } from '@/lib/db/queries/dashboard';
 
@@ -17,7 +18,8 @@ import {
  * - summary: 総合サマリー（累計出題数・全体正答率・A制覇率・D制覇率）
  * - streak: 連続学習日数
  * - difficulty('all', '全国'): 難易度別クリア状況
- * - trend('7d', 'all', '全国'): 初期7日間の推移
+ * - trend('7d', 'all', '全国'): 初期7日間の正答率推移
+ * - completionTrend('7d', 'all', '全国'): 初期7日間の制覇推移
  * - weakness('7d', 'all', '全国'): 苦手ランキング（初期7日間/全国/全モード）
  */
 export async function getAnalyticsDehydratedState(): Promise<DehydratedState | null> {
@@ -34,6 +36,10 @@ export async function getAnalyticsDehydratedState(): Promise<DehydratedState | n
     queryClient.prefetchQuery({
       queryKey: queryKeys.dashboard.trend('7d', 'all', '全国'),
       queryFn: () => getAccuracyTrendData(userId, { period: '7d', mode: 'all', region: '全国' }),
+    }),
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.dashboard.completionTrend('7d', 'all', '全国'),
+      queryFn: () => getCompletionTrendData(userId, { period: '7d', mode: 'all', region: '全国' }),
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.dashboard.weakness('7d', 'all', '全国'),
