@@ -11,6 +11,7 @@ import {
 import { calculateStreak } from '@/lib/utils/streak';
 import { locationForMode } from '@/lib/quiz/location-labels';
 import { serialize } from './serialization';
+import { buildCompletionDailyTrend } from './completion-trend';
 import {
   notSameNameSql,
   notTokyoSpecialWardSql,
@@ -509,7 +510,7 @@ async function fetchMasterCountsByDifficulty(useRegion: boolean, region: string)
         difficulty: municipalityMaster.difficulty,
         cnt: sql<number>`COUNT(*)`,
         cntExcluded: sql<number>`COUNT(*) FILTER (WHERE ${notSameNameSql})`,
-        cntDistinctExcluded: sql<number>`COUNT(DISTINCT ${municipalityMaster.name}) FILTER (WHERE ${notSameNameSql})`,
+        cntDistinctExcluded: sql<number>`COUNT(DISTINCT ${municipalityMaster.name}) FILTER (WHERE ${notSameNameSql} AND ${notTokyoSpecialWardSql})`,
       })
       .from(municipalityMaster)
       .where(and(...masterWhere))
@@ -551,112 +552,6 @@ async function fetchCompletionDenominators(
   return calculateDiffTotals(mode, fullMap, dedupMap);
 }
 
-interface RawCompletionRow {
-  date: unknown;
-  difficulty: string | null;
-  municipalityCode: string;
-  municipalityName: string | null;
-  prefecture: string | null;
-  mode: string;
-}
-
-function getCompletionEntryKey(
-  mode: QuizModeFilter,
-  entry: { mode: string; code: string; name: string; prefecture: string },
-) {
-  if (mode === 'all') {
-    if (entry.mode === 'A') return `A:${entry.name}`;
-    if (entry.mode === 'B' || entry.mode === 'C') return `${entry.mode}:${entry.name}::${entry.prefecture}`;
-    return `D:${entry.code}`;
-  }
-  if (mode === 'A') return entry.name;
-  if (mode === 'B' || mode === 'C') return `${entry.name}::${entry.prefecture}`;
-  return entry.code;
-}
-
-function updateCumSets(
-  diffMap: Map<string, Array<{ mode: string; code: string; name: string; prefecture: string }>>,
-  cumSets: Map<string, Set<string>>,
-  mode: QuizModeFilter,
-) {
-  const diffs = ['easy', 'medium', 'hard', 'expert'] as const;
-  for (const diff of diffs) {
-    const entries = diffMap.get(diff);
-    if (!entries) continue;
-    const set = cumSets.get(diff);
-    if (set) {
-      for (const entry of entries) {
-        set.add(getCompletionEntryKey(mode, entry));
-      }
-    }
-  }
-}
-
-function buildCompletionDailyTrend(
-  rows: RawCompletionRow[],
-  mode: QuizModeFilter,
-  diffTotals: Map<string, number>,
-  totalAllSlots: number,
-  periodStart: Date | null,
-) {
-  const diffs = ['easy', 'medium', 'hard', 'expert'] as const;
-  const dateMap = new Map<string, Map<string, Array<{ mode: string; code: string; name: string; prefecture: string }>>>();
-
-  for (const r of rows) {
-    const dateStr = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10);
-    const diff = r.difficulty ?? 'unknown';
-
-    let diffMap = dateMap.get(dateStr);
-    if (!diffMap) {
-      diffMap = new Map();
-      dateMap.set(dateStr, diffMap);
-    }
-    let list = diffMap.get(diff);
-    if (!list) {
-      list = [];
-      diffMap.set(diff, list);
-    }
-    list.push({
-      mode: r.mode,
-      code: r.municipalityCode,
-      name: r.municipalityName || '',
-      prefecture: r.prefecture || '',
-    });
-  }
-
-  const cumSets = new Map<string, Set<string>>(diffs.map((d) => [d, new Set()]));
-  const sortedDates = Array.from(dateMap.keys()).sort((a, b) => a.localeCompare(b));
-  const dailyData: Record<string, unknown>[] = [];
-
-  for (const dateStr of sortedDates) {
-    const diffMap = dateMap.get(dateStr);
-    if (diffMap) {
-      updateCumSets(diffMap, cumSets, mode);
-    }
-
-    if (periodStart && dateStr < periodStart.toISOString().slice(0, 10)) {
-      continue;
-    }
-
-    let cumAllCount = 0;
-    const rowValues = diffs.map((diff) => {
-      const set = cumSets.get(diff);
-      const cumCount = set ? set.size : 0;
-      const total = diffTotals.get(diff) ?? 1;
-      const val = Math.round((cumCount / total) * 10000) / 100;
-      cumAllCount += cumCount;
-      return [diff, val] as const;
-    });
-
-    const row: Record<string, unknown> = Object.fromEntries(rowValues);
-    row.date = dateStr;
-    row.all = totalAllSlots > 0 ? Math.round((cumAllCount / totalAllSlots) * 10000) / 100 : 0;
-    dailyData.push(row);
-  }
-
-  return dailyData;
-}
-
 export async function getCompletionTrendData(
   userId: string,
   {
@@ -687,8 +582,14 @@ export async function getCompletionTrendData(
 
   let filterCond;
   if (mode === 'all') {
-    filterCond = sql`(${municipalityQuizResults.mode} = 'D' OR ${notSameNameSql})`;
-  } else if (mode === 'A' || mode === 'B' || mode === 'C') {
+    filterCond = sql`(
+      ${municipalityQuizResults.mode} = 'D'
+      OR (${municipalityQuizResults.mode} = 'A' AND ${notSameNameSql} AND ${notTokyoSpecialWardSql})
+      OR ((${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql})
+    )`;
+  } else if (mode === 'A') {
+    filterCond = sql`${notSameNameSql} AND ${notTokyoSpecialWardSql}`;
+  } else if (mode === 'B' || mode === 'C') {
     filterCond = notSameNameSql;
   }
 
