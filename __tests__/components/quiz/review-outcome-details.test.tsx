@@ -13,7 +13,7 @@ function question(
 }
 
 describe('ReviewOutcomeDetails', () => {
-  it('残り回数の少ない見出し順に出し、行の右に最速あとN回を置く', () => {
+  it('残り回数の少ない見出し順に出し、行の右にあとN回を置く', () => {
     const html = renderToStaticMarkup(
       createElement(ReviewOutcomeDetails, {
         defaultOpen: true,
@@ -45,8 +45,8 @@ describe('ReviewOutcomeDetails', () => {
     expect(at('卒業 1問')).toBeLessThan(at('保存失敗 1問'));
     expect(at('伊達市')).toBeGreaterThan(at('あと2回 1問'));
     expect(at('伊達市')).toBeLessThan(at('あと3回 1問'));
-    expect(html).toContain('最速あと5回');
-    expect(html).toContain('最速あと2回');
+    expect(html.match(/あと5回/g)).toEqual(['あと5回']);
+    expect(html.match(/あと2回/g)).toHaveLength(2);
     expect(html).toContain('justify-between');
     expect(html).not.toContain('あと4回');
   });

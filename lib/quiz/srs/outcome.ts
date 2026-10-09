@@ -271,7 +271,7 @@ export function formatOutcomeLabel(label: OutcomeLabel): string {
 }
 
 export function formatRemainingSteps(steps: number | null): string {
-  return steps === null ? `最速${MAX_SIMULATION_STEPS}回以上` : `最速あと${steps}回`;
+  return steps === null ? `${MAX_SIMULATION_STEPS}回以上` : `あと${steps}回`;
 }
 
 export interface OutcomeQuestionGroup {
@@ -292,7 +292,7 @@ function minRemainingSteps(question: ReviewOutcomeQuestion): number | null {
 /**
  * 復習完了の詳細を、残り回数の少ないまとまり順に並べる。保存順は変えない。
  * 複数県は問題を分けず、県のうち一番少ない回数のまとまりに置く。
- * 0件のまとまりは出さない。打ち切り（最速20回以上だけ）は見出しなしで、卒業の前。
+ * 0件のまとまりは出さない。打ち切り（20回以上だけ）は見出しなしで、卒業の前。
  */
 export function groupOutcomeQuestions(questions: readonly ReviewOutcomeQuestion[]): OutcomeQuestionGroup[] {
   const bySteps = new Map<number, ReviewOutcomeQuestion[]>();

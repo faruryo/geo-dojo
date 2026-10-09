@@ -255,8 +255,8 @@ describe('formatOutcomeLabel / formatRemainingSteps', () => {
   });
 
   it('残り回数の文言', () => {
-    expect(formatRemainingSteps(3)).toBe('最速あと3回');
-    expect(formatRemainingSteps(null)).toBe('最速20回以上');
+    expect(formatRemainingSteps(3)).toBe('あと3回');
+    expect(formatRemainingSteps(null)).toBe('20回以上');
   });
 
   it.each([
