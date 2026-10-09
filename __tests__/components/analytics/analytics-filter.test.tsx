@@ -201,11 +201,11 @@ describe('AnalyticsClient Filter Integration', () => {
   });
 
   it('期間を変えたあと、遅れて届いた保存値では上書きしない', async () => {
-    let resolveUser: (id: string | null) => void = () => {};
+    const resolvers: Array<(id: string | null) => void> = [];
     vi.mocked(getBrowserUserId).mockImplementation(
       () =>
         new Promise((resolve) => {
-          resolveUser = resolve;
+          resolvers.push(resolve);
         }),
     );
     localStorage.setItem(analyticsPeriodStorageKey('user-1'), '30d');
@@ -213,10 +213,32 @@ describe('AnalyticsClient Filter Integration', () => {
     try {
       clickButton('7日');
       await act(async () => {
-        resolveUser('user-1');
+        resolvers[0]('user-1');
       });
       expect(accuracyCalls).not.toContainEqual({ period: '30d', mode: 'all', region: '全国' });
       expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
+    } finally {
+      unmount();
+    }
+  });
+
+  it('後から選んだ期間が、先の保存完了で上書きされない', async () => {
+    const resolvers: Array<(id: string | null) => void> = [];
+    vi.mocked(getBrowserUserId).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    const { clickButton, unmount } = await renderFilterView();
+    try {
+      clickButton('30日');
+      clickButton('7日');
+      await act(async () => {
+        resolvers[2]('user-1');
+        resolvers[1]('user-1');
+      });
+      expect(localStorage.getItem(analyticsPeriodStorageKey('user-1'))).toBe('7d');
     } finally {
       unmount();
     }

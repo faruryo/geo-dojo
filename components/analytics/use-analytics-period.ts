@@ -8,6 +8,7 @@ import type { FilterPeriod } from '@/components/dashboard/filter-bar';
 export function useAnalyticsPeriod(): [FilterPeriod, (next: FilterPeriod) => void] {
   const [period, setPeriod] = useState<FilterPeriod>('all');
   const periodTouched = useRef(false);
+  const writeSeq = useRef(0);
 
   useEffect(() => {
     // SSR の prefetch は全期間。保存値はマウント後に合わせ、hydration をずらさない。
@@ -27,9 +28,11 @@ export function useAnalyticsPeriod(): [FilterPeriod, (next: FilterPeriod) => voi
   function changePeriod(next: FilterPeriod) {
     periodTouched.current = true;
     setPeriod(next);
+    const seq = ++writeSeq.current;
     getBrowserUserId()
       .then((userId) => {
-        if (userId) writeAnalyticsPeriod(localStorage, userId, next);
+        if (!userId || seq !== writeSeq.current) return;
+        writeAnalyticsPeriod(localStorage, userId, next);
       })
       .catch(() => {});
   }
