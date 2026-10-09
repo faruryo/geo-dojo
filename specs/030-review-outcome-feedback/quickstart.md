@@ -9,7 +9,7 @@ pnpm type-check && pnpm lint:ratchet
 
 確認すること:
 
-- `simulation.test.ts`: 誤答歴なし（rep 0/1）、誤答直後（EF 2.18 で5回）、EF 下限 1.3、壊れた値（NaN）で `null` になること。
+- `simulation.test.ts`: 誤答歴なし（rep 0/1）、誤答直後（EF 2.18 で3回）、EF 下限 1.3、壊れた値（NaN）で `null` になること。
 - `snapshot.test.ts`: モード whitelist、コード形式、0件・101件、重複の畳み込み。
 - `outcome.test.ts`: [data-model.md](./data-model.md) の判定表の全7ラベル、Mode A 片県卒業が「復習継続」になること、`定着 + 復習継続 + 保存失敗 = 問題数`、整合ガード（件数・番号・コード集合の不一致）、`post` 欠落でフォールバック。
 - `use-quiz-actions-advance.test.tsx`: 保存成功・失敗それぞれで `onComplete` の第2引数に `QuestionSaveMeta` が問題順に渡ること。

@@ -46,8 +46,9 @@ interface ReviewOutcomeDetailsProps {
 
 - `<details>`（初期状態は閉じる）。`<summary>` は「問題ごとの結果（{n}問）」。
 - 1問ごとに、正誤マーク（✓／✗）・問題名・よみがなを表示する。
-  - 行が1件: 同じブロックに県名・ラベル・残り回数を表示する。
-  - 行が2件以上（Mode A 多県）: 県ごとのサブ行に県名・ラベル・残り回数を表示する。
+  - 各行は2列。左が県名とラベル、右が残り回数。
+  - 行が2件以上（Mode A 多県）: 県ごとのサブ行。問題は分けない。
+- 並びは `groupOutcomeQuestions`。残り回数の少ない順に「あとN回 M問」（同じ回数は出題順、0件は出さない）。複数県は県の最小回数のまとまりに置き、行の右は県ごとの回数。続く見出しなしの枠は「20回以上」だけの問題。その後「卒業 M問」「保存失敗 M問」（0件は出さない）。
 - 文言は `formatOutcomeLabel` / `formatRemainingSteps`（`lib/quiz/srs/outcome.ts`）が正。
 
 | `label.kind` | 文言 |
@@ -60,7 +61,7 @@ interface ReviewOutcomeDetailsProps {
 | `scheduled` | 📅 次回 今日 ／ 📅 次回 明日 ／ 📅 次回 {N}日後 |
 | `saveFailed` | ⚠️ 保存失敗 |
 
-残り回数: `通常の速さならあと{n}回で卒業` ／ `通常の速さなら20回以上`。
+残り回数: `あと{n}回` ／ `20回以上`。
 
 ## design-sync
 

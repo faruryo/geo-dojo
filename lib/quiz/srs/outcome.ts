@@ -271,9 +271,64 @@ export function formatOutcomeLabel(label: OutcomeLabel): string {
 }
 
 export function formatRemainingSteps(steps: number | null): string {
-  return steps === null
-    ? `通常の速さなら${MAX_SIMULATION_STEPS}回以上`
-    : `通常の速さならあと${steps}回で卒業`;
+  return steps === null ? `${MAX_SIMULATION_STEPS}回以上` : `あと${steps}回`;
+}
+
+export interface OutcomeQuestionGroup {
+  /** null はシミュレーションを打ち切った問題。見出しは付けない。 */
+  heading: string | null;
+  questions: ReviewOutcomeQuestion[];
+}
+
+function minRemainingSteps(question: ReviewOutcomeQuestion): number | null {
+  let min: number | null = null;
+  for (const row of question.rows) {
+    if (typeof row.remainingSteps !== 'number') continue;
+    min = min === null ? row.remainingSteps : Math.min(min, row.remainingSteps);
+  }
+  return min;
+}
+
+/**
+ * 復習完了の詳細を、残り回数の少ないまとまり順に並べる。保存順は変えない。
+ * 複数県は問題を分けず、県のうち一番少ない回数のまとまりに置く。
+ * 0件のまとまりは出さない。打ち切り（20回以上だけ）は見出しなしで、卒業の前。
+ */
+export function groupOutcomeQuestions(questions: readonly ReviewOutcomeQuestion[]): OutcomeQuestionGroup[] {
+  const bySteps = new Map<number, ReviewOutcomeQuestion[]>();
+  const cutoff: ReviewOutcomeQuestion[] = [];
+  const graduated: ReviewOutcomeQuestion[] = [];
+  const saveFailed: ReviewOutcomeQuestion[] = [];
+
+  for (const question of questions) {
+    if (question.category === 'saveFailed') {
+      saveFailed.push(question);
+      continue;
+    }
+    if (question.category === 'graduated') {
+      graduated.push(question);
+      continue;
+    }
+    const steps = minRemainingSteps(question);
+    if (steps === null) {
+      cutoff.push(question);
+      continue;
+    }
+    const bucket = bySteps.get(steps);
+    if (bucket) bucket.push(question);
+    else bySteps.set(steps, [question]);
+  }
+
+  const groups: OutcomeQuestionGroup[] = [...bySteps.keys()]
+    .sort((a, b) => a - b)
+    .map((steps) => {
+      const grouped = bySteps.get(steps) ?? [];
+      return { heading: `あと${steps}回 ${grouped.length}問`, questions: grouped };
+    });
+  if (cutoff.length > 0) groups.push({ heading: null, questions: cutoff });
+  if (graduated.length > 0) groups.push({ heading: `卒業 ${graduated.length}問`, questions: graduated });
+  if (saveFailed.length > 0) groups.push({ heading: `保存失敗 ${saveFailed.length}問`, questions: saveFailed });
+  return groups;
 }
 
 /** 定着した問題名（1問1件）。サマリの強調行に出す。 */
