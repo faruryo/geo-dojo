@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAccuracyTrend } from '@/lib/hooks/useAccuracyTrend';
+import { accuracyAxisLabel, accuracyTooltipLabel } from '@/lib/analytics/accuracy-buckets';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,7 +46,7 @@ export function AccuracyChart({
   onPeriodChange?: (v: Period) => void;
   showPeriodTabs?: boolean;
 }) {
-  const [internalPeriod, setInternalPeriod] = useState<Period>('7d');
+  const [internalPeriod, setInternalPeriod] = useState<Period>('all');
   const period = controlledPeriod ?? internalPeriod;
   const setPeriod = onPeriodChange ?? setInternalPeriod;
   const { data, isLoading } = useAccuracyTrend(period, mode, region);
@@ -60,6 +61,9 @@ export function AccuracyChart({
   }
 
   const chartData = data ?? [];
+  const axisDates = chartData.map((row) => String(row.date));
+  const formatAllAxis = (value: unknown) => accuracyAxisLabel(String(value), axisDates);
+  const formatAllTooltip = (value: unknown) => accuracyTooltipLabel(String(value));
 
   return (
     <section className="flex flex-col gap-3">
@@ -91,11 +95,19 @@ export function AccuracyChart({
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#888' }} axisLine={{ stroke: '#333' }} tickLine={false} />
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 10, fill: '#888' }}
+              axisLine={{ stroke: '#333' }}
+              tickLine={false}
+              minTickGap={period === 'all' ? 28 : 0}
+              tickFormatter={period === 'all' ? formatAllAxis : undefined}
+            />
             <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#888' }} axisLine={{ stroke: '#333' }} tickLine={false} tickFormatter={(v: number) => `${v}%`} width={40} />
             <Tooltip
               contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333', borderRadius: 8, fontSize: 12 }}
               labelStyle={{ color: '#ccc' }}
+              labelFormatter={period === 'all' ? formatAllTooltip : undefined}
               formatter={(value, name) => {
                 const label = DIFFICULTY_LINES.find((d) => d.key === name)?.label ?? String(name);
                 return [`${value}%`, label];

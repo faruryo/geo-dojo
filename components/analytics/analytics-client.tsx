@@ -5,10 +5,10 @@ import { useDashboardSummary } from '@/lib/hooks/useDashboardSummary';
 import { SummaryCards } from '@/components/dashboard/summary-cards';
 import {
   FilterBar,
-  type FilterPeriod,
   type FilterMode,
   type FilterRegion,
 } from '@/components/dashboard/filter-bar';
+import { useAnalyticsPeriod } from '@/components/analytics/use-analytics-period';
 import { AccuracyChart } from '@/components/dashboard/accuracy-chart';
 import { CompletionChart } from '@/components/dashboard/completion-chart';
 import { DifficultyProgress } from '@/components/dashboard/difficulty-progress';
@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export function AnalyticsClient() {
   const { data: summary, isLoading } = useDashboardSummary();
 
-  const [period, setPeriod] = useState<FilterPeriod>('7d');
+  const [period, changePeriod] = useAnalyticsPeriod();
   const [mode, setMode] = useState<FilterMode>('all');
   const [region, setRegion] = useState<FilterRegion>('全国');
 
@@ -62,7 +62,7 @@ export function AnalyticsClient() {
 
           <FilterBar
             period={period}
-            onPeriodChange={setPeriod}
+            onPeriodChange={changePeriod}
             mode={mode}
             onModeChange={setMode}
             region={region}
@@ -73,7 +73,7 @@ export function AnalyticsClient() {
             mode={mode}
             region={region}
             period={period}
-            onPeriodChange={setPeriod}
+            onPeriodChange={changePeriod}
             showPeriodTabs={false}
           />
 
