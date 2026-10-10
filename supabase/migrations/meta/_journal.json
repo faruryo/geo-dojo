@@ -26,12 +26,26 @@
     {
       "idx": 3,
       "version": "7",
+      "when": 1783613312000,
+      "tag": "0003_cleanup_same_name_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
       "when": 1784268703288,
       "tag": "0003_lowly_lady_vermin",
       "breakpoints": true
     },
     {
-      "idx": 4,
+      "idx": 5,
+      "version": "7",
+      "when": 1786788547000,
+      "tag": "0004_add_answer_time_ms",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
       "version": "7",
       "when": 1787510507089,
       "tag": "0005_add_cleared_lookup_idx",
