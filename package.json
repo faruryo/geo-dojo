@@ -13,6 +13,7 @@
     "audit:dead-code": "knip --config knip.json --reporter json --no-exit-code",
     "type-check": "tsc --noEmit",
     "drizzle-kit": "drizzle-kit",
+    "db:bootstrap": "drizzle-kit migrate && tsx scripts/sync-municipality-master.ts --keep-seed-names && tsx scripts/import-municipality-kana.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
