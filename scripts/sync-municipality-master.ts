@@ -144,6 +144,24 @@ async function fetchPopulationChunk(codes: string[]): Promise<Map<string, number
   return out;
 }
 
+const SEED_PATH = path.join(process.cwd(), 'public', 'municipalities.json');
+
+// Fetch proper names from e-Stat (fixes 政令市 ward names: "仙台市" → "仙台市青葉区" etc.)
+// and patch municipalities.json in-place so the static file stays consistent with the DB.
+async function patchSeedNames(rawSeeds: Seed[]) {
+  console.log('[sync] fetching municipality names from e-Stat MetaInfo...');
+  const nameMap = await fetchMunicipalityNameMap();
+  const patchCount = rawSeeds.reduce((n, s) => {
+    const proper = nameMap.get(s.code);
+    if (proper && proper !== s.name) { s.name = proper; return n + 1; }
+    return n;
+  }, 0);
+  if (patchCount > 0) {
+    fs.writeFileSync(SEED_PATH, JSON.stringify(rawSeeds));
+    console.log(`[sync] patched ${patchCount} municipality names in municipalities.json`);
+  }
+}
+
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL not set');
@@ -151,8 +169,7 @@ async function main() {
   console.log('[sync] sleeping 3s — Ctrl+C to abort');
   await new Promise((r) => setTimeout(r, 3000));
 
-  const seedPath = path.join(process.cwd(), 'public', 'municipalities.json');
-  const rawSeeds = parseSeeds(fs.readFileSync(seedPath, 'utf-8'));
+  const rawSeeds = parseSeeds(fs.readFileSync(SEED_PATH, 'utf-8'));
   // Filter out N03 GIS残骸: "所属未定地" entries with prefecture-aggregate codes (XX000).
   // These are coastal/boundary placeholders, not real municipalities.
   const seeds = rawSeeds.filter(
@@ -160,18 +177,11 @@ async function main() {
   );
   console.log(`[sync] loaded ${seeds.length} municipalities (filtered ${rawSeeds.length - seeds.length} GIS残骸)`);
 
-  // Fetch proper names from e-Stat (fixes 政令市 ward names: "仙台市" → "仙台市青葉区" etc.)
-  console.log('[sync] fetching municipality names from e-Stat MetaInfo...');
-  const nameMap = await fetchMunicipalityNameMap();
-  // Patch municipalities.json in-place so the static file stays consistent with the DB.
-  const patchCount = rawSeeds.reduce((n, s) => {
-    const proper = nameMap.get(s.code);
-    if (proper && proper !== s.name) { s.name = proper; return n + 1; }
-    return n;
-  }, 0);
-  if (patchCount > 0) {
-    fs.writeFileSync(seedPath, JSON.stringify(rawSeeds));
-    console.log(`[sync] patched ${patchCount} municipality names in municipalities.json`);
+  // --keep-seed-names: クイズは政令市を親市名で扱うため、区名への上書きをせず人口・難易度だけ更新する
+  if (process.argv.includes('--keep-seed-names')) {
+    console.log('[sync] --keep-seed-names: skipping e-Stat name patch');
+  } else {
+    await patchSeedNames(rawSeeds);
   }
 
   // Fetch populations in chunks
