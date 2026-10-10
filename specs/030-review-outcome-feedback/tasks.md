@@ -10,8 +10,8 @@
 
 **⚠️ CRITICAL**: UI 統合の前に本フェーズのテストがすべて通っていること
 
-- [x] T001 [P] `lib/quiz/srs/simulation.ts` を新設し、`MAX_SIMULATION_STEPS = 20` と `simulateStepsToGraduation(state, everWrong)` を実装（`applySm2(state, 4)` の反復 + 早期卒業判定、上限で `null`）
-- [x] T002 [P] `__tests__/lib/quiz/srs/simulation.test.ts`: 誤答歴なし rep0/rep1、誤答直後（EF 2.18 → 5回）、回答後 rep2 int6 EF 2.18（→3回）、回答後 rep3 int13 EF 2.18（→2回。spec 受入シナリオ US1-2 の「あと2回」に対応）、EF 1.3 下限、NaN で `null` のケース表。回帰テストとして、早期卒業判定を外すと赤くなることを確認する
+- [x] T001 [P] `lib/quiz/srs/simulation.ts` を新設し、`MAX_SIMULATION_STEPS = 20` と `simulateStepsToGraduation(state, everWrong)` を実装（`applySm2(state, 5)` の反復 + 早期卒業判定、上限で `null`）
+- [x] T002 [P] `__tests__/lib/quiz/srs/simulation.test.ts`: 誤答歴なし rep0/rep1、誤答直後（EF 2.18 → 3回）、回答後 rep2 int6 EF 2.18（→2回）、回答後 rep3 int13 EF 2.18（→1回。spec 受入シナリオ US1-2 の「あと1回」に対応）、EF 1.3 下限、NaN で `null` のケース表。回帰テストとして、早期卒業判定を外すと赤くなることを確認する
 - [x] T003 [P] `lib/quiz/srs/snapshot.ts` を新設し、`SrsSnapshotKey` / `SrsSnapshotRecord` / `SrsSnapshotEntry` 型、`MAX_SNAPSHOT_KEYS = 100`、`validateSrsSnapshotKeys(input)` を実装（[contracts/srs-snapshot-action.md](./contracts/srs-snapshot-action.md)）
 - [x] T004 [P] `__tests__/lib/quiz/srs/snapshot.test.ts`: 空・非配列・101件・不正モード・不正コード・重複畳み込み・100件ちょうどの境界
 - [x] T005 `lib/quiz/quiz-session-core.ts` に `QuestionSaveMeta` 型と `toQuestionSaveMeta(entries, questionIndex, persisted)` を追加

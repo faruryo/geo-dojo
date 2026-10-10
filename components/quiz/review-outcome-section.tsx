@@ -6,6 +6,7 @@ import {
   formatGraduatedNames,
   formatOutcomeLabel,
   formatRemainingSteps,
+  groupOutcomeQuestions,
   type OutcomeLabel,
   type ReviewOutcomeQuestion,
   type ReviewOutcomeRow,
@@ -94,13 +95,15 @@ function labelTone(label: OutcomeLabel): string {
 
 function OutcomeRowLine({ row }: Readonly<{ row: ReviewOutcomeRow }>) {
   return (
-    <div className="flex flex-col gap-0.5 text-xs">
-      <div className="flex flex-wrap items-baseline gap-x-2">
+    <div className="flex items-baseline justify-between gap-x-2 text-xs">
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
         <span className="text-muted-foreground">{row.prefecture}</span>
         <span className={`font-medium ${labelTone(row.label)}`}>{formatOutcomeLabel(row.label)}</span>
       </div>
       {row.remainingSteps !== undefined && (
-        <span className="text-[11px] text-muted-foreground">{formatRemainingSteps(row.remainingSteps)}</span>
+        <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+          {formatRemainingSteps(row.remainingSteps)}
+        </span>
       )}
     </div>
   );
@@ -138,11 +141,20 @@ export function ReviewOutcomeDetails({
         <span>問題ごとの結果（{questions.length}問）</span>
         <ChevronDown size={16} className="text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
-      <ul className="flex flex-col divide-y divide-foreground/10 px-3.5 pb-1">
-        {questions.map((question, i) => (
-          <OutcomeQuestionItem key={`${i}-${question.name}`} question={question} />
+      <div className="flex flex-col px-3.5 pb-1">
+        {groupOutcomeQuestions(questions).map((group) => (
+          <div key={group.heading ?? 'cutoff'}>
+            {group.heading && (
+              <p className="pt-2 text-xs font-semibold text-muted-foreground">{group.heading}</p>
+            )}
+            <ul className="flex flex-col divide-y divide-foreground/10">
+              {group.questions.map((question, i) => (
+                <OutcomeQuestionItem key={`${group.heading ?? 'cutoff'}-${i}-${question.name}`} question={question} />
+              ))}
+            </ul>
+          </div>
         ))}
-      </ul>
+      </div>
     </details>
   );
 }
