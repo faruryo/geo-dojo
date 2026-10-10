@@ -5,9 +5,8 @@ import {
   getJSTToday,
   getJSTDateRange,
   getJSTStartOfToday,
-  formatJSTDate,
-  toJSTDate,
 } from '@/lib/utils/date-jst';
+import { accuracyBucketKey, accuracyGrain, type AccuracyGrain } from '@/lib/analytics/accuracy-buckets';
 import { calculateStreak } from '@/lib/utils/streak';
 import { locationForMode } from '@/lib/quiz/location-labels';
 import { serialize } from './serialization';
@@ -254,20 +253,6 @@ export async function getDashboardSummaryData(userId: string) {
 
 type TrendPeriod = '7d' | '30d' | 'all';
 
-function formatAccuracyDateKey(date: Date, period: TrendPeriod): string {
-  if (period === 'all') {
-    const jst = toJSTDate(date);
-    const day = jst.getUTCDay(); // 0: Sun, 1: Mon, ...
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    const monday = new Date(jst.getTime() + diffToMonday * 24 * 60 * 60 * 1000);
-    const y = monday.getUTCFullYear();
-    const m = String(monday.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(monday.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
-  return formatJSTDate(date);
-}
-
 function getRepresentativeDifficulty(diffs: (string | null | undefined)[]): string {
   const order = ['easy', 'medium', 'hard', 'expert'];
   let maxIdx = -1;
@@ -304,13 +289,13 @@ interface TrendRowItem {
 
 function processModeABuffer(
   buffer: TrendRowItem[],
-  period: TrendPeriod,
+  grain: AccuracyGrain,
   onQuestion: (dateKey: string, difficulty: string, isCorrect: boolean) => void,
   repDifficultyMap?: ReadonlyMap<string, string>,
 ) {
   if (buffer.length === 0) return;
   const first = buffer[0];
-  const dateKey = formatAccuracyDateKey(first.answeredAt, period);
+  const dateKey = accuracyBucketKey(first.answeredAt, grain);
   const isCorrect = buffer.every((b) => b.isCorrect);
   const difficulty =
     repDifficultyMap?.get(first.municipalityName) ??
@@ -324,6 +309,11 @@ function buildTrendDateMap(
   repDifficultyMap?: ReadonlyMap<string, string>,
 ) {
   const dateMap = new Map<string, Map<string, { correct: number; total: number }>>();
+  const grain = accuracyGrain(
+    period,
+    rows[0]?.answeredAt ?? null,
+    rows.length > 0 ? rows[rows.length - 1].answeredAt : null,
+  );
 
   function addQuestion(dateKey: string, difficulty: string, isCorrect: boolean) {
     let diffMap = dateMap.get(dateKey);
@@ -347,18 +337,18 @@ function buildTrendDateMap(
           buffer.push(row);
           continue;
         }
-        processModeABuffer(buffer, period, addQuestion, repDifficultyMap);
+        processModeABuffer(buffer, grain, addQuestion, repDifficultyMap);
         buffer = [];
       }
       buffer.push(row);
     } else {
-      processModeABuffer(buffer, period, addQuestion, repDifficultyMap);
+      processModeABuffer(buffer, grain, addQuestion, repDifficultyMap);
       buffer = [];
-      const dateKey = formatAccuracyDateKey(row.answeredAt, period);
+      const dateKey = accuracyBucketKey(row.answeredAt, grain);
       addQuestion(dateKey, row.difficulty ?? 'easy', row.isCorrect);
     }
   }
-  processModeABuffer(buffer, period, addQuestion, repDifficultyMap);
+  processModeABuffer(buffer, grain, addQuestion, repDifficultyMap);
   return dateMap;
 }
 

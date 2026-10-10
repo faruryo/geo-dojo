@@ -1,10 +1,16 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AnalyticsClient } from '@/components/analytics/analytics-client';
+import { getBrowserUserId } from '@/lib/auth/browser-user';
+import { analyticsPeriodStorageKey } from '@/lib/analytics/period-preference';
 
 (globalThis as unknown as Record<string, boolean>).IS_REACT_ACT_ENVIRONMENT = true;
+
+vi.mock('@/lib/auth/browser-user', () => ({
+  getBrowserUserId: vi.fn(),
+}));
 
 const mockSummaryData = {
   totalQuestions: 50,
@@ -95,7 +101,7 @@ vi.mock('@/lib/hooks/useWeaknessRanking', () => ({
   },
 }));
 
-function renderFilterView() {
+async function renderFilterView() {
   weaknessCalls.length = 0;
   accuracyCalls.length = 0;
   completionCalls.length = 0;
@@ -103,7 +109,7 @@ function renderFilterView() {
   const mountPoint = document.createElement('div');
   document.body.appendChild(mountPoint);
   const r = createRoot(mountPoint);
-  act(() => {
+  await act(async () => {
     r.render(<AnalyticsClient />);
   });
   const clickButton = (text: string) => {
@@ -126,20 +132,26 @@ function renderFilterView() {
 }
 
 describe('AnalyticsClient Filter Integration', () => {
-  it('初期レンダリング時にデフォルト条件（7d, all, 全国）で各クエリが呼ばれること', () => {
-    const { unmount } = renderFilterView();
+  beforeEach(() => {
+    localStorage.clear();
+    vi.mocked(getBrowserUserId).mockReset();
+    vi.mocked(getBrowserUserId).mockResolvedValue('user-1');
+  });
+
+  it('初期レンダリング時にデフォルト条件（all, all, 全国）で各クエリが呼ばれること', async () => {
+    const { unmount } = await renderFilterView();
     try {
-      expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
-      expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
-      expect(completionCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
+      expect(weaknessCalls).toContainEqual({ period: 'all', mode: 'all', region: '全国' });
+      expect(accuracyCalls).toContainEqual({ period: 'all', mode: 'all', region: '全国' });
+      expect(completionCalls).toContainEqual({ period: 'all', mode: 'all', region: '全国' });
       expect(progressCalls).toContainEqual({ mode: 'all', region: '全国' });
     } finally {
       unmount();
     }
   });
 
-  it('期間タブをクリックしたとき、クエリが新しい期間（30d）で呼ばれること', () => {
-    const { clickButton, unmount } = renderFilterView();
+  it('期間タブをクリックしたとき、クエリが新しい期間（30d）で呼ばれること', async () => {
+    const { clickButton, unmount } = await renderFilterView();
     try {
       clickButton('30日');
       expect(weaknessCalls).toContainEqual({ period: '30d', mode: 'all', region: '全国' });
@@ -150,27 +162,83 @@ describe('AnalyticsClient Filter Integration', () => {
     }
   });
 
-  it('モードタブをクリックしたとき、024命名規則（県当て(A)）でクエリが連動すること', () => {
-    const { clickButton, unmount } = renderFilterView();
+  it('モードタブをクリックしたとき、024命名規則（県当て(A)）でクエリが連動すること', async () => {
+    const { clickButton, unmount } = await renderFilterView();
     try {
       clickButton('県当て(A)');
-      expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'A', region: '全国' });
-      expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'A', region: '全国' });
-      expect(completionCalls).toContainEqual({ period: '7d', mode: 'A', region: '全国' });
+      expect(weaknessCalls).toContainEqual({ period: 'all', mode: 'A', region: '全国' });
+      expect(accuracyCalls).toContainEqual({ period: 'all', mode: 'A', region: '全国' });
+      expect(completionCalls).toContainEqual({ period: 'all', mode: 'A', region: '全国' });
       expect(progressCalls).toContainEqual({ mode: 'A', region: '全国' });
     } finally {
       unmount();
     }
   });
 
-  it('地方タブをクリックしたとき、選択地方（東北）でクエリが連動すること', () => {
-    const { clickButton, unmount } = renderFilterView();
+  it('地方タブをクリックしたとき、選択地方（東北）でクエリが連動すること', async () => {
+    const { clickButton, unmount } = await renderFilterView();
     try {
       clickButton('東北');
-      expect(weaknessCalls).toContainEqual({ period: '7d', mode: 'all', region: '東北' });
-      expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'all', region: '東北' });
-      expect(completionCalls).toContainEqual({ period: '7d', mode: 'all', region: '東北' });
+      expect(weaknessCalls).toContainEqual({ period: 'all', mode: 'all', region: '東北' });
+      expect(accuracyCalls).toContainEqual({ period: 'all', mode: 'all', region: '東北' });
+      expect(completionCalls).toContainEqual({ period: 'all', mode: 'all', region: '東北' });
       expect(progressCalls).toContainEqual({ mode: 'all', region: '東北' });
+    } finally {
+      unmount();
+    }
+  });
+
+  it('同じ学習者の保存期間だけを復元する', async () => {
+    localStorage.setItem(analyticsPeriodStorageKey('user-1'), '30d');
+    localStorage.setItem(analyticsPeriodStorageKey('user-2'), '7d');
+    const { unmount } = await renderFilterView();
+    try {
+      expect(accuracyCalls).toContainEqual({ period: '30d', mode: 'all', region: '全国' });
+      expect(accuracyCalls).not.toContainEqual({ period: '7d', mode: 'all', region: '全国' });
+    } finally {
+      unmount();
+    }
+  });
+
+  it('期間を変えたあと、遅れて届いた保存値では上書きしない', async () => {
+    const resolvers: Array<(id: string | null) => void> = [];
+    vi.mocked(getBrowserUserId).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    localStorage.setItem(analyticsPeriodStorageKey('user-1'), '30d');
+    const { clickButton, unmount } = await renderFilterView();
+    try {
+      clickButton('7日');
+      await act(async () => {
+        resolvers[0]('user-1');
+      });
+      expect(accuracyCalls).not.toContainEqual({ period: '30d', mode: 'all', region: '全国' });
+      expect(accuracyCalls).toContainEqual({ period: '7d', mode: 'all', region: '全国' });
+    } finally {
+      unmount();
+    }
+  });
+
+  it('後から選んだ期間が、先の保存完了で上書きされない', async () => {
+    const resolvers: Array<(id: string | null) => void> = [];
+    vi.mocked(getBrowserUserId).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    const { clickButton, unmount } = await renderFilterView();
+    try {
+      clickButton('30日');
+      clickButton('7日');
+      await act(async () => {
+        resolvers[2]('user-1');
+        resolvers[1]('user-1');
+      });
+      expect(localStorage.getItem(analyticsPeriodStorageKey('user-1'))).toBe('7d');
     } finally {
       unmount();
     }
