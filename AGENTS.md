@@ -74,9 +74,12 @@ pnpm audit:dead-code  # Knip未使用候補レポート（report-only）
 | 環境 | データ層 | 設定 |
 |------|---------|------|
 | **Local** | Supabase ローカルスタック（Docker） | `.env.local`（localhost 向け） |
-| **Preview / Production** | 共有の本番 Supabase プロジェクト | Vercel env スコープ |
+| **Preview** | プレビュー用 Supabase プロジェクト（`geo-dojo-preview`） | Vercel env の Preview スコープ |
+| **Production** | 本番 Supabase プロジェクト（`geo-dojo`） | Vercel env の Production スコープ |
 
-- 本番接続情報は `.env.prod.local`（gitignore 済・Next.js 非読込）にバックアップ。本番に繋ぐ時は `cp .env.prod.local .env.local`。
+- 本番接続情報は `.env.prod.local`、プレビューは `.env.preview.local`（どちらも gitignore 済・Next.js 非読込）にバックアップ。繋ぐ時は `cp .env.prod.local .env.local` のように差し替える。
+- Vercel の `NEXT_PUBLIC_*` は Config 型でしか保存できず、割り当て環境の変更もできない。環境ごとに別エントリで持つ。CLI で Preview 全ブランチに追加する時は第3引数に `""` が要る（`vercel env add NAME preview "" --value ...`）。
+- Supabase Free プランはプロジェクトが7日間非アクティブだと一時停止する。Preview が DB 接続エラーになったら Dashboard で再開する。
 - 外部 API キー（Google Maps / Gemini / e-Stat）は全環境共通の値を使用。Maps キーは本番デプロイ前に client/server 分離＋制限が必要（`specs/.../tasks.md` T079）。
 
 ### ローカルスタックの起動・ログイン
@@ -113,7 +116,7 @@ supabase db reset           # マイグレーションをゼロから再適用�
 ### データ投入スクリプト（`scripts/`、`pnpm tsx scripts/<name>.ts`）
 
 - `sync-municipality-master.ts` — `public/municipalities.json` を元に e-Stat 国勢調査2020から人口を取得し `municipality_master` を upsert（難易度を人口で算出）。
-  - **⚠️ 地雷**: e-Stat の正式名（政令市の区名入り、例「大阪市西区」）を取得して DB と `municipalities.json` を in-place 上書きする。しかしクイズは政令市を親市名（「大阪市」）で扱い mode B 等で `(name, prefecture)` 重複排除する設計なので、このスクリプトを素で実行すると政令市の区が個別出題されて壊れる。人口の再取得だけしたい場合は、実行後に `git checkout public/municipalities.json` で名前を戻し、DB の `name` も市レベルへ戻すこと（東京23区=131xx は独立自治体なので「区」名のままが正しい）。
+  - **⚠️ 地雷**: e-Stat の正式名（政令市の区名入り、例「大阪市西区」）を取得して DB と `municipalities.json` を in-place 上書きする。しかしクイズは政令市を親市名（「大阪市」）で扱い mode B 等で `(name, prefecture)` 重複排除する設計なので、このスクリプトを素で実行すると政令市の区が個別出題されて壊れる。人口の再取得だけしたい場合は `--keep-seed-names` を付けて実行する（名前の上書きをせず人口・難易度だけ更新）。付けずに実行してしまったら、`git checkout public/municipalities.json` で名前を戻し、DB の `name` も市レベルへ戻すこと（東京23区=131xx は独立自治体なので「区」名のままが正しい）。
 - `import-municipality-kana.ts` — `scripts/data/municipality-kana-seed.json` から `municipality_master.kana` のみを UPDATE 投入する独立スクリプト（`sync-municipality-master.ts` の地雷を避けるため分離）。
   - **本番 DB への反映手順**:
     ```bash
@@ -124,8 +127,10 @@ supabase db reset           # マイグレーションをゼロから再適用�
 - `generate-municipalities.ts` — topojson から `public/municipalities.json` を生成。
 - `diag-srs.mjs` — **本番 DB read-only 診断**（`node scripts/diag-srs.mjs`）。`srs_records` の status/due/last_reviewed_at 集計と `municipality_quiz_results` の最新書き込みを出力。保存系の本番障害調査用（上記「本番障害から得た教訓」参照）。
 
-新しいローカル環境を立ち上げたら: `supabase start` → `supabase db reset` →
-`pnpm tsx scripts/sync-municipality-master.ts` → `pnpm tsx scripts/import-municipality-kana.ts` で `municipality_master` を埋める。
+新しい DB を立ち上げたら `pnpm db:bootstrap`（`drizzle-kit migrate` → `sync-municipality-master.ts --keep-seed-names` → `import-municipality-kana.ts`）で、スキーマと `municipality_master` を一度に揃える。接続先は `DATABASE_URL` で決まる（`.env.local` より環境変数が優先）。
+- ローカル: `supabase start` 後に `pnpm db:bootstrap`（`supabase db reset` は SQL をファイル名順に当てるので、journal 漏れに気付けない）。
+- プレビュー等のリモート: `set -a && . ./.env.preview.local && set +a && DATABASE_URL="${DATABASE_URL/:6543/:5432}" pnpm db:bootstrap`（migration は 5432 のセッションプーラー推奨）。
+- `supabase/migrations/` に SQL を手で足したら `meta/_journal.json` にも載せる。`drizzle-kit migrate` は journal に載ったものしか当てない。`when` は前後の migration の間の値にする。drizzle は DB に記録された最後の `when` より大きいものだけを当てるので、既存 DB では飛ばされ、新規 DB では順に当たる。回帰テスト: `__tests__/server/migration-journal.test.ts`。
 
 ## 注意点
 
@@ -148,7 +153,8 @@ supabase db reset           # マイグレーションをゼロから再適用�
 - **本番調査は Vercel ログと本番 DB の直読みが速い**（drizzle-kit の spinner がエラー本体を消すのと同様、原因はログ/状態で確認するのが確実）。
   - 本番ログ: `vercel logs <prod-deployment-url> --json`（`level:"error"` を探す）。
   - 本番 DB read-only 集計: `node scripts/diag-srs.mjs`（`.env.prod.local` を読む）。SRS の `due_date` / `last_reviewed_at` / quiz_results の最新 `answered_at` を出す。**本番DB直クエリは安全機構がブロックするのでユーザーに `!node scripts/diag-srs.mjs` の実行を依頼する。**
-- **Preview デプロイは本番 DB を共有**するので、DB 書き込みを伴う修正はマージ前に PR の Preview URL でプレイ→`diag-srs.mjs` で確認できる（マージ＝本番反映の前に end-to-end 検証）。
+- **Preview デプロイはプレビュー DB に繋がる**ので、DB 書き込みを伴う修正はマージ前に PR の Preview URL でプレイして、プレビュー DB を `.env.preview.local` の `DATABASE_URL` で直読みして確認できる（本番データを汚さずに end-to-end 検証）。
+  - 本番 CI（`migrate.yml`）は本番 DB にしか migration を当てない。migration を含む PR は、Preview を試す前に `.env.preview.local` を読み込んで `DATABASE_URL="${DATABASE_URL/:6543/:5432}" pnpm drizzle-kit migrate` でプレビュー DB にも当てる。
 
 ## Code Review Rules (for ChatGPT Codex Connector & AI Reviewers)
 
@@ -182,7 +188,7 @@ supabase db reset           # マイグレーションをゼロから再適用�
 - **Database & RLS Security**:
   - `user_id` を持つテーブルを追加・変更する場合、同一マイグレーション内で RLS 有効化と `auth.uid()` スコープのポリシーが設定されているか（未設定は BLOCKER）。アプリの Drizzle 接続は RLS を迂回するため、アプリ動作だけでは安全性を確認できない。
   - server コードで `public/` 配下を実行時 `fs` 読みしていないか（DB またはビルド時 import を正とする。違反は BLOCKER）。
-  - Preview 環境は本番 Supabase を共有する。テスト/検証データを無確認で書き込む変更、ユーザー間データを混ぜるクエリ、破壊的 migration を BLOCKER とする。local stack か read-only 診断を安全経路にする。
+  - Preview 環境はプレビュー用 Supabase プロジェクトに繋がり、本番とはデータを共有しない。本番 DB へテスト/検証データを書き込む変更、ユーザー間データを混ぜるクエリ、破壊的 migration を BLOCKER とする。`supabase/migrations/` の SQL 追加で `meta/_journal.json` への追記が漏れていないかも確認する（漏れると `drizzle-kit migrate` で当たらない）。
 
 ### 3. Async, State & Error Handling Boundaries (非同期・状態・エラー設計)
 
