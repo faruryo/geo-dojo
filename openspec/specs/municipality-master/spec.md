@@ -218,7 +218,7 @@
 - **THEN** サーバーの保存検証はコードがマスタにあるかしか見ないため、拒否しない。同名の記録を作らないのは出題プール側の除外だけである
 
 ### Requirement: 東京23区の除外
-システムは、東京23区（`prefecture = '東京都'` かつ `name` が「区」で終わる行）をテキスト形式のモード（A/B/C）の出題プールから除かなければならない (SHALL)。Mode A 単独の母数と制覇判定を数える SQL（`notTokyoSpecialWardSql`）も同じ定義で除かなければならない (MUST)。Mode D のプールには残す。現状、`getMasterPoolSize('all')` と `getFilterCondSql('all')` の Mode A 部分は東京23区を除いていない。これを使うのはサマリーの `totalMunicipalities`・`coverageRate`（どの画面にも表示されない）と、画面から `'all'` で呼ばれない `getCompletionByModeData` だけで、詳細分析に表示するモード「全て」の値（全国制覇推移、難易度別進捗）は東京23区を除いている。
+システムは、東京23区（`prefecture = '東京都'` かつ `name` が「区」で終わる行）をテキスト形式のモード（A/B/C）の出題プールから除かなければならない (SHALL)。Mode A/B/C の制覇率の母数とクリア数を数える SQL も、モード「全て」の A・B・C 部分を含めて、同じ定義（`notTokyoSpecialWardSql`）で除かなければならない (MUST)。出題しない単位を母数に入れると、全問クリアしても 100% に届かなくなるためである。Mode D のプールと母数には残す。
 
 #### Scenario: 判定
 - **WHEN** 東京都の「港区」と、大阪府の区コードを持つ行を判定するとき
@@ -232,9 +232,13 @@
 - **WHEN** Mode A の制覇率の母数を数えるとき
 - **THEN** 同名と東京23区を除いた、名前の異なる自治体の数になる
 
-#### Scenario: モード「全て」の Mode A 部分
-- **WHEN** サマリーの `totalMunicipalities`・`coverageRate` の母数を `getMasterPoolSize('all')` で数えるとき
-- **THEN** 現状、Mode A 部分は同名だけを除き、東京23区の区名を含めて数える（この2つの値は表示されない）。詳細分析の全国制覇推移と難易度別進捗のモード「全て」は、Mode A 部分から東京23区を除く
+#### Scenario: Mode B/C の母数
+- **WHEN** Mode B または C の制覇率の母数を数えるとき
+- **THEN** 同名と東京23区を除いた「市名と都道府県」の組の数になる。#34 で出題から外す前に保存された東京23区の B/C の正解も、クリア数に数えない
+
+#### Scenario: モード「全て」の母数
+- **WHEN** モード「全て」の母数を数えるとき
+- **THEN** A・B・C の部分はそれぞれ同名と東京23区を除き、D の部分だけ東京23区を含める
 
 #### Scenario: Mode D
 - **WHEN** Mode D のプールと母数を数えるとき
