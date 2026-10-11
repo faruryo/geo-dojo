@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { municipalityQuizResults, municipalityMaster } from '@/lib/db/schema';
-import { eq, sql, and, lt, count } from 'drizzle-orm';
+import { eq, sql, and, lt, count, inArray } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import {
   getJSTToday,
   getJSTDateRange,
@@ -14,6 +15,7 @@ import { buildCompletionDailyTrend } from './completion-trend';
 import {
   notSameNameSql,
   notTokyoSpecialWardSql,
+  textModePoolSql,
   type QuizModeFilter,
   getMasterPoolSize,
   getClearedDistinctSql,
@@ -117,8 +119,8 @@ async function fetchCurrentSummaryCounts(userId: string) {
       .select({
         value: sql<number>`
           COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
-          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A' AND ${notSameNameSql}), 0)
-          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql}), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A' AND ${textModePoolSql}), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${textModePoolSql}), 0)
         `,
       })
       .from(municipalityQuizResults)
@@ -151,8 +153,8 @@ async function fetchPrevSummaryCounts(userId: string) {
       .select({
         value: sql<number>`
           COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
-          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A' AND ${notSameNameSql}), 0)
-          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql}), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A' AND ${textModePoolSql}), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${textModePoolSql}), 0)
         `,
       })
       .from(municipalityQuizResults)
@@ -509,7 +511,7 @@ async function fetchMasterCountsByDifficulty(useRegion: boolean, region: string)
       .select({
         difficulty: municipalityMaster.difficulty,
         cnt: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
-        cntExcluded: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture})) FILTER (WHERE ${notSameNameSql})`,
+        cntExcluded: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture})) FILTER (WHERE ${textModePoolSql})`,
       })
       .from(municipalityMaster)
       .where(and(...masterWhere))
@@ -575,12 +577,12 @@ export async function getCompletionTrendData(
     filterCond = sql`(
       ${municipalityQuizResults.mode} = 'D'
       OR (${municipalityQuizResults.mode} = 'A' AND ${notSameNameSql} AND ${notTokyoSpecialWardSql})
-      OR ((${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql})
+      OR ((${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${textModePoolSql})
     )`;
   } else if (mode === 'A') {
     filterCond = sql`${notSameNameSql} AND ${notTokyoSpecialWardSql}`;
   } else if (mode === 'B' || mode === 'C') {
-    filterCond = notSameNameSql;
+    filterCond = textModePoolSql;
   }
 
   const rows = await db
@@ -930,6 +932,44 @@ async function getModeADifficultyProgress(userId: string, region: string, useReg
   return buildProgressItems(totalMap, clearedMap);
 }
 
+const unitMaster = alias(municipalityMaster, 'unit_master');
+
+/**
+ * Mode B/C のクリア数を、組（市名と都道府県）が属する難易度ごとに数える。
+ * 政令市は区ごとに難易度が違うため、組は複数の難易度の母数に入る（出題プール・設定画面の制覇進捗と同じ）。
+ * どの区で正解しても、その組が属するすべての難易度でクリアとして数える。
+ */
+async function fetchBCClearedByUnitDifficulty(
+  userId: string,
+  modes: ('B' | 'C')[],
+  region: string,
+  useRegion: boolean,
+) {
+  const rows = await db
+    .select({
+      difficulty: unitMaster.difficulty,
+      clearedCount: sql<number>`COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
+    })
+    .from(municipalityQuizResults)
+    .innerJoin(municipalityMaster, eq(municipalityMaster.code, municipalityQuizResults.municipalityCode))
+    .innerJoin(
+      unitMaster,
+      and(eq(unitMaster.name, municipalityMaster.name), eq(unitMaster.prefecture, municipalityMaster.prefecture)),
+    )
+    .where(
+      and(
+        eq(municipalityQuizResults.userId, userId),
+        eq(municipalityQuizResults.isCorrect, true),
+        inArray(municipalityQuizResults.mode, modes),
+        textModePoolSql,
+        sql`${unitMaster.difficulty} IN ('easy', 'medium', 'hard', 'expert')`,
+        useRegion ? eq(unitMaster.region, region) : undefined,
+      ),
+    )
+    .groupBy(unitMaster.difficulty);
+  return new Map<string, number>(rows.map((r) => [String(r.difficulty), Number(r.clearedCount)]));
+}
+
 async function getAllModesDifficultyProgress(
   userId: string,
   region: string,
@@ -938,15 +978,15 @@ async function getAllModesDifficultyProgress(
   const regionCond = buildModeARegionCond(region, useRegion);
   const masterRegionWhere = useRegion ? eq(municipalityMaster.region, region) : undefined;
 
-  const [modeAResult, { fullMap, dedupMap }, bcdClearedRows] = await Promise.all([
+  const [modeAResult, { fullMap, dedupMap }, bcClearedMap, dClearedRows] = await Promise.all([
     fetchModeARepCounts(userId, regionCond),
     fetchMasterCountsByDifficulty(useRegion, region),
+    fetchBCClearedByUnitDifficulty(userId, ['B', 'C'], region, useRegion),
     db
       .select({
         difficulty: municipalityMaster.difficulty,
         clearedCount: sql<number>`
-          COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
-          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql}), 0)
+          COUNT(DISTINCT ${municipalityQuizResults.municipalityCode})
         `,
       })
       .from(municipalityQuizResults)
@@ -958,7 +998,7 @@ async function getAllModesDifficultyProgress(
         and(
           eq(municipalityQuizResults.userId, userId),
           eq(municipalityQuizResults.isCorrect, true),
-          sql`${municipalityQuizResults.mode} IN ('B', 'C', 'D')`,
+          eq(municipalityQuizResults.mode, 'D'),
           sql`${municipalityMaster.difficulty} IN ('easy', 'medium', 'hard', 'expert')`,
           masterRegionWhere,
         ),
@@ -972,8 +1012,8 @@ async function getAllModesDifficultyProgress(
   const modeAClearedMap = new Map<string, number>(
     Array.from(modeAResult.clearedResult).map((r) => [String(r.rep_difficulty), Number(r.cleared_cnt ?? 0)]),
   );
-  const bcdClearedMap = new Map<string, number>(
-    bcdClearedRows.map((r) => [String(r.difficulty), Number(r.clearedCount)]),
+  const dClearedMap = new Map<string, number>(
+    dClearedRows.map((r) => [String(r.difficulty), Number(r.clearedCount)]),
   );
 
   const totalMap = new Map<string, number>();
@@ -982,7 +1022,7 @@ async function getAllModesDifficultyProgress(
     const full = fullMap.get(diff) ?? { cnt: 0, cntExcluded: 0, cntDistinctExcluded: 0 };
     const dedup = dedupMap.get(diff) ?? { cnt: 0, cntExcluded: 0 };
     totalMap.set(diff, (modeATotalMap.get(diff) ?? 0) + (dedup.cntExcluded * 2) + full.cnt);
-    clearedMap.set(diff, (modeAClearedMap.get(diff) ?? 0) + (bcdClearedMap.get(diff) ?? 0));
+    clearedMap.set(diff, (modeAClearedMap.get(diff) ?? 0) + (bcClearedMap.get(diff) ?? 0) + (dClearedMap.get(diff) ?? 0));
   }
 
   return buildProgressItems(totalMap, clearedMap);
@@ -996,6 +1036,10 @@ async function getSingleModeDifficultyProgress(
 ) {
   const { diffTotals } = await fetchCompletionDenominators(mode, Boolean(useRegion), region);
   const totalMap = diffTotals;
+
+  if (mode === 'B' || mode === 'C') {
+    return buildProgressItems(totalMap, await fetchBCClearedByUnitDifficulty(userId, [mode], region, useRegion));
+  }
 
   const whereConditions = [
     sql`${municipalityMaster.difficulty} IN ('easy', 'medium', 'hard', 'expert')`,
