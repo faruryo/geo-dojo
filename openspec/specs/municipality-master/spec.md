@@ -74,7 +74,7 @@
 - **THEN** `population` と `population_year` は `NULL` になる。以前の値を残さない
 
 ### Requirement: マスタの同期（sync-municipality-master）
-システムは、`scripts/sync-municipality-master.ts` で、`public/municipalities.json` を元に `municipality_master` をコード単位で upsert しなければならない (SHALL)。再実行しても結果は変わらず、1 回の実行は取得に失敗したら DB に何も書かずに終了しなければならない (MUST)。
+システムは、`scripts/sync-municipality-master.ts` で、`public/municipalities.json` を元に `municipality_master` をコード単位で upsert しなければならない (SHALL)。再実行しても結果は変わらず、1 回の実行は人口の取得に失敗したら DB に何も書かずに終了しなければならない (MUST)。upsert はトランザクションを使わず 1 行ずつ行う。
 
 #### Scenario: 更新される列
 - **WHEN** 同期を実行したとき
@@ -85,12 +85,20 @@
 - **THEN** `kana` は upsert の更新対象に含まれず、既に入っている値は変わらない
 
 #### Scenario: 取得に失敗した
-- **WHEN** e-Stat の取得が途中で失敗したとき
-- **THEN** スクリプトはエラーで終了し、DB への書き込みを始めていない
+- **WHEN** e-Stat の人口の取得が途中で失敗したとき
+- **THEN** スクリプトはエラーで終了し、DB への書き込みを始めていない。ただし `--keep-seed-names` を付けない実行では、人口の取得より前に `public/municipalities.json` を書き換えているため、json は書き換わったまま残る
+
+#### Scenario: DB への書き込みが途中で失敗した
+- **WHEN** upsert の途中で DB エラーが起きたとき
+- **THEN** それまでに書いた行は更新されたまま残り、残りの行は更新されない（1 行ずつの upsert で、トランザクションを使わない）
 
 #### Scenario: 前提の環境変数
-- **WHEN** `DATABASE_URL` または `E_STAT_APP_ID` が無いとき
-- **THEN** スクリプトは実行を始めない
+- **WHEN** `DATABASE_URL` が無いとき
+- **THEN** スクリプトは起動直後に終了する
+
+#### Scenario: e-Stat のキーが無い
+- **WHEN** `E_STAT_APP_ID` が無いとき
+- **THEN** 起動時には検査せず、3 秒待ったあと最初の e-Stat 呼び出しでエラーになって終了する。DB にも json にも何も書かない
 
 #### Scenario: 行を消さない
 - **WHEN** 既に DB にあるコードが種データから消えていたとき
@@ -101,11 +109,11 @@
 
 #### Scenario: フラグあり
 - **WHEN** `--keep-seed-names` を付けて実行したとき
-- **THEN** `name` は種データのまま（政令市は親市名）で、人口と難易度だけが更新される。`municipalities.json` は書き換えられない
+- **THEN** e-Stat の名前は取得せず、`municipalities.json` は書き換えられない。DB の `name`、`prefecture`、`region` は種データの値（政令市は親市名）で上書きされ、人口と難易度は再計算される
 
 #### Scenario: フラグなし
 - **WHEN** フラグ無しで実行したとき
-- **THEN** 種データと DB の `name` が e-Stat の正式名に置き換わる。直すには `public/municipalities.json` を git で戻し、DB の `name` を市レベルへ戻す。ただし東京23区のコード（131xx）は区名のままが正しい
+- **THEN** 種データと DB の `name` が e-Stat の正式名に置き換わる。直すには `public/municipalities.json` を git で戻し、`--keep-seed-names` を付けて同期を再実行する。フラグ付きの同期は DB の `name` を種データの値で上書きするので、政令市は親市名に戻り、東京23区のコード（131xx）は区名のまま残る
 
 ### Requirement: かなの投入（import-municipality-kana）
 システムは、`municipality_master.kana` を `scripts/data/municipality-kana-seed.json`（コードからかなへの対応）から、`scripts/import-municipality-kana.ts` だけで投入しなければならない (SHALL)。このスクリプトは `kana` 以外の列を変更せず、行を挿入してはならない (MUST NOT)。
@@ -157,22 +165,30 @@
 - **THEN** 各行を `code`、`name`、`prefecture`、`region`、`difficulty`、`kana`、`population` を持つ市区町村に写す。`kana` と `population` が `NULL` の行は値なし（`undefined`）として扱う
 
 ### Requirement: クライアントのキャッシュ
-システムは、マスタをクライアントで TanStack Query のキー `['municipality', 'master']` に 1 時間（`staleTime` = 60 分）キャッシュしなければならない (SHALL)。マスタはバッチ再実行でしか変わらないため、ログイン状態の変化では破棄しない。
+システムは、マスタをクライアントで TanStack Query のキー `['municipality', 'master']` に 1 時間（`staleTime` = 60 分）キャッシュしなければならない (SHALL)。マスタはバッチ再実行でしか変わらないため、ログイン状態の変化では破棄しない。キャッシュはタブのメモリ上だけにあり、永続化しない。`gcTime` は指定していないので既定の 5 分が効き、マスタを使う画面がどれも開いていない状態が 5 分続くと破棄される。
 
 #### Scenario: DB 更新の反映
 - **WHEN** DB のマスタ（かな、人口など）を更新した後に画面を開いたとき
-- **THEN** キャッシュが残っているブラウザでは最長 1 時間は古い値が見える。確認するにはスーパーリロードをする
+- **THEN** 同じタブでキャッシュが残っていれば、最長 1 時間は古い値が見える。通常のリロードや新しいタブでは再取得される（スーパーリロードでなくてよい）
 
 #### Scenario: 共通のキャッシュ
-- **WHEN** 出題ページと復習ページが続けてマスタを使うとき
-- **THEN** 同じキーのキャッシュを共有し、1 時間以内は再取得しない
+- **WHEN** 出題ページと復習ページが同じタブで続けてマスタを使うとき
+- **THEN** 同じキーのキャッシュを共有し、キャッシュが破棄されていなければ 1 時間以内は再取得しない
+
+#### Scenario: キャッシュの破棄
+- **WHEN** 出題ページも復習ページも開いていない状態が 5 分を超えたあとで、どちらかを開いたとき
+- **THEN** キャッシュは破棄されており、マスタを再取得する
 
 ### Requirement: サーバー側の検証データの出どころ
 システムは、サーバー側でコードや名前の妥当性を確かめるとき、DB の `municipality_master` を情報源にしなければならない (SHALL)。実行時に `public/` の静的ファイルを `fs` で読んではならない (MUST NOT)。
 
 #### Scenario: コードの妥当性
-- **WHEN** クイズ結果の保存が、送られた自治体コードを検証するとき
-- **THEN** `municipality_master` の全コードの集合（`getValidCodes()`）に含まれるかで判定する。この集合はプロセスごとに 1 回読み込み、以後は再利用する
+- **WHEN** クイズ結果の保存（`saveMunicipalityQuizResults`）が、送られた自治体コードを検証するとき
+- **THEN** リクエストのたびに `municipality_master` を引いて判定する。Mode A は `WHERE code IN (...)`、Mode B/C/D は `WHERE code = ...` で、マスタに無いコードがあれば保存しない
+
+#### Scenario: 未使用の検証経路
+- **WHEN** `getValidCodes()`（`municipality_master` の全コードをプロセスごとに 1 回読み込んで再利用する集合）を見るとき
+- **THEN** これを使うのは単発保存の `saveMunicipalityQuizResult` だけで、クライアントから呼ばれていない。現行の保存経路の検証には使われない
 
 #### Scenario: Vercel での実行時
 - **WHEN** Vercel の serverless 関数が動くとき
@@ -180,7 +196,7 @@
 
 #### Scenario: public の種データの位置づけ
 - **WHEN** `public/municipalities.json` を使うとき
-- **THEN** 同期スクリプトの入力として、およびビルド時の取り込みとしてだけ使う
+- **THEN** 同期スクリプトの入力と、`scripts/generate-municipalities.ts` の出力としてだけ使う。`app/`、`lib/`、`components/` からは import も実行時の読み込みもしない
 
 ### Requirement: 県名と同名の自治体の除外
 システムは、名前から末尾の「市区町村」1 文字を除いたものが、都道府県名から末尾の「都道府県」1 文字を除いたものと等しい自治体（例 青森市と青森県、京都市と京都府）を「同名」と判定しなければならない (SHALL)。この判定は TypeScript（`isSameNameMunicipality`）と SQL（`notSameNameSql`）で同じ結果にならなければならない (MUST)。テキスト形式のモード（A/B/C）の出題と集計はこれらを除き、Mode D は除かない。
@@ -195,10 +211,14 @@
 
 #### Scenario: 過去の記録
 - **WHEN** 同名の自治体の Mode A/B/C の既存の回答・SRS 記録があるとき
-- **THEN** migration `0003_cleanup_same_name_history` がそれらを削除済みである
+- **THEN** migration `0003_cleanup_same_name_history` が、その時点で `municipality_master` に入っていた行と JOIN して削除済みである。`db:bootstrap` のような新しい DB では、マスタが空のうちにこの migration が当たるため何も削除しない
+
+#### Scenario: 新しい同名の記録
+- **WHEN** クライアントが同名の自治体のコードで Mode B/C の結果を保存しようとしたとき
+- **THEN** サーバーの保存検証はコードがマスタにあるかしか見ないため、拒否しない。同名の記録を作らないのは出題プール側の除外だけである
 
 ### Requirement: 東京23区の除外
-システムは、東京23区（`prefecture = '東京都'` かつ `name` が「区」で終わる行）をテキスト形式のモード（A/B/C）の出題プールから除かなければならない (SHALL)。Mode A の母数と制覇判定を数える SQL（`notTokyoSpecialWardSql`）も同じ定義で除かなければならない (MUST)。Mode D のプールには残す。
+システムは、東京23区（`prefecture = '東京都'` かつ `name` が「区」で終わる行）をテキスト形式のモード（A/B/C）の出題プールから除かなければならない (SHALL)。Mode A 単独の母数と制覇判定を数える SQL（`notTokyoSpecialWardSql`）も同じ定義で除かなければならない (MUST)。Mode D のプールには残す。現状、`getMasterPoolSize('all')` と `getFilterCondSql('all')` の Mode A 部分は東京23区を除いていない。これを使うのはサマリーの `totalMunicipalities`・`coverageRate`（どの画面にも表示されない）と、画面から `'all'` で呼ばれない `getCompletionByModeData` だけで、詳細分析に表示するモード「全て」の値（全国制覇推移、難易度別進捗）は東京23区を除いている。
 
 #### Scenario: 判定
 - **WHEN** 東京都の「港区」と、大阪府の区コードを持つ行を判定するとき
@@ -211,6 +231,10 @@
 #### Scenario: Mode A の母数
 - **WHEN** Mode A の制覇率の母数を数えるとき
 - **THEN** 同名と東京23区を除いた、名前の異なる自治体の数になる
+
+#### Scenario: モード「全て」の Mode A 部分
+- **WHEN** サマリーの `totalMunicipalities`・`coverageRate` の母数を `getMasterPoolSize('all')` で数えるとき
+- **THEN** 現状、Mode A 部分は同名だけを除き、東京23区の区名を含めて数える（この2つの値は表示されない）。詳細分析の全国制覇推移と難易度別進捗のモード「全て」は、Mode A 部分から東京23区を除く
 
 #### Scenario: Mode D
 - **WHEN** Mode D のプールと母数を数えるとき

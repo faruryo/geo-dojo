@@ -80,8 +80,16 @@
 - **WHEN** `code` クエリが無いとき
 - **THEN** 交換を行わず、同じ規則でリダイレクトする
 
+#### Scenario: 交換に失敗する
+- **WHEN** `exchangeCodeForSession` がエラーを返したとき（期限切れのコード、PKCE の verifier が別のブラウザにある場合など）
+- **THEN** エラーを確かめずに、同じ規則でリダイレクトする。セッションは作られないため、`/reset-password` では更新がエラーになり、`/` ではガードが `/login` へリダイレクトする
+
 ### Requirement: 認証必須画面のガード
-システムは、`app/(app)/` 配下のすべての画面（`/`、`/quiz/*`、`/dashboard`、`/analytics` など）を認証必須としなければならない (SHALL)。未認証のアクセスは `/login` へリダイレクトしなければならない (MUST)。ガードは `app/(app)/layout.tsx` のサーバーコンポーネントが毎リクエストで判定し、静的キャッシュしてはならない (MUST NOT)。
+システムは、`app/(app)/` 配下のすべての画面（ダッシュボードの `/`、`/quiz` 配下、`/analytics`）を認証必須としなければならない (SHALL)。未認証のアクセスは `/login` へリダイレクトしなければならない (MUST)。ガードは `app/(app)/layout.tsx` のサーバーコンポーネントが判定し、静的キャッシュしてはならない (MUST NOT)。layout はフルリクエストのたびに判定するが、クライアント側の画面遷移では再実行されない。遷移の途中でセッションが切れたときは、Server Action の `requireUserId()` が拒否する。
+
+#### Scenario: クライアント遷移中にセッションが切れる
+- **WHEN** 認証済みで画面を開いたあと、セッションが切れた状態で `app/(app)/` 内をクライアント側で遷移したとき
+- **THEN** layout は再判定されず、画面の Server Action が `Unauthorized` で失敗する
 
 #### Scenario: 未認証で認証必須画面を開く
 - **WHEN** 有効なセッションの無いリクエストが `app/(app)/` 配下の画面を要求したとき
@@ -106,12 +114,16 @@
 - **WHEN** セッションが無い、または無効なとき
 - **THEN** `getCurrentUserId()` は `null` を返し、`requireUserId()` は `Unauthorized` で例外を投げる
 
+#### Scenario: Supabase Auth がエラーを返す
+- **WHEN** Supabase Auth への問い合わせがエラーを返したとき（Auth 側の障害を含む）
+- **THEN** `getCurrentUserId()` はエラーを確かめずに `null` を返し、未認証と同じに扱う。認証必須画面は `/login` へリダイレクトされる。ブラウザ側の `getBrowserUserId()` が例外を投げるのとは扱いが異なる
+
 #### Scenario: getClaims を使わない
 - **WHEN** 認証後の SSR でユーザーを解決するとき
 - **THEN** `getClaims()` ではなく `getUser()` を使う。現行の対称鍵（HS256）構成では `getClaims()` が GoTrue のロック競合で SSR を 300 秒ハングさせた。非対称署名鍵を本番で有効にするまで戻さない
 
 ### Requirement: Server Action と prefetch の認可
-システムは、ユーザーデータを読み書きするすべての Server Action で、最初に `requireUserId()` を呼ばなければならない (SHALL)。対象のユーザー ID はセッションから決め、クライアントから引数で受け取ってはならない (MUST NOT)。SSR のプリフェッチは、未認証なら DB を読まずに空の結果を返さなければならない (MUST)。
+システムは、ユーザーデータを読み書きするすべての Server Action で、最初に `requireUserId()` を呼ばなければならない (SHALL)。対象のユーザー ID はセッションから決め、クライアントから引数で受け取ってはならない (MUST NOT)。SSR のプリフェッチは、未認証なら DB を読まずに空の結果を返さなければならない (MUST)。ダッシュボードと分析のクエリキーはユーザー ID を含まないため、SSR プリフェッチに使う QueryClient はリクエストごとに新しく作り、プロセス内で共有してはならない (MUST NOT)。
 
 #### Scenario: 未認証の Server Action
 - **WHEN** 未認証のリクエストがダッシュボード、クイズ結果保存、復習、推薦、マスタ取得の Server Action を呼んだとき
@@ -125,16 +137,20 @@
 - **WHEN** ダッシュボードや分析画面のプリフェッチが `getCurrentUserId()` で `null` を得たとき
 - **THEN** `null` を返し、クエリを発行しない
 
+#### Scenario: サーバー側の QueryClient
+- **WHEN** SSR でプリフェッチ用の QueryClient を取得するとき
+- **THEN** `getQueryClient()` はサーバーでは呼ぶたびに新しいクライアントを返す。ブラウザでだけシングルトンを使う。サーバーで共有すると、別ユーザーの dehydrate 結果が同じキーで渡ってしまう
+
 ### Requirement: ブラウザ側のユーザー ID
 システムは、ブラウザ側で現在のユーザー ID が必要なとき `lib/auth/browser-user.ts` の `getBrowserUserId()` を使わなければならない (SHALL)。ログイン状態が変わったとき、ユーザー ID とおすすめのキャッシュを破棄しなければならない (SHALL)。ダッシュボード系など、キーにユーザー ID を含まないほかのキャッシュは破棄しない（現状はアプリ内にログアウト操作がないため、同じタブで別ユーザーに切り替わる経路はない）。
 
 #### Scenario: ID の取得
-- **WHEN** `getBrowserUserId()` を呼んだとき
-- **THEN** 認証済みなら Supabase Auth に問い合わせたユーザー ID を返し、未ログインなら `null` を返す
+- **WHEN** 認証済みで `getBrowserUserId()` を呼んだとき
+- **THEN** Supabase Auth に問い合わせたユーザー ID を返す
 
-#### Scenario: 取得に失敗する
-- **WHEN** Supabase Auth への問い合わせがエラーを返したとき
-- **THEN** `null` にせず例外を投げる。呼び出し側はこれを再試行可能な失敗として扱う
+#### Scenario: 未ログインまたは取得に失敗する
+- **WHEN** セッションが無いとき、または Supabase Auth への問い合わせがエラーを返したとき
+- **THEN** `null` にせず例外を投げる。セッションが無い場合も Supabase Auth は `AuthSessionMissingError` を返すため、例外になる。`null` を返すのはエラーが無くユーザーも無い場合だけで、通常の経路では起きない。呼び出し側はこれを再試行可能な失敗として扱う
 
 #### Scenario: ログイン状態の変化
 - **WHEN** `SIGNED_IN` または `SIGNED_OUT` を受け取ったとき
@@ -142,7 +158,11 @@
 
 #### Scenario: おすすめの localStorage
 - **WHEN** おすすめの履歴や進行中セッションを localStorage に保存するとき
-- **THEN** キーにユーザー ID を含めて、ユーザーごとに分離する（詳細は `recommendation` を参照）
+- **THEN** キーにユーザー ID を含めて、ユーザーごとに分離する（`geodojo:recommendation:*:{userId}`。詳細は `recommendation` を参照）
+
+#### Scenario: ユーザー別に分けていない localStorage
+- **WHEN** おすすめ以外の状態を localStorage に保存するとき
+- **THEN** 現状、次のキーはユーザー ID を含まず、同じ端末の別アカウントと共有される: `geodojo-prefecture-weakness`、`geodojo-prefecture-best-time:*`（都道府県クイズの苦手スコアと自己ベスト）、`geo-dojo:last-selected-mode`、`geodojo_last_mode_d_scope`、`geo-dojo:se-muted`、`geodojo:milestones:dismissed`、`geodojo:recommendation:active-owner`。とくにマイルストーンを閉じた状態は別アカウントに持ち越される。これは AGENTS.md のユーザー別分離から外れた現状である
 
 ### Requirement: ユーザーデータ表の RLS
 システムは、`user_id` を持つ表（現在は `municipality_quiz_results` と `srs_records`）に、Row Level Security の有効化と `auth.uid()` に限定したポリシーを付けなければならない (SHALL)。ポリシーは `FOR ALL`、`USING (user_id = auth.uid())`、`WITH CHECK (user_id = auth.uid())` とし、RLS は Drizzle が生成しないため migration SQL に手で同梱しなければならない (MUST)。
@@ -184,3 +204,7 @@
 #### Scenario: セッション用クライアント
 - **WHEN** ブラウザ側とサーバー側（Cookie 経由）の Supabase クライアントを作るとき
 - **THEN** どちらも publishable key を使い、ユーザーの権限で動く
+
+#### Scenario: 未使用の secret key クライアント
+- **WHEN** `lib/supabase/client.ts` を見るとき
+- **THEN** `SUPABASE_SECRET_KEY` を使う `createServerClient` が定義されているが、どこからも import されていない。このファイルはブラウザからも読まれるため、このクライアントを使ってはならない。ブラウザのバンドルでは `NEXT_PUBLIC_` の無い値は埋め込まれず、未定義になる
