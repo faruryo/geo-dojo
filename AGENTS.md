@@ -1,14 +1,6 @@
-<!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
-at specs/031-analytics-all-period/plan.md
-
-Backlog（将来の spec 候補）は specs/backlog.md に管理
-<!-- SPECKIT END -->
-
 # geo-dojo
 
-日本の地理クイズ PWA。市区町村・都道府県の位置当てクイズと、苦手・適応型の出題推薦を提供する。詳細設計は `specs/<feature>/plan.md`（最新: `specs/030-review-outcome-feedback/plan.md`）を参照。
+日本の地理クイズ PWA。市区町村・都道府県の位置当てクイズと、苦手・適応型の出題推薦を提供する。現行仕様は `openspec/specs/<capability>/spec.md` が正（下記「OpenSpec Workflow」）。Backlog（将来の change 候補）は `specs/backlog.md` に管理。
 
 ## 技術スタック
 
@@ -29,7 +21,9 @@ Backlog（将来の spec 候補）は specs/backlog.md に管理
 - `public/` — `municipalities.json`（市区町村シード）、`japan-municipalities.topojson`（16MB 地図）
 - `supabase/` — `config.toml` とマイグレーション（`migrations/`）
 - `.design-sync/` — Claude Design プロジェクトへの同期設定（下記「Claude Design 同期」）
-- `design.md` — 2026-05 の初期構想文書（機能候補20案 → MVP選定）。**現行仕様の正ではない**。以後の設計は `specs/<feature>/` が正
+- `openspec/` — 現行仕様（`specs/`）と進行中の変更（`changes/`）。プロジェクト規約は `config.yaml`
+- `specs/` — Spec Kit 時代（001〜031）の feature 別仕様。**読み取り専用のアーカイブ**で、経緯の参照にのみ使う。現行仕様と食い違う場合は `openspec/specs/` が正
+- `design.md` — 2026-05 の初期構想文書（機能候補20案 → MVP選定）。**現行仕様の正ではない**
 
 ## コマンド
 
@@ -80,7 +74,7 @@ pnpm audit:dead-code  # Knip未使用候補レポート（report-only）
 - 本番接続情報は `.env.prod.local`、プレビューは `.env.preview.local`（どちらも gitignore 済・Next.js 非読込）にバックアップ。繋ぐ時は `cp .env.prod.local .env.local` のように差し替える。
 - Vercel の `NEXT_PUBLIC_*` は Config 型でしか保存できず、割り当て環境の変更もできない。環境ごとに別エントリで持つ。CLI で Preview 全ブランチに追加する時は第3引数に `""` が要る（`vercel env add NAME preview "" --value ...`）。
 - Supabase Free プランはプロジェクトが7日間非アクティブだと一時停止する。Preview が DB 接続エラーになったら Dashboard で再開する。
-- 外部 API キー（Google Maps / Gemini / e-Stat）は全環境共通の値を使用。Maps キーは本番デプロイ前に client/server 分離＋制限が必要（`specs/.../tasks.md` T079）。
+- 外部 API キー（Google Maps / Gemini / e-Stat）は全環境共通の値を使用。Maps キーは本番デプロイ前に client/server 分離＋制限が必要（`specs/001-geodojo-mvp/tasks.md` T079）。
 
 ### ローカルスタックの起動・ログイン
 
@@ -156,6 +150,18 @@ supabase db reset           # マイグレーションをゼロから再適用�
 - **Preview デプロイはプレビュー DB に繋がる**ので、DB 書き込みを伴う修正はマージ前に PR の Preview URL でプレイして、プレビュー DB を `.env.preview.local` の `DATABASE_URL` で直読みして確認できる（本番データを汚さずに end-to-end 検証）。
   - 本番 CI（`migrate.yml`）は本番 DB にしか migration を当てない。migration を含む PR は、Preview を試す前に `.env.preview.local` を読み込んで `DATABASE_URL="${DATABASE_URL/:6543/:5432}" pnpm drizzle-kit migrate` でプレビュー DB にも当てる。
 
+## OpenSpec Workflow
+
+製品・runtime の挙動を変える変更は OpenSpec を通し、`openspec/specs/` をコードと同期させる。
+
+OpenSpec CLI はプロジェクト依存に入れていない（スキルが素の `openspec` コマンドを呼ぶため）。`openspec` が見つからなければ `npm i -g @fission-ai/openspec@1.13.2` で入れる。
+
+CI、lint、開発ツール、agent 規約、文書、PR template など、製品・runtime の挙動を変えないリポジトリ保守には OpenSpec の change は要らない。保守と挙動変更が混ざる場合は、挙動変更の部分にだけ適用する。
+
+- **大きな変更**（新機能、挙動が変わるリファクタ）: `openspec-propose` スキルで change を作り、`openspec-apply-change` で実装し、マージ後に `openspec-archive-change` で `openspec/specs/` へ取り込む。
+- **小さな変更**（不具合修正、挙動の微調整）: `openspec/specs/<capability>/spec.md` を直接編集し、`openspec validate --specs` を通す。
+- 触れる capability の spec がまだ無い場合は、その変更で現行挙動の spec を起こしてから差分を書く（Spec Kit からの移行時にベースラインを作っていないため）。
+
 ## Code Review Rules (for ChatGPT Codex Connector & AI Reviewers)
 
 ### 1. Review Conduct & Anti-Fatigue Rules (レビューの進め方・小出し往復防止)
@@ -167,9 +173,10 @@ supabase db reset           # マイグレーションをゼロから再適用�
   - 単一の行や関数の局所的な指摘（Point finding）にとどめず、同一の不変条件に関わるライフサイクル全体（開始・進行・保存・完了・中断・キャッシュ破棄・テスト）を全走査し、関連箇所を1つの指摘グループ（影響箇所リスト付き）としてまとめて提示すること。
   - 例: 認証状態や非同期ガードの不備を指摘する場合、該当画面・フック内のすべての非同期フロー（autoStart, answer, complete, abort）を一度に検証して影響箇所を網羅する。
 - **Cross-artifact Impact (仕様変更時の波及先リスト同時提示)**:
-  - 仕様やデータモデル、契約の変更を指摘する場合は、影響を受ける関連ファイル（`spec.md`, `contracts/`, `data-model.md`, `tasks.md`, `queries/` 等）の該当箇所リストを初回の指摘に必ず含めること。
+  - 仕様やデータモデル、契約の変更を指摘する場合は、影響を受ける関連ファイル（`openspec/specs/`, `openspec/changes/<name>/` の proposal・design・tasks、`docs/db-schema.md`, `lib/queries/` 等）の該当箇所リストを初回の指摘に必ず含めること。
 - **Scope & Phase Discipline (PR 種別の尊重)**:
-  - `docs(spec):` や `specs/` 配下のファイルのみを変更している PR（仕様策定フェーズ）では、差分に含まれない既存コード（`app/`, `lib/` 等）への指摘を行わない。仕様ドキュメント（`spec.md`, `contracts/`, `data-model.md`, `tasks.md`）内の論理的一貫性とエッジケースのみを検証する。
+  - `docs(openspec):` や `openspec/` 配下のファイルのみを変更している PR（仕様策定フェーズ）では、差分に含まれない既存コード（`app/`, `lib/` 等）への指摘を行わない。仕様ドキュメント（proposal・design・delta spec・tasks）内の論理的一貫性とエッジケースのみを検証する。
+  - `specs/`（Spec Kit アーカイブ）が現行コードと食い違っていても指摘しない。
 - **No Mechanical Linting (CI 領域の除外)**:
   - ESLint、TypeScript strict、warning ratchet、jscpd、Knip などの CI で機械的に検知できる事項（構文、フォーマット、既存の警告在庫）は指摘しない。ドメイン不変条件と非同期・整合性バグに集中すること。
 - **Review Language (レビュー言語は日本語)**:
@@ -204,7 +211,7 @@ supabase db reset           # マイグレーションをゼロから再適用�
 - **UI・画面要件**:
   - UI 変更では 375px 幅、ダークモード、回答前後の情報開示を確認する。
 - **仕様整合性**:
-  - 製品/runtime 挙動を変える変更は該当 Spec Kit の spec/plan/tasks と整合させる。CI、lint、開発ツール、agent 規約、文書、PR template だけの変更には新規 feature spec を要求しない。
+  - 製品/runtime 挙動を変える変更は `openspec/specs/` と整合させる。CI、lint、開発ツール、agent 規約、文書、PR template だけの変更には OpenSpec の change を要求しない。
 - **テストの実行経路検証**:
   - 回帰テストが実際のプロダクションコードの実行経路（auto-start 出題関数など）を確実に通っているか。fixture が期待する誤答/正解状態を正しく模倣しているか（モックによる形骸化がないか）。
 

@@ -1,0 +1,48 @@
+schema: spec-driven
+
+# Spec Kit の constitution（.specify/memory/constitution.md v2.0.0）から、現行でも有効な原則を移したもの。
+# 技術スタック・コマンド・ドメイン不変条件の詳細は AGENTS.md（= CLAUDE.md）が正。
+context: |
+  geo-dojo は日本の地理クイズ PWA（市区町村・都道府県の位置当て、SRS 復習、適応型の出題推薦）。
+  成果物（proposal / design / spec / tasks）は日本語で書く。コード識別子・パス・コマンドは原文のまま。
+
+  技術スタック: Next.js 15.2.6+（App Router, React 19）/ TypeScript strict / Tailwind CSS v4 + shadcn/ui /
+  TanStack Query v5 / Supabase（PostgreSQL + Auth）/ Drizzle ORM / @serwist/next / pnpm。
+
+  原則:
+  - セキュリティ: サーバー専用キーに NEXT_PUBLIC_ を付けない。クライアント公開キーは referrer 制限を前提にする。
+    Next.js は CVE-2025-66478 対策で 15.2.6 以上を維持する。
+  - user_id を持つ表は、同じ migration で RLS 有効化と auth.uid() スコープのポリシーを入れる。
+  - server コードで public/ を実行時に fs 読みしない（Vercel では ENOENT になる）。参照データは DB かビルド時 import から取る。
+  - データフロー: Read は TanStack Query、UI 起点の Write は Server Actions。Route Handlers は webhook・ストリーミング・
+    公開エンドポイント・バックグラウンド処理に限る。
+  - PWA は @serwist/next を使う。地図は TopoJSON を非同期 fetch し、16MB の市区町村 topojson を precache に戻さない。
+  - srs_records の (user_id, due_date) 複合インデックスを維持する。
+  - UI はモバイルファースト（375px 基準）、ダークモード（#111111）をデフォルトにする。
+  - Drizzle の lib/db/schema.ts をテーブル定義の正とする（RLS など drizzle 管理外の SQL だけ migration に手で追記する）。
+  - グローバルストアを避け、URL ステートか TanStack Query のキャッシュを使う。
+
+  ドメイン不変条件（Mode A の同名市は1問表示・県別保存、東京23区の母数除外、Mode D はコード単位など）は
+  AGENTS.md の「Code Review Rules > High-Priority Domain Invariants」を参照し、spec に書くときはそれと矛盾させない。
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
