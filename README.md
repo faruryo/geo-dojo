@@ -18,6 +18,7 @@
 - Node.js 24 LTS / pnpm
 - Docker Desktop（Supabase ローカルスタックに必須）
 - Supabase CLI
+- OpenSpec CLI 1.13.2（仕様管理。`npm i -g @fission-ai/openspec@1.13.2`、Volta なら `volta install @fission-ai/openspec@1.13.2`）
 
 ### 起動手順
 

@@ -154,6 +154,8 @@ supabase db reset           # マイグレーションをゼロから再適用�
 
 製品・runtime の挙動を変える変更は OpenSpec を通し、`openspec/specs/` をコードと同期させる。
 
+OpenSpec CLI はプロジェクト依存に入れていない（スキルが素の `openspec` コマンドを呼ぶため）。`openspec` が見つからなければ `npm i -g @fission-ai/openspec@1.13.2` で入れる。
+
 CI、lint、開発ツール、agent 規約、文書、PR template など、製品・runtime の挙動を変えないリポジトリ保守には OpenSpec の change は要らない。保守と挙動変更が混ざる場合は、挙動変更の部分にだけ適用する。
 
 - **大きな変更**（新機能、挙動が変わるリファクタ）: `openspec-propose` スキルで change を作り、`openspec-apply-change` で実装し、マージ後に `openspec-archive-change` で `openspec/specs/` へ取り込む。
