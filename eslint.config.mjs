@@ -45,7 +45,6 @@ export default [
       '.agents/**',
       '.claude/**',
       '.codex/**',
-      '.specify/**',
       '.design-sync/**',
       '.ds-sync/**',
       'ds-bundle/**',

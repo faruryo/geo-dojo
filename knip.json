@@ -14,7 +14,6 @@
     "!.next/**",
     "!public/**",
     "!reports/**",
-    "!.agents/**",
-    "!.specify/**"
+    "!.agents/**"
   ]
 }

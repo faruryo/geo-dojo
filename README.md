@@ -3,7 +3,7 @@
 記憶科学（間隔反復 SRS・アクティブリコール）に基づく日本地理クイズ学習アプリ。
 
 技術スタック: Next.js 15 (App Router, React 19) / Drizzle ORM / Supabase (PostgreSQL) / TanStack Query / Tailwind v4 + shadcn/ui / PWA。
-詳細は [`.specify/memory/constitution.md`](./.specify/memory/constitution.md) と各 `specs/*/plan.md` を参照。
+現行仕様は [`openspec/specs/`](./openspec/specs/)、プロジェクト規約は [`openspec/config.yaml`](./openspec/config.yaml) を参照。Spec Kit 時代の feature 別仕様は [`specs/`](./specs/) にアーカイブとして残している。
 
 ---
 
