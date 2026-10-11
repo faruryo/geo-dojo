@@ -14,6 +14,7 @@ import { buildCompletionDailyTrend } from './completion-trend';
 import {
   notSameNameSql,
   notTokyoSpecialWardSql,
+  textModePoolSql,
   type QuizModeFilter,
   getMasterPoolSize,
   getClearedDistinctSql,
@@ -117,8 +118,8 @@ async function fetchCurrentSummaryCounts(userId: string) {
       .select({
         value: sql<number>`
           COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
-          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A' AND ${notSameNameSql}), 0)
-          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql}), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A' AND ${textModePoolSql}), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${textModePoolSql}), 0)
         `,
       })
       .from(municipalityQuizResults)
@@ -151,8 +152,8 @@ async function fetchPrevSummaryCounts(userId: string) {
       .select({
         value: sql<number>`
           COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
-          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A' AND ${notSameNameSql}), 0)
-          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql}), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName})) FILTER (WHERE ${municipalityQuizResults.mode} = 'A' AND ${textModePoolSql}), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${textModePoolSql}), 0)
         `,
       })
       .from(municipalityQuizResults)
@@ -509,7 +510,7 @@ async function fetchMasterCountsByDifficulty(useRegion: boolean, region: string)
       .select({
         difficulty: municipalityMaster.difficulty,
         cnt: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
-        cntExcluded: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture})) FILTER (WHERE ${notSameNameSql})`,
+        cntExcluded: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture})) FILTER (WHERE ${textModePoolSql})`,
       })
       .from(municipalityMaster)
       .where(and(...masterWhere))
@@ -575,12 +576,12 @@ export async function getCompletionTrendData(
     filterCond = sql`(
       ${municipalityQuizResults.mode} = 'D'
       OR (${municipalityQuizResults.mode} = 'A' AND ${notSameNameSql} AND ${notTokyoSpecialWardSql})
-      OR ((${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql})
+      OR ((${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${textModePoolSql})
     )`;
   } else if (mode === 'A') {
     filterCond = sql`${notSameNameSql} AND ${notTokyoSpecialWardSql}`;
   } else if (mode === 'B' || mode === 'C') {
-    filterCond = notSameNameSql;
+    filterCond = textModePoolSql;
   }
 
   const rows = await db
@@ -946,7 +947,7 @@ async function getAllModesDifficultyProgress(
         difficulty: municipalityMaster.difficulty,
         clearedCount: sql<number>`
           COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityCode})) FILTER (WHERE ${municipalityQuizResults.mode} = 'D'), 0)
-          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${notSameNameSql}), 0)
+          + COALESCE(COUNT(DISTINCT (${municipalityQuizResults.mode} || ':' || ${municipalityQuizResults.municipalityName} || '::' || ${municipalityQuizResults.prefecture})) FILTER (WHERE (${municipalityQuizResults.mode} = 'B' OR ${municipalityQuizResults.mode} = 'C') AND ${textModePoolSql}), 0)
         `,
       })
       .from(municipalityQuizResults)

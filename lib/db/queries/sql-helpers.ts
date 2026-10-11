@@ -6,8 +6,11 @@ export type QuizModeFilter = 'all' | 'A' | 'B' | 'C' | 'D';
 
 export const notSameNameSql = sql`NOT (REGEXP_REPLACE(${municipalityMaster.name}, '[市区町村]$', '') = REGEXP_REPLACE(${municipalityMaster.prefecture}, '[都道府県]$', ''))`;
 
-/** Mode A 出題から除外する東京23区（filterTextModeMunicipalities と揃える） */
+/** テキスト形式モード（A/B/C）の出題から除外する東京23区（filterTextModeMunicipalities と揃える） */
 export const notTokyoSpecialWardSql = sql`NOT (${municipalityMaster.prefecture} = '東京都' AND ${municipalityMaster.name} LIKE '%区')`;
+
+/** Mode A/B/C の出題プール・母数・クリア判定の条件（同名と東京23区を除く） */
+export const textModePoolSql = sql`(${notSameNameSql} AND ${notTokyoSpecialWardSql})`;
 
 export async function getMasterPoolSize(
   mode: QuizModeFilter,
@@ -23,7 +26,7 @@ export async function getMasterPoolSize(
         value: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
       })
       .from(municipalityMaster)
-      .where(and(regionCond, notSameNameSql));
+      .where(and(regionCond, textModePoolSql));
     return Number(row.value);
   }
 
@@ -33,7 +36,7 @@ export async function getMasterPoolSize(
         value: sql<number>`COUNT(DISTINCT ${municipalityMaster.name})`,
       })
       .from(municipalityMaster)
-      .where(and(regionCond, notSameNameSql, notTokyoSpecialWardSql));
+      .where(and(regionCond, textModePoolSql));
     return Number(row.value);
   }
 
@@ -51,14 +54,14 @@ export async function getMasterPoolSize(
         value: sql<number>`COUNT(DISTINCT ${municipalityMaster.name})`,
       })
       .from(municipalityMaster)
-      .where(and(regionCond, notSameNameSql));
+      .where(and(regionCond, textModePoolSql));
     
     const [rowBC] = await db
       .select({
         value: sql<number>`COUNT(DISTINCT (${municipalityMaster.name} || '::' || ${municipalityMaster.prefecture}))`,
       })
       .from(municipalityMaster)
-      .where(and(regionCond, notSameNameSql));
+      .where(and(regionCond, textModePoolSql));
     
     const [rowD] = await db
       .select({ value: count() })
@@ -90,13 +93,10 @@ export function getClearedDistinctSql(mode: QuizModeFilter) {
 
 export function getFilterCondSql(mode: QuizModeFilter) {
   if (mode === 'all') {
-    return sql`(${municipalityQuizResults.mode} = 'D' OR ${notSameNameSql})`;
+    return sql`(${municipalityQuizResults.mode} = 'D' OR ${textModePoolSql})`;
   }
   if (mode === 'A' || mode === 'B' || mode === 'C') {
-    if (mode === 'A') {
-      return sql`(${notSameNameSql} AND ${notTokyoSpecialWardSql})`;
-    }
-    return notSameNameSql;
+    return textModePoolSql;
   }
   return undefined;
 }
