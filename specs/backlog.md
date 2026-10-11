@@ -146,6 +146,10 @@
   - 該当ファイル: `components/recommend/recommend-override.tsx`, `components/recommend/recommend-content.tsx`, `lib/quiz/recommendation/overrides.ts`
   - 修正: マウント時の localStorage 復元を廃止し、未操作時は推薦エンジンの最新選定を使う。推薦セッションキーが変わったらオーバーライドを捨てる。
 
+- [x] B034 【UX/学習分析】詳細分析の正答率推移グラフ・期間フィルターのデフォルトを「全期間」に変更し、長期集約に対応する → **#123 (#124) で実装完了**
+  - 概要: 詳細分析画面（`/analytics`）における期間フィルターの初期選択を「7日」から「全期間」に変更し、データが少ない状態でもこれまでの学習推移を見やすくする。あわせて、長期利用時（1〜3年後など）にグラフが密集して見づらくなる問題の対策（1年超での月別集約・X軸ラベル短縮など）を行う。
+  - 該当ファイル: `components/analytics/analytics-client.tsx`, `lib/analytics/prefetch.ts`, `components/dashboard/accuracy-chart.tsx`, `lib/db/queries/dashboard.ts`, `__tests__/components/analytics/analytics-filter.test.tsx`
+
 
 
 - [x] B014 (022) 市区町村クイズの未制覇（未クリア）優先出題と進捗可視化 → **022-uncompleted-priority-quiz (#63, #64) で実装完了**
