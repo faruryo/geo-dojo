@@ -15,7 +15,7 @@
 
 ### 前提
 
-- Node.js 24 LTS / pnpm
+- Node.js 24 LTS（v24.22.1 以上推奨、2026-10 セキュリティ修正適用済 / `.node-version`・`package.json` の volta 指定あり）/ pnpm
 - Docker Desktop（Supabase ローカルスタックに必須）
 - Supabase CLI
 - OpenSpec CLI 1.13.2（仕様管理。`npm i -g @fission-ai/openspec@1.13.2`、Volta なら `volta install @fission-ai/openspec@1.13.2`）
