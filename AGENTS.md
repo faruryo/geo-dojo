@@ -9,7 +9,7 @@
 - **TanStack Query v5**（Read）/ **Server Actions**（Write）
 - **Supabase**（PostgreSQL + Auth）。DB アクセスは **Drizzle ORM**（`postgres-js`, `prepare: false`）
 - **PWA**: `@serwist/next`（dev では無効化、`next.config.ts` 参照）
-- パッケージマネージャ **pnpm**（Node 25 / pnpm 10）
+- パッケージマネージャ **pnpm**（Node 24 LTS / pnpm 10）
 
 ## ディレクトリ
 

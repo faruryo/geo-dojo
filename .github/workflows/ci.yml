@@ -22,7 +22,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: '.node-version'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Lint
@@ -42,7 +42,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: '.node-version'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
@@ -74,7 +74,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: '.node-version'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Bootstrap Supabase-compatible roles/functions
